@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "./icon";
-import { ICON_ALLOWLIST } from "@/lib/constants";
+import { ICON_OPTIONS } from "@/lib/constants";
 
 export function ChargeTypeFields({
   calculation = "MONTHLY",
@@ -47,7 +47,9 @@ export function ChargeTypeFields({
             value={selectedIcon}
             onChange={(event) => setSelectedIcon(event.target.value)}
           >
-            {ICON_ALLOWLIST.map((icon) => <option value={icon} key={icon}>{icon}</option>)}
+            {ICON_OPTIONS.map((icon) => (
+              <option value={icon.value} key={icon.value}>{icon.label} · {icon.value}</option>
+            ))}
           </select>
         </label>
         <label>

@@ -166,7 +166,7 @@ export async function createChargeTypeAction(formData: FormData): Promise<Mutati
   const calculation = str(formData, "calculation") === "MONTHLY" ? "MONTHLY" : "OCCURRENCE";
   const iconName = str(formData, "iconName");
   const color = str(formData, "color") || "#ef7198";
-  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName as never) || !/^#[0-9a-f]{6}$/i.test(color)) {
+  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName) || !/^#[0-9a-f]{6}$/i.test(color)) {
     return { ok: false, message: "Thông tin loại thu không hợp lệ." };
   }
 
@@ -213,7 +213,7 @@ export async function updateChargeTypeAction(formData: FormData): Promise<Mutati
   const calculation = str(formData, "calculation") === "MONTHLY" ? "MONTHLY" : "OCCURRENCE";
   const iconName = str(formData, "iconName");
   const color = str(formData, "color") || "#ef7198";
-  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName as never) || !/^#[0-9a-f]{6}$/i.test(color)) {
+  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName) || !/^#[0-9a-f]{6}$/i.test(color)) {
     return { ok: false, message: "Thông tin loại thu không hợp lệ." };
   }
 
