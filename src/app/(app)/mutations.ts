@@ -165,23 +165,91 @@ export async function createChargeTypeAction(formData: FormData): Promise<Mutati
   const defaultAmount = amount(formData);
   const calculation = str(formData, "calculation") === "MONTHLY" ? "MONTHLY" : "OCCURRENCE";
   const iconName = str(formData, "iconName");
-  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName as never)) {
+  const color = str(formData, "color") || "#ef7198";
+  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName as never) || !/^#[0-9a-f]{6}$/i.test(color)) {
     return { ok: false, message: "Thông tin loại thu không hợp lệ." };
   }
 
-  await db.transaction(async (tx) => {
-    const [record] = await tx.insert(chargeTypes).values({
-      clubId: actor.clubId, name, defaultAmount, calculation, iconName,
-      color: str(formData, "color") || "#2e7d58",
-    }).returning();
-    await track(tx, {
-      clubId: actor.clubId, entityType: "charge_type", entityId: record.id,
-      action: "CREATE", actorId: actor.id, afterData: record, message: `Tạo loại thu ${name}`,
+  try {
+    await db.transaction(async (tx) => {
+      const [record] = await tx.insert(chargeTypes).values({
+        clubId: actor.clubId,
+        name,
+        defaultAmount,
+        calculation,
+        iconName,
+        color,
+        reportAsIcon: formData.get("reportAsIcon") === "on",
+      }).returning();
+      await track(tx, {
+        clubId: actor.clubId, entityType: "charge_type", entityId: record.id,
+        action: "CREATE", actorId: actor.id, afterData: record, message: `Tạo loại thu ${name}`,
+      });
     });
-  });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Tên loại thu đã tồn tại."
+        : "Không thể tạo loại thu.",
+    };
+  }
   revalidatePath("/settings");
   revalidatePath("/charges");
+  revalidatePath("/matches");
+  revalidatePath("/reports");
   return { ok: true, message: "Đã tạo loại thu." };
+}
+
+export async function updateChargeTypeAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.SETTINGS_MANAGE);
+  const id = str(formData, "id");
+  const [before] = await db.select().from(chargeTypes)
+    .where(and(eq(chargeTypes.id, id), eq(chargeTypes.clubId, actor.clubId))).limit(1);
+  if (!before) return { ok: false, message: "Không tìm thấy loại thu." };
+
+  const name = str(formData, "name");
+  const defaultAmount = amount(formData);
+  const calculation = str(formData, "calculation") === "MONTHLY" ? "MONTHLY" : "OCCURRENCE";
+  const iconName = str(formData, "iconName");
+  const color = str(formData, "color") || "#ef7198";
+  if (!name || defaultAmount < 0 || !ICON_ALLOWLIST.includes(iconName as never) || !/^#[0-9a-f]{6}$/i.test(color)) {
+    return { ok: false, message: "Thông tin loại thu không hợp lệ." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      const [after] = await tx.update(chargeTypes).set({
+        name,
+        defaultAmount,
+        calculation,
+        iconName,
+        color,
+        reportAsIcon: formData.get("reportAsIcon") === "on",
+        isActive: formData.get("isActive") === "on",
+        updatedAt: new Date(),
+      }).where(eq(chargeTypes.id, id)).returning();
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "charge_type",
+        entityId: id,
+        action: "UPDATE",
+        actorId: actor.id,
+        beforeData: before,
+        afterData: after,
+        message: `Cập nhật loại thu ${name}; đơn giá mới chỉ áp dụng cho phát sinh tương lai`,
+      });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Tên loại thu đã tồn tại."
+        : "Không thể cập nhật loại thu.",
+    };
+  }
+  revalidatePath("/settings"); revalidatePath("/charges"); revalidatePath("/matches"); revalidatePath("/reports");
+  return { ok: true, message: "Đã cập nhật loại thu. Đơn giá mới áp dụng cho phát sinh tương lai." };
 }
 
 export async function createAssignmentAction(formData: FormData): Promise<MutationResult> {
@@ -367,26 +435,42 @@ export async function softDeleteFinancialAction(formData: FormData): Promise<voi
 export async function createMatchAction(formData: FormData): Promise<MutationResult> {
   const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
   const playedOn = str(formData, "playedOn") || todayInTimezone();
-  const participantIds = formData.getAll("participants").map(String);
-  const chargeSelections = formData.getAll("matchCharges").map(String);
+  const participantIds = [...new Set(formData.getAll("participants").map(String))];
+  const chargeSelections = [...new Set(formData.getAll("matchCharges").map(String))];
+  const parsedSelections = chargeSelections
+    .map((selection) => selection.split("|"))
+    .filter((selection): selection is [string, string] => selection.length === 2);
+  if (parsedSelections.length !== chargeSelections.length) {
+    return { ok: false, message: "Danh sách khoản thu theo trận không hợp lệ." };
+  }
+
+  const involved = new Set([...participantIds, ...parsedSelections.map(([memberId]) => memberId)]);
+  const typeIds = [...new Set(parsedSelections.map(([, typeId]) => typeId))];
+  const validMembers = involved.size ? await db.select({ id: members.id }).from(members)
+    .where(and(eq(members.clubId, actor.clubId), inArray(members.id, [...involved]))) : [];
+  const validTypes = typeIds.length ? await db.select().from(chargeTypes)
+    .where(and(
+      eq(chargeTypes.clubId, actor.clubId),
+      eq(chargeTypes.calculation, "OCCURRENCE"),
+      eq(chargeTypes.isActive, true),
+      inArray(chargeTypes.id, typeIds),
+    )) : [];
+  if (validMembers.length !== involved.size || validTypes.length !== typeIds.length) {
+    return { ok: false, message: "Thành viên hoặc loại thu theo trận không hợp lệ." };
+  }
+  const typeMap = new Map(validTypes.map((type) => [type.id, type]));
 
   await db.transaction(async (tx) => {
     const [match] = await tx.insert(matches).values({
       clubId: actor.clubId, playedOn, note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
 
-    const involved = new Set(participantIds);
-    chargeSelections.forEach((selection) => involved.add(selection.split("|")[0]));
     if (involved.size) {
       await tx.insert(matchParticipants).values([...involved].map((memberId) => ({ matchId: match.id, memberId })));
     }
 
-    if (chargeSelections.length) {
-      const typeIds = [...new Set(chargeSelections.map((selection) => selection.split("|")[1]))];
-      const types = await tx.select().from(chargeTypes).where(inArray(chargeTypes.id, typeIds));
-      const typeMap = new Map(types.map((type) => [type.id, type]));
-      await tx.insert(memberCharges).values(chargeSelections.flatMap((selection) => {
-        const [memberId, typeId] = selection.split("|");
+    if (parsedSelections.length) {
+      await tx.insert(memberCharges).values(parsedSelections.flatMap(([memberId, typeId]) => {
         const type = typeMap.get(typeId);
         return type ? [{
           clubId: actor.clubId, memberId, chargeTypeId: typeId, matchId: match.id,
@@ -405,7 +489,127 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
   });
 
   revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard");
+  revalidatePath("/reports");
   return { ok: true, message: "Đã tạo trận và khoản thu phát sinh." };
+}
+
+export async function updateMatchAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
+  const id = str(formData, "id");
+  const [before] = await db.select().from(matches)
+    .where(and(eq(matches.id, id), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt))).limit(1);
+  if (!before) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const playedOn = str(formData, "playedOn") || before.playedOn;
+  const participantIds = [...new Set(formData.getAll("participants").map(String))];
+  const chargeSelections = [...new Set(formData.getAll("matchCharges").map(String))];
+  const parsedSelections = chargeSelections
+    .map((selection) => selection.split("|"))
+    .filter((selection): selection is [string, string] => selection.length === 2);
+  if (parsedSelections.length !== chargeSelections.length) {
+    return { ok: false, message: "Danh sách khoản thu theo trận không hợp lệ." };
+  }
+
+  const involved = new Set([...participantIds, ...parsedSelections.map(([memberId]) => memberId)]);
+  const typeIds = [...new Set(parsedSelections.map(([, typeId]) => typeId))];
+  const validMembers = involved.size ? await db.select({ id: members.id }).from(members)
+    .where(and(eq(members.clubId, actor.clubId), inArray(members.id, [...involved]))) : [];
+  const validTypes = typeIds.length ? await db.select().from(chargeTypes)
+    .where(and(
+      eq(chargeTypes.clubId, actor.clubId),
+      eq(chargeTypes.calculation, "OCCURRENCE"),
+      eq(chargeTypes.isActive, true),
+      inArray(chargeTypes.id, typeIds),
+    )) : [];
+  if (validMembers.length !== involved.size || validTypes.length !== typeIds.length) {
+    return { ok: false, message: "Thành viên hoặc loại thu theo trận không hợp lệ." };
+  }
+  const typeMap = new Map(validTypes.map((type) => [type.id, type]));
+
+  await db.transaction(async (tx) => {
+    const [after] = await tx.update(matches).set({
+      playedOn,
+      note: str(formData, "note") || null,
+      updatedAt: new Date(),
+    }).where(eq(matches.id, id)).returning();
+
+    await tx.delete(matchParticipants).where(eq(matchParticipants.matchId, id));
+    if (involved.size) {
+      await tx.insert(matchParticipants).values([...involved].map((memberId) => ({ matchId: id, memberId })));
+    }
+
+    await tx.update(memberCharges).set({
+      deletedAt: new Date(),
+      deletedBy: actor.id,
+      updatedAt: new Date(),
+    }).where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)));
+
+    if (parsedSelections.length) {
+      await tx.insert(memberCharges).values(parsedSelections.flatMap(([memberId, typeId]) => {
+        const type = typeMap.get(typeId);
+        return type ? [{
+          clubId: actor.clubId,
+          memberId,
+          chargeTypeId: typeId,
+          matchId: id,
+          source: "MATCH" as const,
+          chargeDate: playedOn,
+          quantity: 1,
+          unitAmount: type.defaultAmount,
+          totalAmount: type.defaultAmount,
+          note: `Phát sinh từ trận ${playedOn}`,
+          createdBy: actor.id,
+        }] : [];
+      }));
+    }
+
+    await track(tx, {
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: id,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: before,
+      afterData: { ...after, participants: [...involved], chargeSelections },
+      message: `Cập nhật trận ngày ${playedOn} với ${involved.size} người tham gia`,
+    });
+  });
+
+  revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports");
+  return { ok: true, message: "Đã cập nhật trận và các khoản thu phát sinh." };
+}
+
+export async function deleteMatchAction(formData: FormData): Promise<void> {
+  const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
+  const id = str(formData, "id");
+  const [before] = await db.select().from(matches)
+    .where(and(eq(matches.id, id), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt))).limit(1);
+  if (!before) return;
+
+  await db.transaction(async (tx) => {
+    const deletedAt = new Date();
+    await tx.update(matches).set({
+      deletedAt,
+      deletedBy: actor.id,
+      updatedAt: deletedAt,
+    }).where(eq(matches.id, id));
+    await tx.update(memberCharges).set({
+      deletedAt,
+      deletedBy: actor.id,
+      updatedAt: deletedAt,
+    }).where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)));
+    await track(tx, {
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: id,
+      action: "DELETE",
+      actorId: actor.id,
+      beforeData: before,
+      message: `Xóa trận ngày ${before.playedOn} và các khoản thu phát sinh`,
+    });
+  });
+
+  revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports");
 }
 
 export async function updateClubAction(formData: FormData): Promise<MutationResult> {

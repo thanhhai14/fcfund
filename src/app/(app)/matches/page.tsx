@@ -6,13 +6,93 @@ import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
-import { createMatchAction } from "../mutations";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { createMatchAction, deleteMatchAction, updateMatchAction } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 
 export const metadata = { title: "Trận đấu" };
+
+type MatrixMember = { id: string; fullName: string };
+type MatrixChargeType = {
+  id: string;
+  name: string;
+  defaultAmount: number;
+  iconName: string;
+  color: string | null;
+};
+
+function MatchFields({
+  memberRows,
+  occurrenceTypes,
+  playedOn,
+  note = "",
+  participantIds = new Set<string>(),
+  chargeSelections = new Set<string>(),
+}: {
+  memberRows: MatrixMember[];
+  occurrenceTypes: MatrixChargeType[];
+  playedOn: string;
+  note?: string;
+  participantIds?: Set<string>;
+  chargeSelections?: Set<string>;
+}) {
+  const columns = `minmax(150px, 1fr) repeat(${1 + occurrenceTypes.length}, 82px)`;
+  return (
+    <>
+      <div className="form-row">
+        <label>Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required /></label>
+        <label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label>
+      </div>
+      <div>
+        <span className="field-label">Người tham gia và khoản thu</span>
+        <div className="participant-matrix">
+          <div className="matrix-head" style={{ gridTemplateColumns: columns }}>
+            <span>Thành viên</span>
+            <span>Tham gia</span>
+            {occurrenceTypes.map((type) => (
+              <span key={type.id}>
+                <Icon name={type.iconName} />
+                <small>{type.name}</small>
+                <small>{formatMoney(type.defaultAmount)}</small>
+              </span>
+            ))}
+          </div>
+          {memberRows.map((member) => (
+            <div className="matrix-row" style={{ gridTemplateColumns: columns }} key={member.id}>
+              <strong>{member.fullName}</strong>
+              <label className="box-check" title="Đánh dấu tham gia">
+                <input
+                  type="checkbox"
+                  name="participants"
+                  value={member.id}
+                  defaultChecked={participantIds.has(member.id)}
+                />
+                <span>✓</span>
+              </label>
+              {occurrenceTypes.map((type) => {
+                const value = `${member.id}|${type.id}`;
+                return (
+                  <label className="box-check" title={`${type.name} · ${member.fullName}`} key={type.id}>
+                    <input
+                      type="checkbox"
+                      name="matchCharges"
+                      value={value}
+                      defaultChecked={chargeSelections.has(value)}
+                    />
+                    <span>✓</span>
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default async function MatchesPage() {
   const user = await requireUser();
@@ -24,22 +104,54 @@ export default async function MatchesPage() {
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
   const ids = matchRows.map((row) => row.id);
   const participants = ids.length ? await db
-    .select({ matchId: matchParticipants.matchId, memberName: members.fullName, guestName: matchParticipants.guestName })
+    .select({
+      matchId: matchParticipants.matchId,
+      memberId: matchParticipants.memberId,
+      memberName: members.fullName,
+      guestName: matchParticipants.guestName,
+    })
     .from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
     .where(inArray(matchParticipants.matchId, ids)) : [];
   const charges = ids.length ? await db
-    .select({ matchId: memberCharges.matchId, amount: memberCharges.totalAmount })
+    .select({
+      matchId: memberCharges.matchId,
+      memberId: memberCharges.memberId,
+      chargeTypeId: memberCharges.chargeTypeId,
+      amount: memberCharges.totalAmount,
+    })
     .from(memberCharges)
     .where(and(inArray(memberCharges.matchId, ids), isNull(memberCharges.deletedAt))) : [];
-  const participantMap = new Map<string, string[]>();
-  participants.forEach((row) => participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), row.memberName ?? row.guestName ?? "Khách"]));
-  const chargeMap = new Map<string, number>();
-  charges.forEach((row) => row.matchId && chargeMap.set(row.matchId, (chargeMap.get(row.matchId) ?? 0) + row.amount));
 
-  const memberRows = canManage ? await db.select().from(members)
+  const participantMap = new Map<string, string[]>();
+  const participantIdMap = new Map<string, Set<string>>();
+  participants.forEach((row) => {
+    participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), row.memberName ?? row.guestName ?? "Khách"]);
+    if (row.memberId) {
+      const set = participantIdMap.get(row.matchId) ?? new Set<string>();
+      set.add(row.memberId);
+      participantIdMap.set(row.matchId, set);
+    }
+  });
+  const chargeMap = new Map<string, number>();
+  const chargeSelectionMap = new Map<string, Set<string>>();
+  charges.forEach((row) => {
+    if (!row.matchId) return;
+    chargeMap.set(row.matchId, (chargeMap.get(row.matchId) ?? 0) + row.amount);
+    const set = chargeSelectionMap.get(row.matchId) ?? new Set<string>();
+    set.add(`${row.memberId}|${row.chargeTypeId}`);
+    chargeSelectionMap.set(row.matchId, set);
+  });
+
+  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName }).from(members)
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE"))).orderBy(members.fullName) : [];
-  const occurrenceTypes = canManage ? await db.select().from(chargeTypes)
+  const occurrenceTypes = canManage ? await db.select({
+    id: chargeTypes.id,
+    name: chargeTypes.name,
+    defaultAmount: chargeTypes.defaultAmount,
+    iconName: chargeTypes.iconName,
+    color: chargeTypes.color,
+  }).from(chargeTypes)
     .where(and(eq(chargeTypes.clubId, user.clubId), eq(chargeTypes.calculation, "OCCURRENCE"), eq(chargeTypes.isActive, true)))
     .orderBy(chargeTypes.name) : [];
 
@@ -52,18 +164,11 @@ export default async function MatchesPage() {
         action={canManage ? (
           <Disclosure label={<><Icon name="plus" /> Tạo trận</>} className="action-disclosure match-popover">
             <MutationForm action={createMatchAction} className="form-stack">
-              <div className="form-row"><label>Ngày thi đấu<input name="playedOn" type="date" defaultValue={todayInTimezone()} required /></label><label>Ghi chú<input name="note" placeholder="Sân, khung giờ..." /></label></div>
-              <div>
-                <span className="field-label">Người tham gia và khoản thu</span>
-                <div className="participant-matrix">
-                  <div className="matrix-head" style={{ gridTemplateColumns: `minmax(150px, 1fr) repeat(${1 + occurrenceTypes.length}, 82px)` }}><span>Thành viên</span><span>Tham gia</span>{occurrenceTypes.map((type) => <span key={type.id}>{type.name}<small>{formatMoney(type.defaultAmount)}</small></span>)}</div>
-                  {memberRows.map((member) => <div className="matrix-row" style={{ gridTemplateColumns: `minmax(150px, 1fr) repeat(${1 + occurrenceTypes.length}, 82px)` }} key={member.id}>
-                    <strong>{member.fullName}</strong>
-                    <label className="box-check"><input type="checkbox" name="participants" value={member.id} /><span>✓</span></label>
-                    {occurrenceTypes.map((type) => <label className="box-check" key={type.id}><input type="checkbox" name="matchCharges" value={`${member.id}|${type.id}`} /><span>✓</span></label>)}
-                  </div>)}
-                </div>
-              </div>
+              <MatchFields
+                memberRows={memberRows}
+                occurrenceTypes={occurrenceTypes}
+                playedOn={todayInTimezone()}
+              />
               <div className="form-actions"><SubmitButton>Tạo trận và phát sinh</SubmitButton></div>
             </MutationForm>
           </Disclosure>
@@ -73,11 +178,49 @@ export default async function MatchesPage() {
       <section className="match-grid">
         {matchRows.map((match) => {
           const names = participantMap.get(match.id) ?? [];
-          return <article className="match-card" key={match.id}>
-            <div className="match-date"><strong>{new Date(`${match.playedOn}T00:00:00`).getDate()}</strong><span>Tháng {new Date(`${match.playedOn}T00:00:00`).getMonth() + 1}</span></div>
-            <div className="match-info"><span className="category-pill"><Icon name="futbol" /> Trận giao hữu</span><h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2><p>{names.length} người tham gia{names.length ? ` · ${names.slice(0, 4).join(", ")}${names.length > 4 ? "..." : ""}` : ""}</p></div>
-            <div className="match-charge"><small>Khoản thu phát sinh</small><strong>{formatMoney(chargeMap.get(match.id) ?? 0)}</strong></div>
-          </article>;
+          return (
+            <article className="match-card" key={match.id}>
+              <div className="match-date">
+                <strong>{new Date(`${match.playedOn}T00:00:00`).getDate()}</strong>
+                <span>Tháng {new Date(`${match.playedOn}T00:00:00`).getMonth() + 1}</span>
+              </div>
+              <div className="match-info">
+                <span className="category-pill"><Icon name="futbol" /> Trận giao hữu</span>
+                <h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2>
+                <p>{names.length} người tham gia{names.length ? ` · ${names.slice(0, 4).join(", ")}${names.length > 4 ? "..." : ""}` : ""}</p>
+              </div>
+              <div className="match-card-side">
+                <div className="match-charge">
+                  <small>Khoản thu phát sinh</small>
+                  <strong>{formatMoney(chargeMap.get(match.id) ?? 0)}</strong>
+                </div>
+                {canManage && (
+                  <div className="match-actions">
+                    <Disclosure label={<><Icon name="edit" /> Sửa</>} className="match-edit-disclosure match-popover">
+                      <MutationForm action={updateMatchAction} className="form-stack">
+                        <input type="hidden" name="id" value={match.id} />
+                        <MatchFields
+                          memberRows={memberRows}
+                          occurrenceTypes={occurrenceTypes}
+                          playedOn={match.playedOn}
+                          note={match.note ?? ""}
+                          participantIds={participantIdMap.get(match.id)}
+                          chargeSelections={chargeSelectionMap.get(match.id)}
+                        />
+                        <div className="form-actions"><SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton></div>
+                      </MutationForm>
+                    </Disclosure>
+                    <form action={deleteMatchAction}>
+                      <input type="hidden" name="id" value={match.id} />
+                      <ConfirmSubmitButton message="Xóa trận này và toàn bộ khoản thu phát sinh từ trận?">
+                        <Icon name="trash" /> Xóa
+                      </ConfirmSubmitButton>
+                    </form>
+                  </div>
+                )}
+              </div>
+            </article>
+          );
         })}
         {!matchRows.length && <div className="panel empty-state"><span><Icon name="futbol" /></span><h3>Chưa có trận nào</h3><p>Tạo trận đầu tiên để ghi người tham gia và khoản thu lẻ.</p></div>}
       </section>

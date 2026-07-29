@@ -14,11 +14,13 @@ import {
   faMoneyBillTransfer,
   faMoneyBillWave,
   faPeopleGroup,
+  faPen,
   faPlus,
   faRightFromBracket,
   faShieldHalved,
   faShirt,
   faTriangleExclamation,
+  faTrash,
   faTrophy,
   faUser,
   faUsers,
@@ -49,6 +51,8 @@ const icons: Record<string, IconDefinition> = {
   shield: faShieldHalved,
   logout: faRightFromBracket,
   plus: faPlus,
+  edit: faPen,
+  trash: faTrash,
   menu: faBars,
 };
 

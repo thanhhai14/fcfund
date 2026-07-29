@@ -267,6 +267,9 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .field-label { display: block; color: #526058; font-size: 11px; font-weight: 700; margin-bottom: 7px; }
 .check-field { display: flex; align-items: center; gap: 8px; min-height: 42px; }
 .check-field input { width: 16px; margin: 0; }
+.check-field > span { display: grid; gap: 3px; }
+.check-field > span strong { color: var(--ink); font-size: 10px; }
+.check-field > span small { color: var(--muted); font-size: 8px; font-weight: 500; }
 .form-message { padding: 8px 10px; border-radius: 2px; border-left: 3px solid currentColor; font-size: 10px; margin: 7px 0 0; }
 .form-message.success { color: var(--forest-700); background: var(--forest-50); }
 .form-message.error { color: var(--red); background: #fff0f2; }
@@ -308,6 +311,24 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .assignment-list small, .ledger small, .settings-list small, .type-report small { display: block; color: var(--muted); font-size: 8px; margin-top: 3px; }
 .assignment-list b, .ledger b, .settings-list b, .type-report b { font-size: 10px; }
 .reset-row { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 17px; padding-top: 15px; font-size: 9px; }
+.settings-list > div.inactive { opacity: .52; }
+.type-edit-disclosure > summary {
+  width: 30px; height: 30px; display: grid; place-items: center; color: var(--forest-700);
+  border: 1px solid var(--line); background: white;
+}
+.type-edit-disclosure .disclosure-content { width: 450px; }
+.type-create-disclosure .disclosure-content { width: 470px; }
+.icon-config-grid { display: grid; grid-template-columns: 1fr 1fr 82px; gap: 12px; align-items: end; }
+.color-field { display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center; margin-top: 7px; }
+.color-field input[type="color"] { height: 42px; padding: 3px; margin: 0; cursor: pointer; }
+.color-field code { color: var(--muted); font-size: 9px; }
+.icon-live-preview { display: grid; justify-items: center; gap: 4px; }
+.icon-live-preview > span {
+  width: 42px; height: 42px; display: grid; place-items: center; font-size: 18px;
+  background: white; border: 2px solid currentColor; box-shadow: 3px 3px 0 rgba(4,47,82,.08);
+}
+.icon-live-preview small { color: var(--muted); font-size: 8px; }
+.report-mode-field { padding: 9px; background: var(--forest-50); border-left: 3px solid var(--pink); }
 
 .table-panel { padding: 0; }
 .data-table-wrap { overflow: visible; }
@@ -334,11 +355,13 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .matrix-head > *, .matrix-row > * { padding: 9px; text-align: center; }
 .matrix-head > *:first-child, .matrix-row > *:first-child { text-align: left; }
 .matrix-head small { display: block; margin-top: 3px; font-size: 7px; text-transform: none; }
+.matrix-head svg { display: block; margin: 0 auto 4px; font-size: 12px; color: var(--forest-700); }
 .matrix-row { border-top: 1px solid var(--line); font-size: 9px; }
-.box-check { display: grid; place-items: center; }
-.box-check input { position: absolute; opacity: 0; }
-.box-check span { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 1px; display: grid; place-items: center; color: transparent; }
+.box-check { position: relative; display: grid; place-items: center; min-height: 42px; cursor: pointer; }
+.box-check input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.box-check span { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 1px; display: grid; place-items: center; color: transparent; pointer-events: none; }
 .box-check input:checked + span { background: var(--forest-700); color: white; border-color: var(--forest-700); }
+.box-check input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
 .match-popover .disclosure-content { width: min(850px, calc(100vw - 32px)); }
 .match-grid { display: grid; gap: 11px; }
 .match-card { background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: 17px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 17px; }
@@ -350,6 +373,13 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .match-charge { text-align: right; }
 .match-charge small { display: block; color: var(--muted); font-size: 8px; margin-bottom: 4px; }
 .match-charge strong { color: var(--forest-700); }
+.match-card-side { display: grid; gap: 11px; justify-items: end; }
+.match-actions { display: flex; align-items: center; gap: 7px; }
+.match-edit-disclosure > summary {
+  min-height: 31px; padding: 7px 10px; display: flex; align-items: center; gap: 6px;
+  color: var(--forest-700); background: var(--forest-50); border: 1px solid var(--forest-100);
+  font-size: 9px; font-weight: 800;
+}
 
 .report-hero { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
 .report-hero > div { background: white; padding: 20px; }
@@ -358,6 +388,43 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .report-hero span { color: var(--muted); font-size: 8px; }
 .panel-heading.padded { padding: 20px 20px 0; }
 .type-report > div > b { margin-left: auto; }
+.monthly-report { padding: 0; margin-bottom: 16px; overflow: hidden; }
+.monthly-report-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 20px; border-bottom: 1px solid var(--line);
+}
+.monthly-report-heading h2 { margin: 5px 0 3px; text-transform: capitalize; }
+.monthly-report-heading p { margin: 0; color: var(--muted); font-size: 9px; }
+.month-controls, .month-controls form { display: flex; align-items: center; gap: 7px; }
+.month-controls > a {
+  width: 32px; height: 32px; display: grid; place-items: center; background: var(--forest-900);
+  color: white; font-size: 18px; font-weight: 800;
+}
+.month-controls input[type="month"] { width: 155px; padding: 7px 9px; }
+.monthly-table-wrap { overflow-x: auto; }
+.monthly-table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.monthly-table th, .monthly-table td {
+  min-width: 115px; padding: 12px; text-align: center;
+  border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+}
+.monthly-table th:first-child, .monthly-table td:first-child {
+  position: sticky; left: 0; z-index: 1; min-width: 180px;
+  text-align: left; border-left: 0; background: white;
+}
+.monthly-table thead th { border-top: 0; background: #f8fafb; color: var(--muted); font-size: 8px; }
+.monthly-table thead th:first-child { z-index: 3; background: #f8fafb; }
+.monthly-table th strong { display: block; color: var(--ink); font-size: 9px; margin: 5px 0 3px; }
+.monthly-table th small, .monthly-table td small { display: block; color: var(--muted); font-size: 7px; }
+.monthly-table tbody td { font-size: 9px; }
+.monthly-table tbody td:first-child strong { display: block; font-size: 10px; }
+.monthly-table tbody td:first-child small { margin-top: 3px; }
+.monthly-table tfoot td { background: var(--forest-50); font-size: 9px; }
+.monthly-table tfoot td:first-child { background: var(--forest-50); z-index: 2; }
+.monthly-type-icon { font-size: 15px; }
+.monthly-empty { color: #bdc5cc; }
+.monthly-money { display: grid; gap: 3px; }
+.icon-count { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; color: var(--forest-700); }
+.report-charge-icon { width: 12px; height: 12px; }
 
 .asset-preview { display: flex; gap: 15px; margin-top: 17px; padding-top: 15px; border-top: 1px solid var(--line); }
 .asset-preview div { flex: 1; }
@@ -413,5 +480,12 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
   .data-table { min-width: 750px; }
   .mini-stat-grid, .report-hero { grid-template-columns: 1fr; }
   .match-card { grid-template-columns: auto 1fr; }
-  .match-charge { grid-column: 2; text-align: left; }
+  .match-card-side { grid-column: 2; justify-items: start; }
+  .match-charge { text-align: left; }
+  .monthly-report-heading { align-items: flex-start; flex-direction: column; }
+  .month-controls { width: 100%; }
+  .month-controls form { flex: 1; }
+  .month-controls input[type="month"] { width: auto; flex: 1; }
+  .icon-config-grid { grid-template-columns: 1fr 1fr; }
+  .icon-live-preview { grid-column: 1 / -1; justify-self: start; grid-template-columns: auto auto; align-items: center; }
 }

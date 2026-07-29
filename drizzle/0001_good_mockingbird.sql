@@ -1,0 +1,1 @@
+ALTER TABLE "charge_types" ADD COLUMN "report_as_icon" boolean DEFAULT false NOT NULL;

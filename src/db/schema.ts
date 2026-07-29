@@ -140,6 +140,7 @@ export const chargeTypes = pgTable(
     iconName: varchar("icon_name", { length: 100 }).default("wallet").notNull(),
     iconStyle: varchar("icon_style", { length: 40 }).default("solid").notNull(),
     color: varchar("color", { length: 20 }).default("#2e7d58"),
+    reportAsIcon: boolean("report_as_icon").default(false).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     ...auditColumns,
   },

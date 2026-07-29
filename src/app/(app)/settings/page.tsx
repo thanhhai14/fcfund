@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
+import { ChargeTypeFields } from "@/components/charge-type-fields";
 import {
   changeOwnPasswordAction,
   createChargeTypeAction,
@@ -21,10 +22,10 @@ import {
   resetPasswordAction,
   saveUserPoliciesAction,
   updateClubAction,
+  updateChargeTypeAction,
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import {
-  ICON_ALLOWLIST,
   PERMISSION_DEFINITIONS,
   PERMISSIONS,
   ROLE_LABELS,
@@ -79,17 +80,35 @@ export default async function SettingsPage() {
 
           {manageSettings && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Cấu hình</span><h2>Loại khoản thu</h2></div>
-              <Disclosure label="+ Tạo loại thu" className="inline-disclosure">
+              <Disclosure label="+ Tạo loại thu" className="inline-disclosure type-create-disclosure">
                 <MutationForm action={createChargeTypeAction} className="form-stack">
                   <label>Tên loại thu<input name="name" required /></label>
-                  <div className="form-row"><label>Cách tính<select name="calculation"><option value="MONTHLY">Theo tháng</option><option value="OCCURRENCE">Theo số lần</option></select></label><label>Đơn giá<input name="amount" type="number" min="0" required /></label></div>
-                  <label>Font Awesome icon<select name="iconName">{ICON_ALLOWLIST.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></label>
-                  <label>Màu<input name="color" type="color" defaultValue="#2e7d58" /></label>
+                  <ChargeTypeFields color="#ef7198" />
                   <SubmitButton>Tạo loại thu</SubmitButton>
                 </MutationForm>
               </Disclosure>
             </div>
-            <div className="settings-list">{types.map((type) => <div key={type.id}><span className="stat-icon green" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><span><strong>{type.name}</strong><small>{type.calculation === "MONTHLY" ? "Tự sinh hằng tháng" : "Admin cập nhật số lần"}</small></span><b>{formatMoney(type.defaultAmount)}</b></div>)}</div>
+            <div className="settings-list">{types.map((type) => <div className={!type.isActive ? "inactive" : undefined} key={type.id}>
+              <span className="stat-icon green" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span>
+              <span><strong>{type.name}</strong><small>{type.calculation === "MONTHLY" ? "Tự sinh hằng tháng" : "Admin cập nhật số lần"} · {type.reportAsIcon ? "Báo cáo bằng icon" : "Báo cáo bằng tiền"}</small></span>
+              <b>{formatMoney(type.defaultAmount)}</b>
+              <Disclosure label={<Icon name="edit" />} className="type-edit-disclosure">
+                <MutationForm action={updateChargeTypeAction} className="form-stack">
+                  <input type="hidden" name="id" value={type.id} />
+                  <label>Tên loại thu<input name="name" defaultValue={type.name} required /></label>
+                  <ChargeTypeFields
+                    calculation={type.calculation}
+                    amount={type.defaultAmount}
+                    iconName={type.iconName}
+                    color={type.color}
+                    reportAsIcon={type.reportAsIcon}
+                    includeStatus
+                    isActive={type.isActive}
+                  />
+                  <SubmitButton>Lưu loại thu</SubmitButton>
+                </MutationForm>
+              </Disclosure>
+            </div>)}</div>
           </article>}
 
           {manageSettings && <article className="panel">
