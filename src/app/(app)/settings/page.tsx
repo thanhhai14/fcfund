@@ -74,7 +74,7 @@ export default async function SettingsPage() {
               <label>Chủ tài khoản<input name="bankAccountHolder" defaultValue={club.bankAccountHolder ?? ""} /></label>
               <SubmitButton>Lưu thông tin đội</SubmitButton>
             </MutationForm>
-            {(club.logoUrl || club.qrUrl) && <div className="asset-preview">{club.logoUrl && <div><small>Logo</small><img src={club.logoUrl} alt="Logo đội" /></div>}{club.qrUrl && <div><small>QR chuyển khoản</small><img src={club.qrUrl} alt="QR chuyển khoản" /></div>}</div>}
+            {(club.logoUrl || club.qrUrl) && <div className="asset-preview">{club.logoUrl && <div><small>Logo</small><img src={`/api/club-assets/logo?v=${club.updatedAt.getTime()}`} alt="Logo đội" /></div>}{club.qrUrl && <div><small>QR chuyển khoản</small><img src={`/api/club-assets/qr?v=${club.updatedAt.getTime()}`} alt="QR chuyển khoản" /></div>}</div>}
           </article>}
 
           {manageSettings && <article className="panel">
@@ -141,7 +141,7 @@ export default async function SettingsPage() {
 
           {!manageSettings && club && <article className="panel transfer-card">
             <span className="eyebrow">Chuyển khoản</span><h2>{club.bankName || "Thông tin quỹ đội"}</h2>
-            {club.qrUrl && <img src={club.qrUrl} alt="QR chuyển khoản" />}
+            {club.qrUrl && <img src={`/api/club-assets/qr?v=${club.updatedAt.getTime()}`} alt="QR chuyển khoản" />}
             <strong>{club.bankAccountNumber}</strong><p>{club.bankAccountHolder}</p>
           </article>}
         </div>

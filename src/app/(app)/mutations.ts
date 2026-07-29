@@ -417,15 +417,31 @@ export async function updateClubAction(formData: FormData): Promise<MutationResu
   let qrUrl = before.qrUrl;
   const logo = formData.get("logo");
   const qr = formData.get("qr");
+  const images = [logo, qr].filter((file): file is File => file instanceof File && file.size > 0);
+  const invalidImage = images.find((file) => !["image/png", "image/jpeg", "image/webp"].includes(file.type));
+  const oversizedImage = images.find((file) => file.size > 4 * 1024 * 1024);
+  if (invalidImage) return { ok: false, message: "Logo và QR chỉ nhận ảnh PNG, JPEG hoặc WebP." };
+  if (oversizedImage) return { ok: false, message: "Mỗi ảnh không được lớn hơn 4 MB." };
+
   try {
     if (logo instanceof File && logo.size) {
-      logoUrl = (await put(`clubs/${actor.clubId}/logo-${Date.now()}`, logo, { access: "public", addRandomSuffix: true })).url;
+      logoUrl = (await put(`clubs/${actor.clubId}/logo-${Date.now()}`, logo, {
+        access: "private",
+        addRandomSuffix: true,
+      })).url;
     }
     if (qr instanceof File && qr.size) {
-      qrUrl = (await put(`clubs/${actor.clubId}/qr-${Date.now()}`, qr, { access: "public", addRandomSuffix: true })).url;
+      qrUrl = (await put(`clubs/${actor.clubId}/qr-${Date.now()}`, qr, {
+        access: "private",
+        addRandomSuffix: true,
+      })).url;
     }
-  } catch {
-    return { ok: false, message: "Không thể tải ảnh. Kiểm tra cấu hình Vercel Blob." };
+  } catch (error) {
+    console.error("[updateClubAction] Blob upload failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message : "Unknown Blob error",
+    });
+    return { ok: false, message: "Không thể tải ảnh lên kho lưu trữ. Vui lòng thử lại." };
   }
 
   await db.transaction(async (tx) => {
