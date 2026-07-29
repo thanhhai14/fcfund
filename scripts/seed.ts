@@ -1,6 +1,6 @@
 import { hash } from "bcryptjs";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import postgres from "postgres";
 import {
   chargeTypes,
@@ -50,17 +50,11 @@ const memberPermissions = [
 async function seed() {
   console.log("Seeding FCFUND...");
 
-  const [club] = await db
-    .insert(clubs)
-    .values({ name: "Đội bóng của tôi" })
-    .onConflictDoNothing()
-    .returning();
-
-  const activeClub =
-    club ??
-    (
-      await db.select().from(clubs).limit(1)
-    )[0];
+  const [existingClub] = await db.select().from(clubs).limit(1);
+  const [createdClub] = existingClub
+    ? [undefined]
+    : await db.insert(clubs).values({ name: "Đội bóng của tôi" }).returning();
+  const activeClub = existingClub ?? createdClub;
 
   if (!activeClub) throw new Error("Could not create club.");
 
@@ -145,7 +139,11 @@ async function seed() {
   const member =
     adminMember ??
     (
-      await db.select().from(members).limit(1)
+      await db
+        .select()
+        .from(members)
+        .where(and(eq(members.clubId, activeClub.id), eq(members.code, "ADMIN")))
+        .limit(1)
     )[0];
 
   await db
