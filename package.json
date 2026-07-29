@@ -1,0 +1,44 @@
+{
+  "name": "fcfund",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "latest",
+    "@fortawesome/free-solid-svg-icons": "latest",
+    "@fortawesome/react-fontawesome": "latest",
+    "@vercel/blob": "latest",
+    "bcryptjs": "latest",
+    "drizzle-orm": "latest",
+    "jose": "latest",
+    "next": "latest",
+    "postgres": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "drizzle-kit": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "puppeteer-core": "^25.4.0",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "overrides": {
+    "postcss": "8.5.18",
+    "sharp": "0.35.0"
+  }
+}
