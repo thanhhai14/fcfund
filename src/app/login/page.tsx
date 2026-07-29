@@ -10,7 +10,9 @@ export default async function LoginPage() {
     <main className="login-page">
       <section className="login-visual">
         <div className="visual-content">
-          <span className="visual-kicker">MINH BẠCH · GỌN GÀNG · DỄ DÙNG</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="login-club-logo" src="/trai-lang-logo.jpg" alt="Logo Trại Làng FC" />
+          <span className="visual-kicker">TRẠI LÀNG FC · SINCE 2018</span>
           <h1>Quỹ đội bóng,<br />rõ từng khoản.</h1>
           <p>Theo dõi đóng quỹ, công nợ và mọi khoản thu chi trên một nền tảng dành riêng cho đội của bạn.</p>
         </div>
@@ -19,8 +21,9 @@ export default async function LoginPage() {
       <section className="login-panel">
         <div className="login-card">
           <div className="login-brand">
-            <div className="brand-badge">FC</div>
-            <div><strong>FCFUND</strong><small>Quản lý quỹ đội bóng</small></div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/trai-lang-logo.jpg" alt="Logo Trại Làng FC" />
+            <div><strong>FCFUND</strong><small>Quỹ Trại Làng FC</small></div>
           </div>
           <div className="login-heading">
             <span>Chào mừng trở lại</span>

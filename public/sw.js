@@ -1,4 +1,4 @@
-const CACHE = "fcfund-shell-v1";
+const CACHE = "fcfund-shell-v2";
 const SHELL = ["/", "/login", "/offline"];
 
 self.addEventListener("install", (event) => {

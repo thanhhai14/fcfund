@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Quản lý thu, chi và công nợ minh bạch cho câu lạc bộ bóng đá",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#f4f7f5",
-    theme_color: "#173c2b",
+    background_color: "#f7f4f5",
+    theme_color: "#06385f",
     lang: "vi",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

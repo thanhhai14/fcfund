@@ -5,6 +5,9 @@
 /.next
 /out
 
+# Vercel local project link
+/.vercel
+
 # environment
 .env
 .env.*
@@ -25,3 +28,5 @@ pnpm-debug.log*
 
 # Drizzle local metadata backups
 /drizzle/meta/_journal.json.bak
+.vercel
+.env*

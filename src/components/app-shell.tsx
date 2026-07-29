@@ -37,12 +37,12 @@ export function AppShell({
     <div className="app-shell">
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <Link href="/dashboard" className="sidebar-brand" onClick={() => setOpen(false)}>
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="club-logo" />
-          ) : (
-            <span className="brand-badge">FC</span>
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoUrl || "/trai-lang-logo.jpg"}
+            alt={`Logo ${clubName}`}
+            className="club-logo"
+          />
           <span><strong>{clubName}</strong><small>Powered by FCFUND</small></span>
         </Link>
         <nav className="sidebar-nav">
