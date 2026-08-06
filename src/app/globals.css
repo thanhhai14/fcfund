@@ -374,8 +374,8 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .box-check { position: relative; display: grid; place-items: center; min-height: 42px; cursor: pointer; }
 .box-check input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .box-check span { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 1px; display: grid; place-items: center; color: transparent; pointer-events: none; }
-.box-check input:checked + span { background: var(--forest-700); color: white; border-color: var(--forest-700); }
-.box-check input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
+.box-check input:checked ~ span { background: var(--forest-700); color: white; border-color: var(--forest-700); }
+.box-check input:focus-visible ~ span { outline: 2px solid var(--pink); outline-offset: 2px; }
 .quantity-field { display: grid; place-items: center; padding: 7px !important; }
 .quantity-field input {
   width: 52px; min-height: 32px; margin: 0; padding: 6px 5px; text-align: center;
@@ -826,7 +826,7 @@ label { font-size: 12px; }
 .match-view-switch button.active { background: var(--brand-primary); box-shadow: inset 0 -3px var(--brand-decoration); }
 .month-controls > a { background: var(--brand-primary); }
 .confirm-team-form { background: var(--brand-primary-strong); border-left-color: var(--brand-decoration); }
-.box-check input:checked + span { background: var(--brand-primary); border-color: var(--brand-primary); }
+.box-check input:checked ~ span { background: var(--brand-primary); border-color: var(--brand-primary); }
 .data-table th, .monthly-table thead th { font-size: 10px; }
 .data-table td, .monthly-table tbody td { font-size: 12px; }
 .data-table td > strong, .monthly-table tbody td:first-child strong { font-size: 13px; }
