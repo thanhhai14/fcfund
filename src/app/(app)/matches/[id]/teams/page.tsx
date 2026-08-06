@@ -13,6 +13,7 @@ import {
 import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
+import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -120,30 +121,19 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
           <p className="panel-note">Seed trận trước chỉ dùng tham khảo. Mỗi người phải được đánh giá lại cho trận hiện tại.</p>
           <MutationForm action={saveAndLockMatchSeedsAction} className="form-stack">
             <input type="hidden" name="matchId" value={match.id} />
-            <div className="seed-table-wrap">
-              <table className="seed-table">
-                <thead><tr><th>Thành viên</th><th>Seed trận này</th><th>Trận gần đây</th><th>Thắng suy luận</th><th>Thua suy luận</th><th>Tỷ lệ thua</th></tr></thead>
-                <tbody>{participants.map((participant) => {
-                  const stat = participant.memberId ? stats.get(participant.memberId) : undefined;
-                  return (
-                    <tr className={!participant.seedTier ? "missing-seed" : ""} key={participant.id}>
-                      <td><strong>{participant.name}</strong>{!participant.memberId && <small>Khách</small>}</td>
-                      <td>
-                        <select name={`seed_${participant.id}`} defaultValue={participant.seedTier ?? ""} required>
-                          <option value="" disabled>Chọn Seed</option>
-                          <option value="TIER_1">Tier 1</option>
-                          <option value="TIER_2">Tier 2</option>
-                          <option value="TIER_3">Tier 3</option>
-                          <option value="TIER_4">Tier 4</option>
-                          <option value="GOALKEEPER">Thủ môn</option>
-                        </select>
-                      </td>
-                      <td>{stat?.matchCount ?? 0}</td><td>{stat?.winCount ?? 0}</td><td>{stat?.lossCount ?? 0}</td><td>{percent(stat?.lossRate ?? null)}</td>
-                    </tr>
-                  );
-                })}</tbody>
-              </table>
-            </div>
+            <SeedEvaluationTable rows={participants.map((participant) => {
+              const stat = participant.memberId ? stats.get(participant.memberId) : undefined;
+              return {
+                id: participant.id,
+                name: participant.name,
+                isGuest: !participant.memberId,
+                seedTier: participant.seedTier,
+                matchCount: stat?.matchCount ?? 0,
+                winCount: stat?.winCount ?? 0,
+                lossCount: stat?.lossCount ?? 0,
+                lossRate: stat?.lossRate ?? null,
+              };
+            })} />
             <div className="form-actions"><SubmitButton><Icon name="shield" /> Lưu và khóa Seed</SubmitButton></div>
           </MutationForm>
         </section>

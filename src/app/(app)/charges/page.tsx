@@ -8,13 +8,12 @@ import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import {
   createMemberChargeAction,
-  softDeleteFinancialAction,
-  updateMemberChargeAction,
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
+import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { ChargesCollection } from "@/components/charges-collection";
 
 export const metadata = { title: "Khoản phải thu" };
 
@@ -85,41 +84,7 @@ export default async function ChargesPage() {
         <span><strong>{formatMoney(total)}</strong> tổng phải thu</span>
       </div>
 
-      <article className="panel table-panel">
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Thành viên</th><th>Loại thu</th><th>Ngày</th><th>Số lượng</th><th className="align-right">Số tiền</th>{canManage && <th />}</tr></thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td><strong>{row.memberName}</strong><small>{row.note || "Không có ghi chú"}</small></td>
-                  <td><span className="category-pill"><Icon name={row.iconName} /> {row.typeName}</span></td>
-                  <td>{formatDate(row.date)}</td>
-                  <td>{row.quantity} × {formatMoney(row.unitAmount)}</td>
-                  <td className="align-right"><strong className="money-out">{formatMoney(row.totalAmount)}</strong></td>
-                  {canManage && <td>
-                    <Disclosure label="•••" className="row-disclosure">
-                      <MutationForm action={updateMemberChargeAction} className="form-stack compact">
-                        <input type="hidden" name="id" value={row.id} />
-                        <label>Số lượng<input name="quantity" type="number" min="1" defaultValue={row.quantity} /></label>
-                        <label>Đơn giá<input name="unitAmount" type="number" min="0" defaultValue={row.unitAmount} /></label>
-                        <label>Ngày<input name="chargeDate" type="date" defaultValue={row.date} /></label>
-                        <label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label>
-                        <SubmitButton>Lưu thay đổi</SubmitButton>
-                      </MutationForm>
-                      <form action={softDeleteFinancialAction}>
-                        <input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="charge" />
-                        <button className="button danger wide small">Xóa khoản này</button>
-                      </form>
-                    </Disclosure>
-                  </td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!rows.length && <div className="empty-state"><span><Icon name="coins" /></span><h3>Chưa có khoản phải thu</h3><p>Khoản định kỳ sẽ tự sinh vào ngày đầu tháng.</p></div>}
-      </article>
+      <ChargesCollection rows={rows} canManage={canManage} />
     </>
   );
 }

@@ -1,6 +1,5 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { db } from "@/db";
 import { fundTransactions, memberCharges, members, users } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
@@ -10,8 +9,9 @@ import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { createMemberAction } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
-import { formatMoney, initials, todayInTimezone } from "@/lib/format";
+import { todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { MembersCollection } from "@/components/members-collection";
 
 export const metadata = { title: "Thành viên" };
 
@@ -87,24 +87,16 @@ export default async function MembersPage() {
         <span><strong>{rows.filter((row) => (paymentMap.get(row.id) ?? 0) - (chargeMap.get(row.id) ?? 0) < 0).length}</strong> còn nợ</span>
       </div>
 
-      <section className="member-grid">
-        {rows.map((member) => {
-          const balance = (paymentMap.get(member.id) ?? 0) - (chargeMap.get(member.id) ?? 0);
-          return (
-            <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
-              <div className="member-card-top">
-                <span className="member-avatar">{initials(member.name)}</span>
-                <div><h2>{member.name}</h2><p>{member.code} · {member.phone}</p></div>
-                <span className={`status-dot ${member.status.toLowerCase()}`} />
-              </div>
-              <div className="member-card-meta">
-                <div><small>Tài khoản</small><strong>{member.hasAccount ? ROLE_LABELS[member.role!] : "Chưa tạo"}</strong></div>
-                <div className="align-right"><small>{balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(balance))}</strong></div>
-              </div>
-            </Link>
-          );
-        })}
-      </section>
+      <MembersCollection rows={rows.map((member) => ({
+        id: member.id,
+        code: member.code,
+        name: member.name,
+        phone: member.phone,
+        status: member.status,
+        hasAccount: member.hasAccount,
+        accountLabel: member.hasAccount ? ROLE_LABELS[member.role!] : "Chưa tạo",
+        balance: (paymentMap.get(member.id) ?? 0) - (chargeMap.get(member.id) ?? 0),
+      }))} />
     </>
   );
 }

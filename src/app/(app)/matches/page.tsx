@@ -13,91 +13,9 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { MatchFields } from "@/components/match-fields";
 
 export const metadata = { title: "Trận đấu" };
-
-type MatrixMember = { id: string; fullName: string };
-type MatrixChargeType = {
-  id: string;
-  name: string;
-  defaultAmount: number;
-  iconName: string;
-  color: string | null;
-};
-
-function MatchFields({
-  memberRows,
-  occurrenceTypes,
-  playedOn,
-  note = "",
-  participantIds = new Set<string>(),
-  chargeQuantities = new Map<string, number>(),
-}: {
-  memberRows: MatrixMember[];
-  occurrenceTypes: MatrixChargeType[];
-  playedOn: string;
-  note?: string;
-  participantIds?: Set<string>;
-  chargeQuantities?: Map<string, number>;
-}) {
-  const columns = `minmax(150px, 1fr) repeat(${1 + occurrenceTypes.length}, 82px)`;
-  return (
-    <>
-      <div className="form-row">
-        <label>Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required /></label>
-        <label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label>
-      </div>
-      <div>
-        <span className="field-label">Người tham gia và khoản thu</span>
-        <p className="matrix-help">Nhập số lần phát sinh từ 1 trở lên sẽ tự đánh dấu người đó tham gia trận.</p>
-        <div className="participant-matrix">
-          <div className="matrix-head" style={{ gridTemplateColumns: columns }}>
-            <span>Thành viên</span>
-            <span>Tham gia</span>
-            {occurrenceTypes.map((type) => (
-              <span key={type.id}>
-                <Icon name={type.iconName} />
-                <small>{type.name}</small>
-                <small>{formatMoney(type.defaultAmount)}</small>
-              </span>
-            ))}
-          </div>
-          {memberRows.map((member) => (
-            <div className="matrix-row" style={{ gridTemplateColumns: columns }} key={member.id}>
-              <strong>{member.fullName}</strong>
-              <label className="box-check" title="Đánh dấu tham gia">
-                <input
-                  type="checkbox"
-                  name="participants"
-                  value={member.id}
-                  defaultChecked={participantIds.has(member.id)}
-                />
-                <span>✓</span>
-              </label>
-              {occurrenceTypes.map((type) => {
-                const value = `${member.id}|${type.id}`;
-                return (
-                  <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}>
-                    <input
-                      type="number"
-                      name={`matchChargeQuantity:${member.id}:${type.id}`}
-                      min="0"
-                      max="99"
-                      step="1"
-                      inputMode="numeric"
-                      defaultValue={chargeQuantities.get(value) ?? 0}
-                      aria-label={`Số lần ${type.name} của ${member.fullName}`}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
 
 export default async function MatchesPage() {
   const user = await requireUser();
@@ -221,8 +139,8 @@ export default async function MatchesPage() {
                           occurrenceTypes={occurrenceTypes}
                           playedOn={match.playedOn}
                           note={match.note ?? ""}
-                          participantIds={participantIdMap.get(match.id)}
-                          chargeQuantities={chargeQuantityMap.get(match.id)}
+                          initialParticipantIds={[...(participantIdMap.get(match.id) ?? new Set<string>())]}
+                          initialChargeQuantities={Object.fromEntries(chargeQuantityMap.get(match.id) ?? new Map<string, number>())}
                         />
                         <div className="form-actions"><SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton></div>
                       </MutationForm>

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -9,6 +8,7 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
 
 export const metadata = { title: "Báo cáo" };
 
@@ -121,80 +121,26 @@ export default async function ReportsPage({
     <>
       <PageHeader eyebrow="Phân tích" title="Báo cáo quỹ" description="Theo dõi phát sinh tháng và công nợ thành viên" />
 
-      <article className="panel monthly-report">
-        <div className="monthly-report-heading">
-          <div>
-            <span className="eyebrow">Phát sinh theo tháng</span>
-            <h2>{monthLabel}</h2>
-            <p>{formatMoney(monthTotal)} tổng khoản phải thu trong tháng</p>
-          </div>
-          <div className="month-controls">
-            <Link href={`/reports?month=${shiftMonth(month, -1)}`} aria-label="Tháng trước">‹</Link>
-            <form action="/reports" method="get">
-              <input type="month" name="month" defaultValue={month} aria-label="Chọn tháng báo cáo" />
-              <button className="button secondary small">Xem</button>
-            </form>
-            <Link href={`/reports?month=${shiftMonth(month, 1)}`} aria-label="Tháng sau">›</Link>
-          </div>
-        </div>
-        <div className="monthly-table-wrap">
-          <table className="monthly-table">
-            <thead>
-              <tr>
-                <th>Thành viên</th>
-                {monthlyTypes.map((type) => (
-                  <th key={type.id}>
-                    <span className="monthly-type-icon" style={{ color: type.color ?? undefined }}>
-                      <Icon name={type.iconName} />
-                    </span>
-                    <strong>{type.name}</strong>
-                    <small>{type.reportAsIcon ? "Theo số lần" : formatMoney(type.defaultAmount)}</small>
-                  </th>
-                ))}
-                <th className="align-right">Tổng tháng</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleMembers.map((member) => (
-                <tr key={member.id}>
-                  <td><strong>{member.name}</strong><small>{member.code}{member.status === "INACTIVE" ? " · Đã nghỉ" : ""}</small></td>
-                  {monthlyTypes.map((type) => {
-                    const cell = monthlyCells.get(`${member.id}|${type.id}`);
-                    return (
-                      <td key={type.id}>
-                        {!cell ? <span className="monthly-empty">—</span> : type.reportAsIcon ? (
-                          <span
-                            className="icon-count"
-                            style={{ color: type.color ?? undefined }}
-                            title={`${cell.quantity} lần · ${formatMoney(cell.total)}`}
-                          >
-                            {Array.from({ length: cell.quantity }, (_, index) => (
-                              <Icon name={type.iconName} key={index} className="report-charge-icon" />
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="monthly-money">
-                            <strong>{formatMoney(cell.total)}</strong>
-                            {cell.quantity > 1 && <small>{cell.quantity} lần</small>}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td className="align-right"><strong>{formatMoney(memberMonthTotals.get(member.id) ?? 0)}</strong></td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td><strong>Tổng cộng</strong></td>
-                {monthlyTypes.map((type) => <td key={type.id}><strong>{formatMoney(typeMonthTotals.get(type.id) ?? 0)}</strong></td>)}
-                <td className="align-right"><strong>{formatMoney(monthTotal)}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </article>
+      <MonthlyReportCollection
+        month={month}
+        monthLabel={monthLabel}
+        previousMonth={shiftMonth(month, -1)}
+        nextMonth={shiftMonth(month, 1)}
+        total={monthTotal}
+        types={monthlyTypes.map((type) => ({
+          id: type.id, name: type.name, iconName: type.iconName, color: type.color,
+          defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon,
+          total: typeMonthTotals.get(type.id) ?? 0,
+        }))}
+        members={visibleMembers.map((member) => ({
+          ...member,
+          total: memberMonthTotals.get(member.id) ?? 0,
+          cells: monthlyTypes.flatMap((type) => {
+            const cell = monthlyCells.get(`${member.id}|${type.id}`);
+            return cell ? [{ typeId: type.id, ...cell }] : [];
+          }),
+        }))}
+      />
 
       <section className="report-hero">
         <div><small>Tổng công nợ</small><strong>{formatMoney(debt)}</strong><span>{balances.filter((row) => row.balance < 0).length} người còn nợ</span></div>
@@ -202,12 +148,7 @@ export default async function ReportsPage({
         <div><small>Tỷ lệ hoàn thành</small><strong>{balances.length ? Math.round((balances.filter((row) => row.balance >= 0).length / balances.length) * 100) : 0}%</strong><span>thành viên không còn nợ</span></div>
       </section>
       <section className="report-columns">
-        <article className="panel table-panel">
-          <div className="panel-heading padded"><div><span className="eyebrow">Công nợ lũy kế</span><h2>Theo thành viên</h2></div></div>
-          <div className="data-table-wrap"><table className="data-table"><thead><tr><th>Thành viên</th><th className="align-right">Phải đóng</th><th className="align-right">Đã nộp</th><th className="align-right">Số dư</th></tr></thead>
-            <tbody>{balances.sort((a, b) => a.balance - b.balance).map((row) => <tr key={row.id}><td><strong>{row.name}</strong><small>{row.code}</small></td><td className="align-right">{formatMoney(row.charged)}</td><td className="align-right">{formatMoney(row.paid)}</td><td className="align-right"><strong className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</strong></td></tr>)}</tbody>
-          </table></div>
-        </article>
+        <BalanceCollection rows={balances} />
         <article className="panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>
           <div className="type-report">

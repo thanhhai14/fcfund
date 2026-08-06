@@ -8,13 +8,13 @@ import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import {
   createFundTransactionAction,
-  softDeleteFinancialAction,
-  updateFundTransactionAction,
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { SearchableMemberSelect } from "@/components/searchable-member-select";
+import { TransactionsCollection } from "@/components/transactions-collection";
 
 export const metadata = { title: "Thu & chi" };
 
@@ -65,7 +65,7 @@ export default async function TransactionsPage() {
                 <option value="EXPENSE">Khoản chi</option>
                 <option value="ADJUSTMENT">Điều chỉnh quỹ</option>
               </select></label>
-              <label>Thành viên<select name="memberId"><option value="">Không gắn thành viên</option>{memberRows.map((member) => <option value={member.id} key={member.id}>{member.fullName}</option>)}</select></label>
+              <SearchableMemberSelect name="memberId" options={memberRows.map((member) => ({ id: member.id, name: member.fullName, code: member.code, phone: member.phone }))} emptyLabel="Không gắn thành viên" />
               <label>Danh mục<select name="categoryId"><option value="">Không chọn</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.direction === "IN" ? "Thu" : "Chi"} · {category.name}</option>)}</select></label>
               <label>Số tiền<input name="amount" type="number" min="1" required /></label>
               <label>Ngày giao dịch<input name="transactionDate" type="date" defaultValue={todayInTimezone()} required /></label>
@@ -83,33 +83,7 @@ export default async function TransactionsPage() {
         <article><span className="stat-icon green"><Icon name="wallet" /></span><div><small>Số dư quỹ</small><strong>{formatMoney(income - expense)}</strong></div></article>
       </section>
 
-      <article className="panel table-panel">
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Nội dung</th><th>Danh mục</th><th>Ngày</th><th>Thành viên</th><th className="align-right">Số tiền</th>{canManage && <th />}</tr></thead>
-            <tbody>{rows.map((row) => (
-              <tr key={row.id}>
-                <td><strong>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>{row.matchDate && <small>Trận ngày {formatDate(row.matchDate)}</small>}</td>
-                <td><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? row.kind}</span></td>
-                <td>{formatDate(row.date)}</td>
-                <td>{row.memberName ?? "—"}</td>
-                <td className="align-right"><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></td>
-                {canManage && <td><Disclosure label="•••" className="row-disclosure">
-                  <MutationForm action={updateFundTransactionAction} className="form-stack compact">
-                    <input type="hidden" name="id" value={row.id} />
-                    <label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label>
-                    <label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label>
-                    <label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label>
-                    <SubmitButton>Lưu thay đổi</SubmitButton>
-                  </MutationForm>
-                  <form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><button className="button danger wide small">Xóa giao dịch</button></form>
-                </Disclosure></td>}
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-        {!rows.length && <div className="empty-state"><span><Icon name="transactions" /></span><h3>Chưa có giao dịch</h3><p>Ghi nhận khoản thu hoặc chi đầu tiên.</p></div>}
-      </article>
+      <TransactionsCollection rows={rows} canManage={canManage} />
     </>
   );
 }

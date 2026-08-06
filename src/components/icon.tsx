@@ -36,6 +36,8 @@ import {
   faHeart,
   faHouse,
   faLocationDot,
+  faList,
+  faMagnifyingGlass,
   faMedal,
   faMoneyBill1Wave,
   faMoneyBillTransfer,
@@ -55,6 +57,7 @@ import {
   faShoePrints,
   faStar,
   faStopwatch,
+  faTableCellsLarge,
   faThumbsDown,
   faThumbsUp,
   faTicket,
@@ -134,6 +137,9 @@ const icons: Record<string, IconDefinition> = {
   trash: faTrash,
   menu: faBars,
   check: faCheck,
+  search: faMagnifyingGlass,
+  list: faList,
+  grid: faTableCellsLarge,
 };
 
 export function Icon({
