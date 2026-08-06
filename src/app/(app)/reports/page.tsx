@@ -9,6 +9,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
+import { ReportTabs, type ReportTab } from "@/components/report-tabs";
 
 export const metadata = { title: "Báo cáo" };
 
@@ -21,13 +22,17 @@ function shiftMonth(month: string, offset: number) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; tab?: string }>;
 }) {
   const user = await requireUser();
   const viewAll = await can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW);
   if (!viewAll && !user.memberId) redirect("/dashboard");
 
-  const requestedMonth = (await searchParams).month;
+  const params = await searchParams;
+  const requestedMonth = params.month;
+  const initialTab: ReportTab = ["monthly", "balances", "structure"].includes(params.tab ?? "")
+    ? params.tab as ReportTab
+    : "monthly";
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth ?? "")
     ? requestedMonth!
     : todayInTimezone().slice(0, 7);
@@ -120,42 +125,41 @@ export default async function ReportsPage({
   return (
     <>
       <PageHeader eyebrow="Phân tích" title="Báo cáo quỹ" description="Theo dõi phát sinh tháng và công nợ thành viên" />
-
-      <MonthlyReportCollection
-        month={month}
-        monthLabel={monthLabel}
-        previousMonth={shiftMonth(month, -1)}
-        nextMonth={shiftMonth(month, 1)}
-        total={monthTotal}
-        types={monthlyTypes.map((type) => ({
-          id: type.id, name: type.name, iconName: type.iconName, color: type.color,
-          defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon,
-          total: typeMonthTotals.get(type.id) ?? 0,
-        }))}
-        members={visibleMembers.map((member) => ({
-          ...member,
-          total: memberMonthTotals.get(member.id) ?? 0,
-          cells: monthlyTypes.flatMap((type) => {
-            const cell = monthlyCells.get(`${member.id}|${type.id}`);
-            return cell ? [{ typeId: type.id, ...cell }] : [];
-          }),
-        }))}
-      />
-
       <section className="report-hero">
         <div><small>Tổng công nợ</small><strong>{formatMoney(debt)}</strong><span>{balances.filter((row) => row.balance < 0).length} người còn nợ</span></div>
         <div><small>Tổng đóng dư</small><strong>{formatMoney(credit)}</strong><span>{balances.filter((row) => row.balance > 0).length} người có số dư</span></div>
         <div><small>Tỷ lệ hoàn thành</small><strong>{balances.length ? Math.round((balances.filter((row) => row.balance >= 0).length / balances.length) * 100) : 0}%</strong><span>thành viên không còn nợ</span></div>
       </section>
-      <section className="report-columns">
-        <BalanceCollection rows={balances} />
-        <article className="panel">
+      <ReportTabs
+        initialTab={initialTab}
+        monthly={<MonthlyReportCollection
+          month={month}
+          monthLabel={monthLabel}
+          previousMonth={shiftMonth(month, -1)}
+          nextMonth={shiftMonth(month, 1)}
+          total={monthTotal}
+          types={monthlyTypes.map((type) => ({
+            id: type.id, name: type.name, iconName: type.iconName, color: type.color,
+            defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon,
+            total: typeMonthTotals.get(type.id) ?? 0,
+          }))}
+          members={visibleMembers.map((member) => ({
+            ...member,
+            total: memberMonthTotals.get(member.id) ?? 0,
+            cells: monthlyTypes.flatMap((type) => {
+              const cell = monthlyCells.get(`${member.id}|${type.id}`);
+              return cell ? [{ typeId: type.id, ...cell }] : [];
+            }),
+          }))}
+        />}
+        balances={<BalanceCollection rows={balances} />}
+        structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>
           <div className="type-report">
             {typeRows.map((row) => <div key={row.id}><span className="stat-icon green" style={{ color: row.color ?? undefined }}><Icon name={row.iconName} /></span><span><strong>{row.name}</strong><small>Tổng phát sinh</small></span><b>{formatMoney(Number(row.total))}</b></div>)}
           </div>
-        </article>
-      </section>
+        </article>}
+      />
     </>
   );
 }

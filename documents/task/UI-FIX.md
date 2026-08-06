@@ -166,6 +166,18 @@ Lựa chọn view được ghi nhớ trên thiết bị. Nếu chưa có lựa c
 - Sắp xếp theo tên, phải đóng, đã nộp hoặc số dư.
 - Card hiển thị đủ phải đóng, đã nộp và số dư.
 
+### 9.3. Điều hướng báo cáo bằng tabs
+
+- `report-hero` luôn nằm trên cùng.
+- Ba khu vực Phát sinh theo tháng, Công nợ lũy kế và Cơ cấu lũy kế được đặt trong ba tabs riêng.
+- Mặc định mở Phát sinh theo tháng; tab hiện tại được lưu trong query parameter `tab`.
+- Tabs hỗ trợ Back/Forward, bàn phím và cuộn ngang trên mobile.
+
+## 9.4. Màu loại thu
+
+- Icon và viền badge loại thu trong List/Card Khoản phải thu phải dùng đúng trường `charge_types.color`.
+- Chỉ dùng màu mặc định khi loại thu không cấu hình màu.
+
 ## 10. Breakpoint và kiểm thử
 
 - `> 1024px`: desktop, List mặc định.

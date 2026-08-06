@@ -37,6 +37,7 @@ export default async function ChargesPage() {
       memberName: members.fullName,
       typeName: chargeTypes.name,
       iconName: chargeTypes.iconName,
+      color: chargeTypes.color,
       source: memberCharges.source,
       date: memberCharges.chargeDate,
       quantity: memberCharges.quantity,
