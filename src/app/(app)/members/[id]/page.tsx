@@ -14,7 +14,13 @@ import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Chatter } from "@/components/chatter";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
-import { createAssignmentAction, resetPasswordAction, updateMemberAction } from "../../mutations";
+import {
+  createAssignmentAction,
+  createMemberAccountAction,
+  resetPasswordAction,
+  updateMemberAccountAction,
+  updateMemberAction,
+} from "../../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
 import { formatDate, formatMoney, initials, todayInTimezone } from "@/lib/format";
@@ -66,6 +72,7 @@ export default async function MemberDetailPage({
   const canManage = await can(PERMISSIONS.MEMBERS_MANAGE);
   const canManageUsers = await can(PERMISSIONS.USERS_MANAGE);
   const canManageCharges = await can(PERMISSIONS.CHARGES_MANAGE);
+  const hasTemporaryPhone = /^0{7,}/.test(member.phone);
   const ledger = [
     ...charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note })),
     ...payments.map((row) => ({ id: `p-${row.id}`, date: row.transactionDate, label: "Đã nộp tiền", amount: row.amount, note: row.note })),
@@ -127,7 +134,36 @@ export default async function MemberDetailPage({
               <label>Ghi chú<textarea name="note" rows={2} defaultValue={member.note ?? ""} /></label>
               <SubmitButton>Lưu hồ sơ</SubmitButton>
             </MutationForm>
-            {account && canManageUsers && <form action={resetPasswordAction} className="reset-row"><input type="hidden" name="userId" value={account.id} /><span>Tài khoản: <b>{ROLE_LABELS[account.role]}</b></span><button className="button danger small">Đặt lại mật khẩu</button></form>}
+          </article>}
+          {canManageUsers && <article className="panel member-account-panel">
+            <div className="panel-heading">
+              <div><span className="eyebrow">Đăng nhập</span><h2>Tài khoản thành viên</h2></div>
+              <span className={`account-state ${account?.isActive ? "active" : "inactive"}`}>{account ? account.isActive ? "Đang mở" : "Đã khóa" : "Chưa kích hoạt"}</span>
+            </div>
+
+            {!account ? <>
+              <p className="panel-note">Tạo tài khoản liên kết với hồ sơ này. Thành viên đăng nhập bằng số điện thoại và mật khẩu ban đầu <strong>Trailang123</strong>.</p>
+              {hasTemporaryPhone && <p className="account-warning">Hồ sơ đang dùng số điện thoại tạm. Hãy nhập số điện thoại thực tế trước khi tạo tài khoản.</p>}
+              <MutationForm action={createMemberAccountAction} className="form-stack">
+                <input type="hidden" name="memberId" value={member.id} />
+                <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={member.phone} required /></label>
+                <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
+                <SubmitButton>Tạo tài khoản đăng nhập</SubmitButton>
+              </MutationForm>
+            </> : <>
+              <div className="account-login-meta">
+                <span><small>Vai trò hiện tại</small><strong>{ROLE_LABELS[account.role]}</strong></span>
+                <span><small>Đăng nhập gần nhất</small><strong>{account.lastLoginAt ? `${formatDate(account.lastLoginAt)} · ${account.lastLoginAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đăng nhập"}</strong></span>
+              </div>
+              {account.role === "ADMIN" ? <p className="account-warning">Tài khoản Admin được quản lý tại Cài đặt để tránh thay đổi nhầm vai trò quản trị.</p> : <MutationForm action={updateMemberAccountAction} className="form-stack">
+                <input type="hidden" name="userId" value={account.id} />
+                <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={account.phoneNormalized} required /></label>
+                <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
+                <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.isActive} /><span><strong>Cho phép đăng nhập</strong><small>Tắt tùy chọn này để khóa tài khoản nhưng vẫn giữ dữ liệu.</small></span></label>
+                <SubmitButton>Lưu tài khoản</SubmitButton>
+              </MutationForm>}
+              <form action={resetPasswordAction} className="reset-row"><input type="hidden" name="userId" value={account.id} /><span>Mật khẩu mặc định: <b>Trailang123</b></span><button className="button danger small">Đặt lại mật khẩu</button></form>
+            </>}
           </article>}
           <article className="panel">
             <Chatter clubId={currentUser.clubId} entityType="member" entityId={member.id} path={`/members/${member.id}`} />

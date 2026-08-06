@@ -26,6 +26,7 @@ import {
   ICON_ALLOWLIST,
   PERMISSION_DEFINITIONS,
   PERMISSIONS,
+  ROLE_LABELS,
 } from "@/lib/constants";
 import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
@@ -174,6 +175,126 @@ export async function updateMemberAction(formData: FormData): Promise<MutationRe
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
   return { ok: true, message: "Đã cập nhật thành viên." };
+}
+
+const memberAccountSchema = z.object({
+  phone: z.string().regex(/^\d{8,15}$/),
+  role: z.enum(["MEMBER", "TREASURER"]),
+});
+
+export async function createMemberAccountAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const memberId = str(formData, "memberId");
+  const parsed = memberAccountSchema.safeParse({
+    phone: normalizePhone(str(formData, "phone")),
+    role: str(formData, "role") || "MEMBER",
+  });
+  if (!parsed.success) return { ok: false, message: "Số điện thoại hoặc vai trò không hợp lệ." };
+
+  const [member] = await db.select().from(members).where(and(
+    eq(members.id, memberId),
+    eq(members.clubId, actor.clubId),
+  )).limit(1);
+  if (!member) return { ok: false, message: "Không tìm thấy thành viên." };
+
+  try {
+    await db.transaction(async (tx) => {
+      const [account] = await tx.insert(users).values({
+        clubId: actor.clubId,
+        memberId: member.id,
+        phoneNormalized: parsed.data.phone,
+        passwordHash: await hashPassword(DEFAULT_PASSWORD),
+        role: parsed.data.role,
+        isActive: member.status === "ACTIVE",
+      }).returning({ id: users.id });
+      await tx.update(members).set({ phone: parsed.data.phone, updatedAt: new Date() }).where(eq(members.id, member.id));
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "member",
+        entityId: member.id,
+        action: "CREATE",
+        actorId: actor.id,
+        afterData: { userId: account.id, phone: parsed.data.phone, role: parsed.data.role, isActive: member.status === "ACTIVE" },
+        message: `Tạo tài khoản đăng nhập ${ROLE_LABELS[parsed.data.role] ?? parsed.data.role}`,
+      });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Thành viên đã có tài khoản hoặc số điện thoại đăng nhập đang được sử dụng."
+        : "Không thể tạo tài khoản đăng nhập.",
+    };
+  }
+
+  revalidatePath("/members");
+  revalidatePath(`/members/${member.id}`);
+  revalidatePath("/settings");
+  return { ok: true, message: `Đã tạo tài khoản. Mật khẩu ban đầu: ${DEFAULT_PASSWORD}` };
+}
+
+export async function updateMemberAccountAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const userId = str(formData, "userId");
+  const parsed = memberAccountSchema.safeParse({
+    phone: normalizePhone(str(formData, "phone")),
+    role: str(formData, "role") || "MEMBER",
+  });
+  if (!parsed.success) return { ok: false, message: "Số điện thoại hoặc vai trò không hợp lệ." };
+
+  const [before] = await db.select({
+    id: users.id,
+    memberId: users.memberId,
+    phone: users.phoneNormalized,
+    role: users.role,
+    isActive: users.isActive,
+    memberStatus: members.status,
+  }).from(users).leftJoin(members, eq(users.memberId, members.id)).where(and(
+    eq(users.id, userId),
+    eq(users.clubId, actor.clubId),
+  )).limit(1);
+  if (!before?.memberId) return { ok: false, message: "Không tìm thấy tài khoản thành viên." };
+  if (before.role === "ADMIN") return { ok: false, message: "Không thể thay đổi tài khoản Admin từ hồ sơ thành viên." };
+
+  const requestedActive = formData.get("isActive") === "on";
+  if (requestedActive && before.memberStatus !== "ACTIVE") {
+    return { ok: false, message: "Hãy chuyển hồ sơ sang Đang hoạt động trước khi mở đăng nhập." };
+  }
+  const next = { phone: parsed.data.phone, role: parsed.data.role, isActive: requestedActive };
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({
+        phoneNormalized: next.phone,
+        role: next.role,
+        isActive: next.isActive,
+        updatedAt: new Date(),
+      }).where(and(eq(users.id, before.id), eq(users.clubId, actor.clubId)));
+      await tx.update(members).set({ phone: next.phone, updatedAt: new Date() }).where(eq(members.id, before.memberId!));
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "member",
+        entityId: before.memberId!,
+        action: "UPDATE",
+        actorId: actor.id,
+        beforeData: { phone: before.phone, role: before.role, isActive: before.isActive },
+        afterData: next,
+        message: `${next.isActive ? "Cập nhật" : "Khóa"} tài khoản đăng nhập`,
+      });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Số điện thoại đăng nhập đang được tài khoản khác sử dụng."
+        : "Không thể cập nhật tài khoản đăng nhập.",
+    };
+  }
+
+  revalidatePath("/members");
+  revalidatePath(`/members/${before.memberId}`);
+  revalidatePath("/settings");
+  return { ok: true, message: "Đã cập nhật tài khoản đăng nhập." };
 }
 
 export async function createChargeTypeAction(formData: FormData): Promise<MutationResult> {
@@ -721,15 +842,21 @@ export async function updateClubAction(formData: FormData): Promise<MutationResu
 export async function resetPasswordAction(formData: FormData): Promise<void> {
   const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
   const userId = str(formData, "userId");
+  const [target] = await db.select({ id: users.id, memberId: users.memberId }).from(users).where(and(
+    eq(users.id, userId),
+    eq(users.clubId, actor.clubId),
+  )).limit(1);
+  if (!target) return;
   const passwordHash = await hash(DEFAULT_PASSWORD, 12);
   await db.transaction(async (tx) => {
-    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(and(eq(users.id, userId), eq(users.clubId, actor.clubId)));
+    await tx.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, target.id));
     await track(tx, {
-      clubId: actor.clubId, entityType: "user", entityId: userId,
+      clubId: actor.clubId, entityType: target.memberId ? "member" : "user", entityId: target.memberId ?? target.id,
       action: "RESET_PASSWORD", actorId: actor.id, message: "Đặt lại mật khẩu về mật khẩu mặc định",
     });
   });
   revalidatePath("/settings");
+  if (target.memberId) revalidatePath(`/members/${target.memberId}`);
 }
 
 export async function changeOwnPasswordAction(formData: FormData): Promise<MutationResult> {

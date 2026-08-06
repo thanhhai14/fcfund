@@ -653,6 +653,17 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .policy-row strong { display: block; font-size: 9px; }
 .policy-row small { display: block; color: var(--muted); font-size: 7px; margin-top: 2px; }
 .account-actions { display: flex; gap: 7px; margin-top: 10px; }
+.account-state { padding: 6px 9px; color: var(--muted); background: #f2f4f6; border-left: 3px solid currentColor; font-size: 10px; font-weight: 850; text-transform: uppercase; white-space: nowrap; }
+.account-state.active { color: var(--success); background: #edf8f2; }
+.account-state.inactive { color: var(--danger); background: #fff0f4; }
+.account-login-meta { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 1px; margin-bottom: 14px; background: var(--line); border: 1px solid var(--line); }
+.account-login-meta > span { min-width: 0; padding: 11px 12px; background: #f8fafb; }
+.account-login-meta small, .account-login-meta strong { display: block; }
+.account-login-meta small { color: var(--muted); font-size: 9px; }
+.account-login-meta strong { margin-top: 4px; font-size: 11px; overflow-wrap: anywhere; }
+.account-warning { margin: 0 0 13px; padding: 10px 11px; color: #885116; background: #fff8e8; border-left: 3px solid var(--warning); font-size: 11px; line-height: 1.5; }
+.account-active-field { padding: 10px; background: #f8fafb; border: 1px solid var(--line); }
+.member-account-panel .reset-row { gap: 10px; }
 .transfer-card { text-align: center; }
 .transfer-card img { max-width: 260px; width: 100%; margin: 20px auto; display: block; border: 2px solid var(--forest-900); border-radius: 2px; }
 .transfer-card > strong { display: block; font-size: 20px; }
@@ -796,6 +807,10 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
   .match-result-summary-grid { grid-template-columns: 1fr; }
   .account-actions { align-items: stretch; flex-direction: column; }
   .account-actions form, .account-actions .button { width: 100%; }
+  .member-account-panel .panel-heading { align-items: flex-start; }
+  .account-login-meta { grid-template-columns: 1fr; }
+  .member-account-panel .reset-row { align-items: stretch; flex-direction: column; }
+  .member-account-panel .reset-row .button { width: 100%; }
 }
 
 /* UI refresh: pink-first brand, readable data and shared collection controls */
