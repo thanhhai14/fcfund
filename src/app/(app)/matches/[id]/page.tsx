@@ -162,6 +162,45 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     place: placements[team.name] ?? null,
   }));
   const totalAmount = chargeRows.reduce((sum, charge) => sum + charge.amount, 0);
+  const resultContent = canManageTeams && confirmedVersion && teamRows.length > 0 ? (
+    <section className="panel match-result-panel">
+      <div className="panel-heading">
+        <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
+        {hasRecordedResult && <span className="validation-badge valid"><Icon name="check" /> Đã có kết quả</span>}
+      </div>
+      <p className="panel-note">Xếp mỗi đội một hạng khác nhau. Hạng 1 thắng và không bị phạt; các hạng sau tự nhận số lần phạt bằng hạng trừ 1.</p>
+      {penaltyTypes.length ? (
+        <MutationForm action={recordMatchResultAction} className="match-result-form">
+          <input type="hidden" name="matchId" value={match.id} />
+          <input type="hidden" name="versionId" value={confirmedVersion.id} />
+          <label className="result-charge-type">Loại thu phạt
+            <select name="chargeTypeId" defaultValue={selectedPenaltyTypeId} required>
+              {penaltyTypes.map((type) => <option key={type.id} value={type.id}>{type.name} · {formatMoney(type.defaultAmount)}/lần</option>)}
+            </select>
+          </label>
+          <div className="match-result-teams">
+            {teamRows.map((team) => (
+              <label key={team.id} style={{ borderLeftColor: team.color ?? undefined }}>
+                <span><Icon name="people-group" /><b>{team.name}</b><small>{team.memberCount} người</small></span>
+                <select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
+                  <option value="" disabled>Chọn hạng</option>
+                  {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Thắng" : ` · Phạt ${index} lần`}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+          <div className="match-result-footer"><span>Ghi lại kết quả sẽ thay thế khoản phạt được sinh từ kết quả trước.</span><SubmitButton>{hasRecordedResult ? "Cập nhật kết quả" : "Xác nhận kết quả"}</SubmitButton></div>
+        </MutationForm>
+      ) : (
+        <p className="team-warning"><Icon name="triangle-exclamation" /> Chưa có loại thu theo lần nào được đánh dấu là khoản phạt. Hãy cấu hình trong Cài đặt trước.</p>
+      )}
+    </section>
+  ) : (
+    <section className="match-result-readonly">
+      <div className="panel-heading"><div><span className="eyebrow">Kết quả trận đấu</span><h2>{hasRecordedResult ? "Thứ hạng các đội" : "Chưa ghi nhận kết quả"}</h2></div></div>
+      {hasRecordedResult ? <div className="match-result-summary-grid">{teams.slice().sort((a, b) => (a.place ?? 99) - (b.place ?? 99)).map((team) => <article key={team.id} style={{ borderTopColor: team.color ?? undefined }}><small>Hạng {team.place}</small><strong>{team.name}</strong><span>{team.place === 1 ? "Thắng" : `Phạt ${(team.place ?? 1) - 1} lần`}</span></article>)}</div> : <p className="match-result-empty">Kết quả sẽ xuất hiện tại đây sau khi quản trị viên nhập thứ hạng trận đấu.</p>}
+    </section>
+  );
 
   return (
     <>
@@ -184,42 +223,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <article><small>Trạng thái</small><strong className="match-status-label">{confirmedVersion ? "Đã xác nhận" : "Chưa xác nhận"}</strong><span>đội hình trận đấu</span></article>
       </section>
 
-      {canManageTeams && confirmedVersion && teamRows.length > 0 && (
-        <section className="panel match-result-panel">
-          <div className="panel-heading">
-            <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
-            {hasRecordedResult && <span className="validation-badge valid"><Icon name="check" /> Đã có kết quả</span>}
-          </div>
-          <p className="panel-note">Xếp mỗi đội một hạng khác nhau. Hạng 1 thắng và không bị phạt; các hạng sau tự nhận số lần phạt bằng hạng trừ 1.</p>
-          {penaltyTypes.length ? (
-            <MutationForm action={recordMatchResultAction} className="match-result-form">
-              <input type="hidden" name="matchId" value={match.id} />
-              <input type="hidden" name="versionId" value={confirmedVersion.id} />
-              <label className="result-charge-type">Loại thu phạt
-                <select name="chargeTypeId" defaultValue={selectedPenaltyTypeId} required>
-                  {penaltyTypes.map((type) => <option key={type.id} value={type.id}>{type.name} · {formatMoney(type.defaultAmount)}/lần</option>)}
-                </select>
-              </label>
-              <div className="match-result-teams">
-                {teamRows.map((team) => (
-                  <label key={team.id} style={{ borderLeftColor: team.color ?? undefined }}>
-                    <span><Icon name="people-group" /><b>{team.name}</b><small>{team.memberCount} người</small></span>
-                    <select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
-                      <option value="" disabled>Chọn hạng</option>
-                      {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Thắng" : ` · Phạt ${index} lần`}</option>)}
-                    </select>
-                  </label>
-                ))}
-              </div>
-              <div className="match-result-footer"><span>Ghi lại kết quả sẽ thay thế khoản phạt được sinh từ kết quả trước.</span><SubmitButton>{hasRecordedResult ? "Cập nhật kết quả" : "Xác nhận kết quả"}</SubmitButton></div>
-            </MutationForm>
-          ) : (
-            <p className="team-warning"><Icon name="triangle-exclamation" /> Chưa có loại thu theo lần nào được đánh dấu là khoản phạt. Hãy cấu hình trong Cài đặt trước.</p>
-          )}
-        </section>
-      )}
-
-      <MatchDetailView participants={participants} teams={teams} canViewSeed={canViewSeed} canViewTeams={canViewTeams} />
+      <MatchDetailView participants={participants} teams={teams} canViewSeed={canViewSeed} canViewTeams={canViewTeams} resultContent={resultContent} />
 
       {canManageMatches && <p className="match-detail-edit-note">Muốn đổi người tham gia hoặc khoản thu? Quay lại danh sách trận và chọn <strong>Sửa</strong>.</p>}
     </>

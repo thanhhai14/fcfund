@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { formatMoney, initials } from "@/lib/format";
 import { Icon } from "./icon";
 
@@ -64,13 +64,17 @@ export function MatchDetailView({
   teams,
   canViewSeed,
   canViewTeams,
+  resultContent,
 }: {
   participants: MatchParticipantView[];
   teams: MatchTeamView[];
   canViewSeed: boolean;
   canViewTeams: boolean;
+  resultContent: ReactNode;
 }) {
+  const [section, setSection] = useState<"result" | "members">("result");
   const [mode, setMode] = useState<"list" | "teams">("list");
+  const [activeTeamId, setActiveTeamId] = useState(teams[0]?.id ?? "");
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [descending, setDescending] = useState(false);
   const [query, setQuery] = useState("");
@@ -102,11 +106,17 @@ export function MatchDetailView({
 
   return (
     <section className="match-detail-content">
-      <div className="match-view-switch" role="tablist" aria-label="Kiểu hiển thị trận đấu">
-        <button type="button" className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}>Danh sách</button>
-        {canViewTeams && <button type="button" className={mode === "teams" ? "active" : ""} onClick={() => setMode("teams")}>Theo đội</button>}
+      <div className="match-section-tabs" role="tablist" aria-label="Chi tiết trận đấu">
+        <button type="button" role="tab" aria-selected={section === "result"} className={section === "result" ? "active" : ""} onClick={() => setSection("result")}>Kết quả</button>
+        <button type="button" role="tab" aria-selected={section === "members"} className={section === "members" ? "active" : ""} onClick={() => setSection("members")}>Thành viên</button>
       </div>
 
+      <div className="match-result-tab" hidden={section !== "result"}>{resultContent}</div>
+      <div className="match-members-tab" hidden={section !== "members"}>
+        <div className="match-view-switch" role="tablist" aria-label="Kiểu hiển thị thành viên">
+          <button type="button" role="tab" aria-selected={mode === "list"} className={mode === "list" ? "active" : ""} onClick={() => setMode("list")}>Danh sách</button>
+          {canViewTeams && <button type="button" role="tab" aria-selected={mode === "teams"} className={mode === "teams" ? "active" : ""} onClick={() => setMode("teams")}>Theo đội</button>}
+        </div>
       {mode === "list" ? (
         <>
           <div className="match-list-toolbar">
@@ -140,10 +150,34 @@ export function MatchDetailView({
               <tfoot><tr><td colSpan={canViewSeed ? 3 : 2}>Hiển thị {visibleRows.length} / {participants.length} thành viên</td><td>Tổng cộng</td><td className="numeric-cell">{totals.quantity} lần</td><td className="numeric-cell"><strong>{formatMoney(totals.amount)}</strong></td></tr></tfoot>
             </table>
           </div>
+          <div className="match-detail-card-list">
+            {visibleRows.map((row) => {
+              const summary = chargeSummary(row.charges);
+              return <article className="match-detail-member-card" key={row.id}>
+                <header>
+                  <span className="match-list-person"><b>{initials(row.name)}</b><strong>{row.name}</strong></span>
+                  {row.teamName && <span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>}
+                </header>
+                <div className="match-member-card-meta">
+                  {canViewSeed && <span><small>Seed</small><strong>{row.seedTier ? SEED_LABELS[row.seedTier] ?? row.seedTier : "Chưa xếp"}</strong></span>}
+                  <span><small>Kết quả</small><strong className={row.teamPlace === 1 ? "won" : row.teamPlace ? "lost" : ""}>{resultLabel(row.teamPlace) ?? "Chưa có"}</strong></span>
+                  <span><small>Số lần</small><strong>{summary.quantity || "—"}</strong></span>
+                  <span><small>Thành tiền</small><strong>{formatMoney(summary.amount)}</strong></span>
+                </div>
+                <div className="detail-charge-tags">{row.charges.length ? row.charges.map((charge) => <span key={charge.id} style={{ color: charge.color ?? undefined }}><Icon name={charge.iconName} /> {charge.name} ×{charge.quantity}</span>) : <span className="table-muted">Không phát sinh khoản thu</span>}</div>
+              </article>;
+            })}
+            {!visibleRows.length && <p className="collection-empty">Không tìm thấy thành viên phù hợp.</p>}
+            <footer className="match-card-list-total"><span>{visibleRows.length} / {participants.length} thành viên</span><strong>{totals.quantity} lần · {formatMoney(totals.amount)}</strong></footer>
+          </div>
         </>
       ) : canViewTeams ? (
-        <div className="match-team-view-grid">
-          {teams.map((team) => {
+        <div className="match-team-browser">
+          {!!teams.length && <div className="match-team-tabs" role="tablist" aria-label="Chọn đội">
+            {teams.map((team) => <button type="button" role="tab" aria-selected={(activeTeamId || teams[0]?.id) === team.id} className={(activeTeamId || teams[0]?.id) === team.id ? "active" : ""} key={team.id} onClick={() => setActiveTeamId(team.id)}>{team.name}</button>)}
+          </div>}
+          <div className="match-team-view-grid">
+          {teams.filter((team) => team.id === (activeTeamId || teams[0]?.id)).map((team) => {
             const members = participants.filter((participant) => participant.teamId === team.id);
             const teamTotals = chargeSummary(members.flatMap((member) => member.charges));
             return (
@@ -163,8 +197,9 @@ export function MatchDetailView({
             );
           })}
           {!teams.length && <div className="panel empty-state match-team-empty"><span><Icon name="people-group" /></span><h3>Chưa có đội hình</h3><p>Trận này chưa có đội hình được xác nhận.</p></div>}
+          </div>
         </div>
-      ) : null}
+      ) : null}</div>
     </section>
   );
 }
