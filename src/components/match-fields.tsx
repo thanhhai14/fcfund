@@ -40,7 +40,7 @@ export function MatchFields({
   }
 
   return <>
-    <div className="form-row"><label>Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required /></label><label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label></div>
+    <div className="form-row"><label className="date-field">Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required /></label><label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label></div>
     <div>
       <span className="field-label">Người tham gia và khoản thu</span>
       <p className="matrix-help">Nhập số lần phát sinh từ 1 trở lên sẽ tự đánh dấu người đó tham gia trận.</p>
@@ -55,8 +55,8 @@ export function MatchFields({
           const visible = (!search || normalizeSearch(member.fullName).includes(search)) && (filter === "ALL" || (filter === "SELECTED" ? isSelected : !isSelected));
           return <div className={`matrix-row ${visible ? "" : "filtered-out"}`} style={{ gridTemplateColumns: columns }} key={member.id}>
             <strong>{member.fullName}</strong>
-            <label className="box-check" title="Đánh dấu tham gia"><input type="checkbox" name="participants" value={member.id} checked={isSelected} onChange={(event) => setParticipant(member.id, event.target.checked)} /><span>✓</span></label>
-            {occurrenceTypes.map((type) => { const key = `${member.id}|${type.id}`; return <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}><input type="number" name={`matchChargeQuantity:${member.id}:${type.id}`} min="0" max="99" step="1" inputMode="numeric" defaultValue={initialChargeQuantities[key] ?? 0} onChange={(event) => { if (Number(event.target.value) > 0) setParticipant(member.id, true); }} aria-label={`Số lần ${type.name} của ${member.fullName}`} /></label>; })}
+            <label className="box-check" title="Đánh dấu tham gia"><input type="checkbox" name="participants" value={member.id} checked={isSelected} onChange={(event) => setParticipant(member.id, event.target.checked)} /><small className="matrix-mobile-label">Tham gia</small><span>✓</span></label>
+            {occurrenceTypes.map((type) => { const key = `${member.id}|${type.id}`; return <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}><small className="matrix-mobile-label"><Icon name={type.iconName} />{type.name}<em>{formatMoney(type.defaultAmount)}</em></small><input type="number" name={`matchChargeQuantity:${member.id}:${type.id}`} min="0" max="99" step="1" inputMode="numeric" defaultValue={initialChargeQuantities[key] ?? 0} onChange={(event) => { if (Number(event.target.value) > 0) setParticipant(member.id, true); }} aria-label={`Số lần ${type.name} của ${member.fullName}`} /></label>; })}
           </div>;
         })}
       </div>

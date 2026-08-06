@@ -382,6 +382,7 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
   color: var(--forest-900); background: #fbfcfd; font-size: 10px; font-weight: 800;
 }
 .quantity-field input:not(:placeholder-shown) { border-color: var(--forest-100); }
+.matrix-mobile-label { display: none; }
 .match-popover .disclosure-content { width: min(850px, calc(100vw - 32px)); }
 .match-grid { display: grid; gap: 11px; }
 .match-card { background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: 17px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 17px; }
@@ -690,6 +691,32 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
     width: 100%; min-width: 0; max-width: 100%; inline-size: 100%; contain: inline-size;
     overflow-x: auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
   }
+  .match-popover .date-field { min-width: 0; max-width: 100%; overflow: hidden; }
+  .match-popover input[type="date"] {
+    display: block; width: 100%; inline-size: 100%; min-width: 0; min-inline-size: 0; max-width: 100%; max-inline-size: 100%;
+    height: 44px; font-size: 16px; direction: ltr; -webkit-appearance: none; appearance: none; overflow: hidden;
+  }
+  .match-popover input[type="date"]::-webkit-date-and-time-value { width: 100%; min-width: 0; margin: 0; padding: 0; text-align: left; }
+  .match-popover input[type="date"]::-webkit-datetime-edit { display: block; min-width: 0; padding: 0; }
+  .match-popover input[type="date"]::-webkit-calendar-picker-indicator { flex: 0 0 20px; width: 20px; margin: 0; padding: 0; }
+  .match-popover .participant-matrix { max-height: min(48dvh, 520px); padding: 1px; background: #edf1f4; border: 0; }
+  .match-popover .matrix-head { display: none; }
+  .match-popover .matrix-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1px; margin-bottom: 9px;
+    background: var(--line); border: 1px solid var(--line); border-top: 3px solid var(--brand-primary); font-size: 12px;
+  }
+  .match-popover .matrix-row:last-child { margin-bottom: 0; }
+  .match-popover .matrix-row > strong {
+    grid-column: 1 / -1; min-width: 0; padding: 11px 12px; background: white; font-size: 13px; overflow-wrap: anywhere;
+  }
+  .match-popover .matrix-row > label { min-width: 0; min-height: 58px; padding: 9px 10px !important; background: white; }
+  .match-popover .matrix-mobile-label { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; font-weight: 750; text-align: left; }
+  .match-popover .matrix-mobile-label svg { color: var(--brand-primary-strong); }
+  .match-popover .matrix-mobile-label em { margin-left: auto; color: var(--muted); font-size: 9px; font-style: normal; font-weight: 600; white-space: nowrap; }
+  .match-popover .box-check { grid-template-columns: minmax(0, 1fr) auto; place-items: center stretch; }
+  .match-popover .box-check span { justify-self: end; }
+  .match-popover .quantity-field { grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+  .match-popover .quantity-field input { width: 58px; min-width: 58px; min-height: 36px; font-size: 13px; }
   .account-disclosure .disclosure-backdrop { display: none; }
   .account-disclosure .disclosure-content { position: static; max-width: none; max-inline-size: none; max-height: none; overflow: visible; }
   .form-grid, .form-row { grid-template-columns: 1fr; }
@@ -731,6 +758,7 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 }
 
 @media (max-width: 560px) {
+  .match-popover .matrix-row { grid-template-columns: 1fr !important; }
   .match-detail-summary { grid-template-columns: 1fr; }
   .match-view-switch button { min-width: 0; flex: 1; }
   .match-team-view-grid { padding: 9px; }
