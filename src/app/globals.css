@@ -272,6 +272,7 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 9px; }
 .field-label { display: block; color: #526058; font-size: 11px; font-weight: 700; margin-bottom: 7px; }
+.matrix-help { margin: -2px 0 8px; color: var(--muted); font-size: 8px; }
 .check-field { display: flex; align-items: center; gap: 8px; min-height: 42px; }
 .check-field input { width: 16px; margin: 0; }
 .check-field > span { display: grid; gap: 3px; }
@@ -370,6 +371,12 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .box-check span { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 1px; display: grid; place-items: center; color: transparent; pointer-events: none; }
 .box-check input:checked + span { background: var(--forest-700); color: white; border-color: var(--forest-700); }
 .box-check input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
+.quantity-field { display: grid; place-items: center; padding: 7px !important; }
+.quantity-field input {
+  width: 52px; min-height: 32px; margin: 0; padding: 6px 5px; text-align: center;
+  color: var(--forest-900); background: #fbfcfd; font-size: 10px; font-weight: 800;
+}
+.quantity-field input:not(:placeholder-shown) { border-color: var(--forest-100); }
 .match-popover .disclosure-content { width: min(850px, calc(100vw - 32px)); }
 .match-grid { display: grid; gap: 11px; }
 .match-card { background: white; border: 1px solid var(--line); border-radius: var(--radius); padding: 17px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 17px; }

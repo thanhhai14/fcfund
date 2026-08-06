@@ -2,7 +2,7 @@
 
 import { put } from "@vercel/blob";
 import { hash } from "bcryptjs";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -40,6 +40,22 @@ function str(formData: FormData, key: string) {
 
 function amount(formData: FormData, key = "amount") {
   return Number(str(formData, key).replace(/\D/g, ""));
+}
+
+function parseMatchChargeQuantities(formData: FormData) {
+  const prefix = "matchChargeQuantity:";
+  const quantities = new Map<string, { memberId: string; typeId: string; quantity: number }>();
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    const [memberId, typeId, ...extra] = key.slice(prefix.length).split(":");
+    const raw = String(value).trim() || "0";
+    const quantity = Number(raw);
+    if (!memberId || !typeId || extra.length || !Number.isInteger(quantity) || quantity < 0 || quantity > 99) {
+      return { ok: false as const, rows: [] };
+    }
+    if (quantity > 0) quantities.set(`${memberId}|${typeId}`, { memberId, typeId, quantity });
+  }
+  return { ok: true as const, rows: [...quantities.values()] };
 }
 
 async function track(
@@ -440,16 +456,12 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
   const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
   const playedOn = str(formData, "playedOn") || todayInTimezone();
   const participantIds = [...new Set(formData.getAll("participants").map(String))];
-  const chargeSelections = [...new Set(formData.getAll("matchCharges").map(String))];
-  const parsedSelections = chargeSelections
-    .map((selection) => selection.split("|"))
-    .filter((selection): selection is [string, string] => selection.length === 2);
-  if (parsedSelections.length !== chargeSelections.length) {
-    return { ok: false, message: "Danh sách khoản thu theo trận không hợp lệ." };
-  }
+  const parsedQuantities = parseMatchChargeQuantities(formData);
+  if (!parsedQuantities.ok) return { ok: false, message: "Số lần khoản thu phải là số nguyên từ 0 đến 99." };
+  const chargeRows = parsedQuantities.rows;
 
-  const involved = new Set([...participantIds, ...parsedSelections.map(([memberId]) => memberId)]);
-  const typeIds = [...new Set(parsedSelections.map(([, typeId]) => typeId))];
+  const involved = new Set([...participantIds, ...chargeRows.map((row) => row.memberId)]);
+  const typeIds = [...new Set(chargeRows.map((row) => row.typeId))];
   const validMembers = involved.size ? await db.select({ id: members.id }).from(members)
     .where(and(eq(members.clubId, actor.clubId), inArray(members.id, [...involved]))) : [];
   const validTypes = typeIds.length ? await db.select().from(chargeTypes)
@@ -473,13 +485,13 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
       await tx.insert(matchParticipants).values([...involved].map((memberId) => ({ matchId: match.id, memberId })));
     }
 
-    if (parsedSelections.length) {
-      await tx.insert(memberCharges).values(parsedSelections.flatMap(([memberId, typeId]) => {
+    if (chargeRows.length) {
+      await tx.insert(memberCharges).values(chargeRows.flatMap(({ memberId, typeId, quantity }) => {
         const type = typeMap.get(typeId);
         return type ? [{
           clubId: actor.clubId, memberId, chargeTypeId: typeId, matchId: match.id,
-          source: "MATCH" as const, chargeDate: playedOn, quantity: 1,
-          unitAmount: type.defaultAmount, totalAmount: type.defaultAmount,
+          source: "MATCH" as const, chargeDate: playedOn, quantity,
+          unitAmount: type.defaultAmount, totalAmount: quantity * type.defaultAmount,
           isLossPenaltySnapshot: type.isLossPenalty,
           note: `Phát sinh từ trận ${playedOn}`, createdBy: actor.id,
         }] : [];
@@ -507,16 +519,12 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
 
   const playedOn = str(formData, "playedOn") || before.playedOn;
   const participantIds = [...new Set(formData.getAll("participants").map(String))];
-  const chargeSelections = [...new Set(formData.getAll("matchCharges").map(String))];
-  const parsedSelections = chargeSelections
-    .map((selection) => selection.split("|"))
-    .filter((selection): selection is [string, string] => selection.length === 2);
-  if (parsedSelections.length !== chargeSelections.length) {
-    return { ok: false, message: "Danh sách khoản thu theo trận không hợp lệ." };
-  }
+  const parsedQuantities = parseMatchChargeQuantities(formData);
+  if (!parsedQuantities.ok) return { ok: false, message: "Số lần khoản thu phải là số nguyên từ 0 đến 99." };
+  const chargeRows = parsedQuantities.rows;
 
-  const involved = new Set([...participantIds, ...parsedSelections.map(([memberId]) => memberId)]);
-  const typeIds = [...new Set(parsedSelections.map(([, typeId]) => typeId))];
+  const involved = new Set([...participantIds, ...chargeRows.map((row) => row.memberId)]);
+  const typeIds = [...new Set(chargeRows.map((row) => row.typeId))];
   const validMembers = involved.size ? await db.select({ id: members.id }).from(members)
     .where(and(eq(members.clubId, actor.clubId), inArray(members.id, [...involved]))) : [];
   const validTypes = typeIds.length ? await db.select().from(chargeTypes)
@@ -530,6 +538,24 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     return { ok: false, message: "Thành viên hoặc loại thu theo trận không hợp lệ." };
   }
   const typeMap = new Map(validTypes.map((type) => [type.id, type]));
+  const existingCharges = await db.select({
+    memberId: memberCharges.memberId,
+    typeId: memberCharges.chargeTypeId,
+    unitAmount: memberCharges.unitAmount,
+    isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot,
+  }).from(memberCharges)
+    .where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)))
+    .orderBy(desc(memberCharges.updatedAt));
+  const existingChargeSnapshots = new Map<string, { unitAmount: number; isLossPenaltySnapshot: boolean }>();
+  for (const charge of existingCharges) {
+    const key = `${charge.memberId}|${charge.typeId}`;
+    if (!existingChargeSnapshots.has(key)) {
+      existingChargeSnapshots.set(key, {
+        unitAmount: charge.unitAmount,
+        isLossPenaltySnapshot: charge.isLossPenaltySnapshot,
+      });
+    }
+  }
   const existingParticipants = await db.select({ id: matchParticipants.id, memberId: matchParticipants.memberId })
     .from(matchParticipants)
     .where(eq(matchParticipants.matchId, id));
@@ -567,9 +593,11 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       updatedAt: new Date(),
     }).where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)));
 
-    if (parsedSelections.length) {
-      await tx.insert(memberCharges).values(parsedSelections.flatMap(([memberId, typeId]) => {
+    if (chargeRows.length) {
+      await tx.insert(memberCharges).values(chargeRows.flatMap(({ memberId, typeId, quantity }) => {
         const type = typeMap.get(typeId);
+        const snapshot = existingChargeSnapshots.get(`${memberId}|${typeId}`);
+        const unitAmount = snapshot?.unitAmount ?? type?.defaultAmount ?? 0;
         return type ? [{
           clubId: actor.clubId,
           memberId,
@@ -577,10 +605,10 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
           matchId: id,
           source: "MATCH" as const,
           chargeDate: playedOn,
-          quantity: 1,
-          unitAmount: type.defaultAmount,
-          totalAmount: type.defaultAmount,
-          isLossPenaltySnapshot: type.isLossPenalty,
+          quantity,
+          unitAmount,
+          totalAmount: quantity * unitAmount,
+          isLossPenaltySnapshot: snapshot?.isLossPenaltySnapshot ?? type.isLossPenalty,
           note: `Phát sinh từ trận ${playedOn}`,
           createdBy: actor.id,
         }] : [];
@@ -594,7 +622,7 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       action: "UPDATE",
       actorId: actor.id,
       beforeData: before,
-      afterData: { ...after, participants: [...involved], chargeSelections },
+      afterData: { ...after, participants: [...involved], chargeQuantities: chargeRows },
       message: `Cập nhật trận ngày ${playedOn} với ${involved.size} người tham gia`,
     });
   });

@@ -31,14 +31,14 @@ function MatchFields({
   playedOn,
   note = "",
   participantIds = new Set<string>(),
-  chargeSelections = new Set<string>(),
+  chargeQuantities = new Map<string, number>(),
 }: {
   memberRows: MatrixMember[];
   occurrenceTypes: MatrixChargeType[];
   playedOn: string;
   note?: string;
   participantIds?: Set<string>;
-  chargeSelections?: Set<string>;
+  chargeQuantities?: Map<string, number>;
 }) {
   const columns = `minmax(150px, 1fr) repeat(${1 + occurrenceTypes.length}, 82px)`;
   return (
@@ -49,6 +49,7 @@ function MatchFields({
       </div>
       <div>
         <span className="field-label">Người tham gia và khoản thu</span>
+        <p className="matrix-help">Nhập số lần phát sinh từ 1 trở lên sẽ tự đánh dấu người đó tham gia trận.</p>
         <div className="participant-matrix">
           <div className="matrix-head" style={{ gridTemplateColumns: columns }}>
             <span>Thành viên</span>
@@ -76,14 +77,17 @@ function MatchFields({
               {occurrenceTypes.map((type) => {
                 const value = `${member.id}|${type.id}`;
                 return (
-                  <label className="box-check" title={`${type.name} · ${member.fullName}`} key={type.id}>
+                  <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}>
                     <input
-                      type="checkbox"
-                      name="matchCharges"
-                      value={value}
-                      defaultChecked={chargeSelections.has(value)}
+                      type="number"
+                      name={`matchChargeQuantity:${member.id}:${type.id}`}
+                      min="0"
+                      max="99"
+                      step="1"
+                      inputMode="numeric"
+                      defaultValue={chargeQuantities.get(value) ?? 0}
+                      aria-label={`Số lần ${type.name} của ${member.fullName}`}
                     />
-                    <span>✓</span>
                   </label>
                 );
               })}
@@ -158,13 +162,14 @@ export default async function MatchesPage() {
     }
   });
   const chargeMap = new Map<string, number>();
-  const chargeSelectionMap = new Map<string, Set<string>>();
+  const chargeQuantityMap = new Map<string, Map<string, number>>();
   charges.forEach((row) => {
     if (!row.matchId) return;
     chargeMap.set(row.matchId, (chargeMap.get(row.matchId) ?? 0) + row.amount);
-    const set = chargeSelectionMap.get(row.matchId) ?? new Set<string>();
-    set.add(`${row.memberId}|${row.chargeTypeId}`);
-    chargeSelectionMap.set(row.matchId, set);
+    const quantities = chargeQuantityMap.get(row.matchId) ?? new Map<string, number>();
+    const quantityKey = `${row.memberId}|${row.chargeTypeId}`;
+    quantities.set(quantityKey, (quantities.get(quantityKey) ?? 0) + row.quantity);
+    chargeQuantityMap.set(row.matchId, quantities);
     const details = matchDetailMap.get(row.matchId) ?? new Map();
     const detail = details.get(row.memberId) ?? { name: row.memberName, charges: [] };
     detail.charges.push({
@@ -273,7 +278,7 @@ export default async function MatchesPage() {
                           playedOn={match.playedOn}
                           note={match.note ?? ""}
                           participantIds={participantIdMap.get(match.id)}
-                          chargeSelections={chargeSelectionMap.get(match.id)}
+                          chargeQuantities={chargeQuantityMap.get(match.id)}
                         />
                         <div className="form-actions"><SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton></div>
                       </MutationForm>
