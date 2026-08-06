@@ -56,6 +56,24 @@ OPENING_BALANCE
 ADJUSTMENT
 ```
 
+### member_seed_tier
+
+```text
+TIER_1
+TIER_2
+TIER_3
+TIER_4
+GOALKEEPER
+```
+
+### match_team_version_status
+
+```text
+DRAFT
+CONFIRMED
+SUPERSEDED
+```
+
 ## 3. clubs
 
 Một bản cài đặt chỉ có một dòng club hoạt động.
@@ -134,6 +152,11 @@ club_balance.view
 settings.manage
 users.manage
 audit.view
+match_seed.view
+match_seed.manage
+match_teams.view
+match_teams.manage
+match_form_report.view
 ```
 
 ## 7. role_permissions
@@ -173,6 +196,7 @@ ngược lại dùng role permission
 | icon_name | varchar(100) | NOT NULL |
 | icon_style | varchar(40) | NOT NULL |
 | color | varchar(20) | NULL |
+| is_loss_penalty | boolean | mặc định false |
 | is_active | boolean | mặc định true |
 | created_at/updated_at | timestamptz | NOT NULL |
 
@@ -221,9 +245,75 @@ COALESCE(custom_amount, charge_types.default_amount)
 | match_id | uuid | FK matches |
 | member_id | uuid | FK members, NULL nếu là khách |
 | guest_name | varchar(160) | NULL |
+| seed_tier | member_seed_tier | NULL trước khi đánh giá |
+| seed_evaluated_at | timestamptz | NULL |
+| seed_evaluated_by | uuid | FK users, NULL |
 | note | text | NULL |
 
 Ràng buộc: phải có `member_id` hoặc `guest_name`.
+
+Mỗi bản ghi tham gia phải được đánh giá seed trước khi chia đội, kể cả khách. Không lưu seed trong `members` và không tự động sao chép seed của trận trước. Lịch sử gần nhất chỉ được truy vấn để hiển thị tham khảo.
+
+## 12A. match_team_versions
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| id | uuid | PK |
+| match_id | uuid | FK matches |
+| version | integer | > 0 |
+| status | match_team_version_status | NOT NULL |
+| random_key | varchar(100) | NULL trước lần sinh đầu |
+| team_count | smallint | >= 2 |
+| lookback_matches | smallint | > 0, mặc định 10 |
+| tier_locked_at | timestamptz | NULL trước khi khóa |
+| tier_locked_by | uuid | FK users, NULL |
+| metrics | jsonb | NOT NULL, mặc định `{}` |
+| created_by | uuid | FK users |
+| created_at/updated_at | timestamptz | NOT NULL |
+| confirmed_at | timestamptz | NULL |
+
+Ràng buộc/index:
+
+```text
+UNIQUE (match_id, version)
+UNIQUE (match_id) WHERE status = 'DRAFT'
+UNIQUE (match_id) WHERE status = 'CONFIRMED'
+```
+
+Các lần chia lại chỉ cập nhật bản `DRAFT`. Khi xác nhận phiên bản mới, phiên bản `CONFIRMED` cũ chuyển sang `SUPERSEDED` trong cùng một transaction.
+
+## 12B. match_teams
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| id | uuid | PK |
+| version_id | uuid | FK match_team_versions |
+| team_index | smallint | > 0 |
+| name | varchar(80) | NOT NULL |
+| color | varchar(20) | NULL |
+| member_count | smallint | >= 0 |
+| goalkeeper_count | smallint | >= 0 |
+| outfield_skill_score | integer | >= 0 |
+| recent_loss_score | numeric(8,4) | >= 0 |
+
+`(version_id, team_index)` là duy nhất.
+
+## 12C. match_team_members
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| id | uuid | PK |
+| team_id | uuid | FK match_teams |
+| version_id | uuid | FK match_team_versions |
+| participant_id | uuid | FK match_participants |
+| seed_tier_snapshot | member_seed_tier | NOT NULL |
+| recent_match_count_snapshot | smallint | >= 0 |
+| recent_loss_count_snapshot | smallint | >= 0 |
+| recent_loss_rate_snapshot | numeric(7,4) | từ 0 đến 1, NULL nếu chưa có lịch sử |
+| is_locked | boolean | mặc định false |
+| display_order | integer | >= 0 |
+
+`(version_id, participant_id)` là duy nhất. Ứng dụng phải kiểm tra `team_id` thuộc đúng `version_id` và participant thuộc đúng trận của version trong cùng transaction.
 
 ## 13. member_charges
 
@@ -243,6 +333,7 @@ Khoản làm giảm số dư thành viên.
 | quantity | integer | > 0 |
 | unit_amount | bigint | >= 0 |
 | total_amount | bigint | >= 0 |
+| is_loss_penalty_snapshot | boolean | mặc định false |
 | note | text | NULL |
 | created_by | uuid | FK users, NULL nếu job |
 | created_at/updated_at | timestamptz | NOT NULL |
@@ -373,6 +464,10 @@ SUM(OUT fund_transactions chưa xóa)
 - `fund_transactions(club_id, transaction_date, direction)`.
 - `activity_logs(entity_type, entity_id, created_at DESC)`.
 - `match_participants(match_id)`.
+- `match_team_versions(match_id, version)` unique.
+- `match_teams(version_id, team_index)` unique.
+- `match_team_members(version_id, participant_id)` unique.
+- `member_charges(match_id, is_loss_penalty_snapshot)` để tính phong độ suy luận.
 
 ## 20. Giao dịch CSDL
 
@@ -382,3 +477,5 @@ Các thao tác sau phải chạy trong PostgreSQL transaction:
 - tạo/sửa/xóa khoản phải đóng và ghi activity log;
 - sinh hàng loạt khoản tháng;
 - đặt lại mật khẩu và ghi activity log.
+- xác nhận phiên bản đội hình mới và chuyển bản cũ sang superseded;
+- lưu/chia lại đội hình nháp cùng activity log.

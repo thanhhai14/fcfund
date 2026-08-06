@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/db";
 import { chargeTypes, matches, matchParticipants, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
@@ -98,6 +99,7 @@ export default async function MatchesPage() {
   const user = await requireUser();
   if (!(await can(PERMISSIONS.MATCHES_VIEW))) redirect("/dashboard");
   const canManage = await can(PERMISSIONS.MATCHES_MANAGE);
+  const canViewTeams = await can(PERMISSIONS.MATCH_TEAMS_VIEW);
 
   const matchRows = await db.select().from(matches)
     .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt)))
@@ -229,6 +231,7 @@ export default async function MatchesPage() {
                   <strong>{formatMoney(chargeMap.get(match.id) ?? 0)}</strong>
                 </div>
                 <div className="match-actions">
+                    {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {canManage ? "Tạo đội" : "Xem đội"}</Link>}
                     <Disclosure label={<><Icon name="eye" /> Xem</>} className="match-view-disclosure">
                       <div className="match-view-heading">
                         <span className="eyebrow">Chi tiết trận</span>

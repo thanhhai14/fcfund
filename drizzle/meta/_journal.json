@@ -15,6 +15,13 @@
       "when": 1785320557874,
       "tag": "0001_good_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785989343282,
+      "tag": "0002_dear_cardiac",
+      "breakpoints": true
     }
   ]
 }

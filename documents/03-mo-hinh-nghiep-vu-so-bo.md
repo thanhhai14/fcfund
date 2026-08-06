@@ -87,20 +87,22 @@ Số lượng × đơn giá của loại thu
 - số lần Mời nước;
 - loại thu theo lần được tạo thêm sau này.
 
-## 4. Quản lý trận ở mức tối giản
+## 4. Quản lý trận và chia đội
 
 Trận chỉ cần:
 
 - ngày diễn ra;
 - danh sách người tham gia;
-- các khoản thu lẻ phát sinh cho từng người.
+- các khoản thu lẻ phát sinh cho từng người;
+- các phiên bản đội hình được tạo từ người tham gia.
 
-Không quản lý:
+Không quản lý trực tiếp:
 
-- chia hai đội;
-- đội thắng/đội thua;
 - tỷ số;
-- tự suy ra người bị phạt.
+- diễn biến trận;
+- đội thắng/đội thua được nhập tay.
+
+Hệ thống có chia từ 2 đội trở lên theo seed Tier 1–4/Thủ môn và phong độ gần đây. Trận thắng/thua được suy luận từ loại khoản thu đánh dấu là phạt thua; chi tiết và giới hạn dữ liệu nằm tại tài liệu 11.
 
 Không phải ai tham gia cũng phải đóng Quỹ lẻ. Admin tự chọn khoản thu áp dụng cho từng người.
 

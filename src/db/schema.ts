@@ -44,6 +44,18 @@ export const activityAction = pgEnum("activity_action", [
   "COMMENT",
 ]);
 export const jobStatus = pgEnum("job_status", ["RUNNING", "COMPLETED", "FAILED"]);
+export const memberSeedTier = pgEnum("member_seed_tier", [
+  "TIER_1",
+  "TIER_2",
+  "TIER_3",
+  "TIER_4",
+  "GOALKEEPER",
+]);
+export const matchTeamVersionStatus = pgEnum("match_team_version_status", [
+  "DRAFT",
+  "CONFIRMED",
+  "SUPERSEDED",
+]);
 
 export const clubs = pgTable("clubs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -141,6 +153,7 @@ export const chargeTypes = pgTable(
     iconStyle: varchar("icon_style", { length: 40 }).default("solid").notNull(),
     color: varchar("color", { length: 20 }).default("#2e7d58"),
     reportAsIcon: boolean("report_as_icon").default(false).notNull(),
+    isLossPenalty: boolean("is_loss_penalty").default(false).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     ...auditColumns,
   },
@@ -194,6 +207,9 @@ export const matchParticipants = pgTable(
     matchId: uuid("match_id").references(() => matches.id, { onDelete: "cascade" }).notNull(),
     memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
     guestName: varchar("guest_name", { length: 160 }),
+    seedTier: memberSeedTier("seed_tier"),
+    seedEvaluatedAt: timestamp("seed_evaluated_at", { withTimezone: true }),
+    seedEvaluatedBy: uuid("seed_evaluated_by").references(() => users.id, { onDelete: "set null" }),
     note: text("note"),
   },
   (table) => [
@@ -202,6 +218,79 @@ export const matchParticipants = pgTable(
       .on(table.matchId, table.memberId)
       .where(sql`${table.memberId} IS NOT NULL`),
     check("participant_identity_required", sql`${table.memberId} IS NOT NULL OR ${table.guestName} IS NOT NULL`),
+  ],
+);
+
+export const matchTeamVersions = pgTable(
+  "match_team_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    matchId: uuid("match_id").references(() => matches.id, { onDelete: "cascade" }).notNull(),
+    version: integer("version").notNull(),
+    status: matchTeamVersionStatus("status").default("DRAFT").notNull(),
+    randomKey: varchar("random_key", { length: 100 }),
+    teamCount: integer("team_count").default(2).notNull(),
+    lookbackMatches: integer("lookback_matches").default(10).notNull(),
+    tierLockedAt: timestamp("tier_locked_at", { withTimezone: true }),
+    tierLockedBy: uuid("tier_locked_by").references(() => users.id, { onDelete: "set null" }),
+    metrics: jsonb("metrics").default({}).notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("match_team_version_number_unique").on(table.matchId, table.version),
+    uniqueIndex("match_team_one_draft_unique").on(table.matchId).where(sql`${table.status} = 'DRAFT'`),
+    uniqueIndex("match_team_one_confirmed_unique").on(table.matchId).where(sql`${table.status} = 'CONFIRMED'`),
+    check("match_team_version_number_positive", sql`${table.version} > 0`),
+    check("match_team_count_minimum", sql`${table.teamCount} >= 2`),
+    check("match_team_lookback_positive", sql`${table.lookbackMatches} > 0`),
+  ],
+);
+
+export const matchTeams = pgTable(
+  "match_teams",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    versionId: uuid("version_id").references(() => matchTeamVersions.id, { onDelete: "cascade" }).notNull(),
+    teamIndex: integer("team_index").notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    color: varchar("color", { length: 20 }),
+    memberCount: integer("member_count").default(0).notNull(),
+    goalkeeperCount: integer("goalkeeper_count").default(0).notNull(),
+    outfieldSkillScore: integer("outfield_skill_score").default(0).notNull(),
+    recentLossScore: integer("recent_loss_score").default(0).notNull(),
+  },
+  (table) => [
+    unique("match_team_index_unique").on(table.versionId, table.teamIndex),
+    check("match_team_index_positive", sql`${table.teamIndex} > 0`),
+    check("match_team_counts_nonnegative", sql`${table.memberCount} >= 0 AND ${table.goalkeeperCount} >= 0`),
+  ],
+);
+
+export const matchTeamMembers = pgTable(
+  "match_team_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    versionId: uuid("version_id").references(() => matchTeamVersions.id, { onDelete: "cascade" }).notNull(),
+    teamId: uuid("team_id").references(() => matchTeams.id, { onDelete: "cascade" }).notNull(),
+    participantId: uuid("participant_id").references(() => matchParticipants.id, { onDelete: "set null" }),
+    memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
+    displayNameSnapshot: varchar("display_name_snapshot", { length: 160 }).notNull(),
+    seedTierSnapshot: memberSeedTier("seed_tier_snapshot").notNull(),
+    recentMatchCountSnapshot: integer("recent_match_count_snapshot").default(0).notNull(),
+    recentLossCountSnapshot: integer("recent_loss_count_snapshot").default(0).notNull(),
+    recentLossRateSnapshot: integer("recent_loss_rate_snapshot"),
+    isLocked: boolean("is_locked").default(false).notNull(),
+    displayOrder: integer("display_order").default(0).notNull(),
+  },
+  (table) => [
+    uniqueIndex("match_team_participant_version_unique")
+      .on(table.versionId, table.participantId)
+      .where(sql`${table.participantId} IS NOT NULL`),
+    index("match_team_members_team_idx").on(table.teamId),
+    check("match_team_member_history_nonnegative", sql`${table.recentMatchCountSnapshot} >= 0 AND ${table.recentLossCountSnapshot} >= 0`),
+    check("match_team_member_loss_rate_range", sql`${table.recentLossRateSnapshot} IS NULL OR (${table.recentLossRateSnapshot} >= 0 AND ${table.recentLossRateSnapshot} <= 10000)`),
   ],
 );
 
@@ -220,6 +309,7 @@ export const memberCharges = pgTable(
     quantity: integer("quantity").default(1).notNull(),
     unitAmount: bigint("unit_amount", { mode: "number" }).notNull(),
     totalAmount: bigint("total_amount", { mode: "number" }).notNull(),
+    isLossPenaltySnapshot: boolean("is_loss_penalty_snapshot").default(false).notNull(),
     note: text("note"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     ...auditColumns,

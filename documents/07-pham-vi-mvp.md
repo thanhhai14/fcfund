@@ -46,6 +46,7 @@
 - Tên và icon Font Awesome.
 - Kiểu theo tháng hoặc theo số lần.
 - Đơn giá mặc định.
+- Đánh dấu loại thu là phạt thua dùng cho báo cáo phong độ và chia đội.
 
 ## 5. Khoản phải đóng
 
@@ -69,6 +70,11 @@
 - Chọn người tham gia.
 - Gán không, một hoặc nhiều khoản thu cho từng người.
 - Xem tổng khoản thu phát sinh từ trận.
+- Đánh giá lại seed Tier 1–4 hoặc Thủ môn cho người tham gia ở từng trận; không tự kế thừa seed sang trận mới.
+- Chia từ 2 đội trở lên, mỗi đội tối thiểu 5 người.
+- Cân bằng quân số, thủ môn, tier và phong độ suy luận gần đây.
+- Chỉnh thủ công, khóa người, chia lại và xác nhận đội hình.
+- Sau xác nhận, thay đổi qua phiên bản mới.
 
 ## 8. Thu và chi
 
@@ -84,6 +90,7 @@
 - Báo cáo công nợ theo thành viên.
 - Chi tiết sổ số dư thành viên.
 - Báo cáo khoản thu theo loại.
+- Báo cáo phong độ suy luận từ khoản phạt thua theo trận.
 - Xuất CSV/Excel được xem là tính năng nên có sau luồng lõi.
 
 ## 10. Cài đặt
@@ -110,7 +117,7 @@
 - Đối soát giao dịch ngân hàng tự động.
 - OTP SMS.
 - Push notification nhắc nợ.
-- Quản lý hai đội, tỷ số hoặc đội thắng/thua.
+- Quản lý tỷ số, diễn biến hoặc đội thắng/thua được nhập trực tiếp. Kết quả hiện chỉ được suy luận từ khoản phạt thua.
 - Phân bổ thanh toán vào từng khoản phải đóng.
 - Khóa sổ kỳ kế toán.
 - Cấu hình nhóm thành viên.

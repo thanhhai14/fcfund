@@ -90,7 +90,7 @@ export default async function SettingsPage() {
             </div>
             <div className="settings-list">{types.map((type) => <div className={!type.isActive ? "inactive" : undefined} key={type.id}>
               <span className="stat-icon green" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span>
-              <span><strong>{type.name}</strong><small>{type.calculation === "MONTHLY" ? "Tự sinh hằng tháng" : "Admin cập nhật số lần"} · {type.reportAsIcon ? "Báo cáo bằng icon" : "Báo cáo bằng tiền"}</small></span>
+              <span><strong>{type.name}</strong><small>{type.calculation === "MONTHLY" ? "Tự sinh hằng tháng" : "Admin cập nhật số lần"} · {type.reportAsIcon ? "Báo cáo bằng icon" : "Báo cáo bằng tiền"}{type.isLossPenalty ? " · Phạt thua" : ""}</small></span>
               <b>{formatMoney(type.defaultAmount)}</b>
               <Disclosure label={<Icon name="edit" />} className="type-edit-disclosure">
                 <MutationForm action={updateChargeTypeAction} className="form-stack">
@@ -102,6 +102,7 @@ export default async function SettingsPage() {
                     iconName={type.iconName}
                     color={type.color}
                     reportAsIcon={type.reportAsIcon}
+                    isLossPenalty={type.isLossPenalty}
                     includeStatus
                     isActive={type.isActive}
                   />

@@ -55,6 +55,7 @@ Danh mục loại thu:
 - họ/style của icon nếu cần;
 - kiểu tính: theo tháng hoặc theo số lần;
 - đơn giá hiện hành;
+- cờ xác định loại thu là phạt thua dùng cho thống kê chia đội;
 - trạng thái.
 
 ## 5. MemberChargeAssignment
@@ -83,6 +84,7 @@ Khoản phải đóng đã phát sinh:
 - trận liên quan nếu có;
 - ghi chú;
 - nguồn tạo: tự động hoặc admin.
+- snapshot cờ phạt thua tại lúc phát sinh.
 
 Ràng buộc chống sinh trùng cần bảo đảm cùng một cấu hình định kỳ không tạo hai khoản cho cùng thành viên và cùng tháng.
 
@@ -117,9 +119,47 @@ Liên kết người tham gia trận:
 
 - trận;
 - thành viên hoặc khách;
+- seed được đánh giá riêng cho trận: Tier 1–4 hoặc Thủ môn;
+- người và thời điểm đánh giá seed;
 - ghi chú.
 
 Các `MemberCharge` theo lần có thể liên kết người tham gia này.
+
+Seed không nằm trên `Member`. Mỗi trận phải đánh giá lại; seed của các trận trước chỉ là lịch sử tham khảo.
+
+## 9A. MatchTeamVersion
+
+Phiên bản đội hình của một trận:
+
+- số phiên bản;
+- trạng thái nháp, đã xác nhận hoặc bị thay thế;
+- random key;
+- số đội;
+- số trận dùng tính phong độ gần đây;
+- thời điểm/người khóa tier;
+- snapshot chỉ số cân bằng;
+- người tạo và thời điểm xác nhận.
+
+Các lần chia lại trước xác nhận dùng chung một bản nháp. Sau xác nhận, mọi thay đổi tạo phiên bản mới và giữ phiên bản cũ để audit.
+
+## 9B. MatchTeam
+
+Một đội thuộc một phiên bản:
+
+- thứ tự, tên và màu đội;
+- quân số và số thủ môn snapshot;
+- tổng điểm cầu thủ sân;
+- chỉ số phong độ thua gần đây.
+
+## 9C. MatchTeamMember
+
+Thành viên của đội:
+
+- liên kết người tham gia trận;
+- seed snapshot;
+- số trận, số trận thua và tỷ lệ thua snapshot;
+- cờ khóa đội khi chia lại;
+- thứ tự hiển thị.
 
 ## 10. ExpenseType
 
@@ -189,7 +229,10 @@ Member
 Match
 ├── MatchParticipant
 ├── MemberCharge
-└── Expense
+├── Expense
+└── MatchTeamVersion
+    └── MatchTeam
+        └── MatchTeamMember ── MatchParticipant
 ```
 
 ## 16. Trường kiểm toán dùng chung

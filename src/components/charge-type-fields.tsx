@@ -10,6 +10,7 @@ export function ChargeTypeFields({
   iconName = "wallet",
   color = "#ef7198",
   reportAsIcon = false,
+  isLossPenalty = false,
   includeStatus = false,
   isActive = true,
 }: {
@@ -18,6 +19,7 @@ export function ChargeTypeFields({
   iconName?: string;
   color?: string | null;
   reportAsIcon?: boolean;
+  isLossPenalty?: boolean;
   includeStatus?: boolean;
   isActive?: boolean;
 }) {
@@ -76,6 +78,13 @@ export function ChargeTypeFields({
         <span>
           <strong>Hiển thị bằng icon trong báo cáo tháng</strong>
           <small>Số icon tương ứng với số lần phát sinh; nếu tắt sẽ hiển thị số tiền.</small>
+        </span>
+      </label>
+      <label className="check-field penalty-mode-field">
+        <input name="isLossPenalty" type="checkbox" defaultChecked={isLossPenalty} />
+        <span>
+          <strong>Tính là phạt thua khi chia đội</strong>
+          <small>Khoản phát sinh theo trận sẽ được dùng để suy luận phong độ thua.</small>
         </span>
       </label>
       {includeStatus && (

@@ -14,6 +14,7 @@ import {
   fundTransactions,
   matches,
   matchParticipants,
+  matchTeamVersions,
   memberChargeAssignments,
   memberCharges,
   members,
@@ -180,6 +181,7 @@ export async function createChargeTypeAction(formData: FormData): Promise<Mutati
         iconName,
         color,
         reportAsIcon: formData.get("reportAsIcon") === "on",
+        isLossPenalty: formData.get("isLossPenalty") === "on",
       }).returning();
       await track(tx, {
         clubId: actor.clubId, entityType: "charge_type", entityId: record.id,
@@ -226,6 +228,7 @@ export async function updateChargeTypeAction(formData: FormData): Promise<Mutati
         iconName,
         color,
         reportAsIcon: formData.get("reportAsIcon") === "on",
+        isLossPenalty: formData.get("isLossPenalty") === "on",
         isActive: formData.get("isActive") === "on",
         updatedAt: new Date(),
       }).where(eq(chargeTypes.id, id)).returning();
@@ -314,6 +317,7 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
       source: str(formData, "matchId") ? "MATCH" : "MANUAL",
       chargeDate: str(formData, "chargeDate") || todayInTimezone(),
       quantity, unitAmount, totalAmount: quantity * unitAmount,
+      isLossPenaltySnapshot: type.isLossPenalty,
       note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
     await track(tx, {
@@ -476,6 +480,7 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
           clubId: actor.clubId, memberId, chargeTypeId: typeId, matchId: match.id,
           source: "MATCH" as const, chargeDate: playedOn, quantity: 1,
           unitAmount: type.defaultAmount, totalAmount: type.defaultAmount,
+          isLossPenaltySnapshot: type.isLossPenalty,
           note: `Phát sinh từ trận ${playedOn}`, createdBy: actor.id,
         }] : [];
       }));
@@ -525,6 +530,16 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     return { ok: false, message: "Thành viên hoặc loại thu theo trận không hợp lệ." };
   }
   const typeMap = new Map(validTypes.map((type) => [type.id, type]));
+  const existingParticipants = await db.select({ id: matchParticipants.id, memberId: matchParticipants.memberId })
+    .from(matchParticipants)
+    .where(eq(matchParticipants.matchId, id));
+  const existingMemberIds = new Set(existingParticipants.flatMap((row) => row.memberId ? [row.memberId] : []));
+  const addedMemberIds = [...involved].filter((memberId) => !existingMemberIds.has(memberId));
+  const removedParticipantIds = existingParticipants
+    .filter((row) => row.memberId && !involved.has(row.memberId))
+    .map((row) => row.id);
+  const participantsChanged = addedMemberIds.length > 0 || removedParticipantIds.length > 0;
+  const teamDraftInvalidated = participantsChanged || playedOn !== before.playedOn;
 
   await db.transaction(async (tx) => {
     const [after] = await tx.update(matches).set({
@@ -533,9 +548,17 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       updatedAt: new Date(),
     }).where(eq(matches.id, id)).returning();
 
-    await tx.delete(matchParticipants).where(eq(matchParticipants.matchId, id));
-    if (involved.size) {
-      await tx.insert(matchParticipants).values([...involved].map((memberId) => ({ matchId: id, memberId })));
+    if (teamDraftInvalidated) {
+      await tx.delete(matchTeamVersions).where(and(
+        eq(matchTeamVersions.matchId, id),
+        eq(matchTeamVersions.status, "DRAFT"),
+      ));
+    }
+    if (removedParticipantIds.length) {
+      await tx.delete(matchParticipants).where(inArray(matchParticipants.id, removedParticipantIds));
+    }
+    if (addedMemberIds.length) {
+      await tx.insert(matchParticipants).values(addedMemberIds.map((memberId) => ({ matchId: id, memberId })));
     }
 
     await tx.update(memberCharges).set({
@@ -557,6 +580,7 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
           quantity: 1,
           unitAmount: type.defaultAmount,
           totalAmount: type.defaultAmount,
+          isLossPenaltySnapshot: type.isLossPenalty,
           note: `Phát sinh từ trận ${playedOn}`,
           createdBy: actor.id,
         }] : [];

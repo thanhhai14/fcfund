@@ -35,7 +35,8 @@ Các loại hiện có:
 - Lưu ngày diễn ra và người tham gia.
 - Có thể ghi các khoản thu theo lần của từng người.
 - Không phải mọi người tham gia đều đóng Quỹ lẻ.
-- Không quản lý chia đội hoặc đội thua.
+- Không quản lý hai đội cố định, tỷ số hoặc diễn biến trận.
+- Có quản lý chia đội theo từng trận và suy luận phong độ từ khoản phạt thua theo BR-31 đến BR-40.
 
 ## BR-06 — Công nợ và thanh toán
 
@@ -185,3 +186,72 @@ Hệ thống có ba vai trò:
 - Mọi thao tác tạo, sửa, xóa dữ liệu tài chính phải được ghi lịch sử.
 - Chatter hiển thị người thao tác, thời gian và nội dung thay đổi.
 - Dữ liệu tài chính sử dụng xóa mềm để không làm mất lịch sử.
+
+## BR-31 — Seed thành viên
+
+- Seed được đánh giá lại riêng cho từng người tham gia ở mỗi trận, gồm Tier 1, Tier 2, Tier 3, Tier 4 hoặc Thủ môn.
+- Thủ môn là tier riêng, không phải một vị trí bổ sung cho Tier 1–4.
+- Seed không phải thuộc tính cố định của hồ sơ thành viên và không được tự động kế thừa sang trận mới.
+- Seed trận gần nhất chỉ được hiển thị để tham khảo khi đánh giá lại.
+- Người tham gia chưa có seed trong trận hiện tại không được đưa vào kết quả chia đội.
+- Thành viên được xem seed của nhau theo trận; quyền sửa seed được kiểm soát bằng policy.
+
+## BR-32 — Điều kiện số đội
+
+- Admin nhập tay số đội và số đội luôn lớn hơn hoặc bằng 2.
+- Mỗi đội phải có ít nhất 5 thành viên.
+- Số người tham gia phải lớn hơn hoặc bằng `số đội × 5`.
+- Quân số giữa các đội chênh nhau không quá 1.
+
+## BR-33 — Cân bằng thủ môn
+
+- Thủ môn được chia đều giữa các đội.
+- Số thủ môn giữa hai đội bất kỳ chênh nhau không quá 1.
+- Nếu số thủ môn ít hơn số đội, hệ thống cảnh báo có đội không có thủ môn nhưng chưa chặn chia đội.
+
+## BR-34 — Workflow tạo đội
+
+- Admin tạo trận và chọn người tham gia trước.
+- Thao tác `Tạo đội` nằm cùng nhóm với Xem, Sửa và Xóa trận.
+- Trong giao diện tạo đội, Admin nhập seed còn thiếu, lưu và khóa tier, chọn số đội rồi sinh đội hình.
+- Thiếu seed hoặc không đủ tối thiểu 5 người/đội thì hệ thống chặn và báo rõ nguyên nhân.
+
+## BR-35 — Chia đội cân bằng
+
+- Hệ thống cân bằng quân số, thủ môn, tổng điểm Tier 1–4, phân bổ từng tier và phong độ gần đây.
+- Random chỉ quyết định giữa các phương án có mức cân bằng tương đương.
+- Admin được chỉnh thủ công trước khi xác nhận nhưng không được xác nhận đội hình vi phạm ràng buộc cứng.
+
+## BR-36 — Khóa tier và snapshot
+
+- Seed phải được lưu và khóa trước khi sinh đội.
+- Khi mở khóa tier, đội hình nháp hiện tại mất hiệu lực.
+- Phiên bản đội hình lưu snapshot seed và phong độ để đánh giá ở trận khác hoặc thay đổi sau này không làm đổi lịch sử.
+
+## BR-37 — Phiên bản đội hình
+
+- Các lần chia lại trước khi xác nhận chỉ ghi đè bản nháp hiện tại.
+- Chỉ đội hình đã xác nhận được hiển thị mặc định cho thành viên.
+- Sau khi xác nhận không sửa trực tiếp; thay đổi phải tạo phiên bản mới.
+- Phiên bản xác nhận cũ được giữ ở trạng thái superseded để audit.
+
+## BR-38 — Loại thu phạt thua
+
+- Loại thu có checkbox `Tính là phạt thua khi chia đội`.
+- Tên kỹ thuật đề xuất: `is_loss_penalty`.
+- Khoản phạt khác không phản ánh thua trận không được bật cờ này.
+- Khoản phải thu lưu snapshot cờ để việc sửa loại thu không làm đổi thống kê lịch sử.
+
+## BR-39 — Phong độ suy luận
+
+- Một người được tính một trận thua khi có ít nhất một khoản phải thu phạt thua gắn với trận đó.
+- Nhiều lần phạt trong cùng trận vẫn chỉ tính một trận thua.
+- Không dùng tiền đã nộp để xác định thắng/thua vì thanh toán không phân bổ vào từng khoản phải thu.
+- Chỉ số cân bằng mặc định dùng 10 trận tham gia gần nhất, không dùng tổng tiền hoặc tổng thua trọn đời.
+- Báo cáo phải ghi rõ đây là phong độ suy luận từ khoản phạt thua.
+
+## BR-40 — Độc lập với tài chính
+
+- Chia lại, kéo/thả hoặc đổi phiên bản đội hình không tự động thay đổi khoản thu.
+- Xóa mềm trận làm ẩn đội hình nhưng vẫn bảo toàn phiên bản và activity log.
+- Chi tiết thuật toán, schema và tiêu chí nghiệm thu nằm tại tài liệu 11.

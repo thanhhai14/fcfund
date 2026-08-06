@@ -19,6 +19,7 @@ Mặc định:
 - toàn quyền thành viên và tài khoản;
 - quản lý loại thu, khoản thu và giao dịch;
 - quản lý trận;
+- quản lý seed theo trận, chia đội và phiên bản đội hình;
 - quản lý cài đặt, logo và QR;
 - xem chatter/audit;
 - cấu hình policy;
@@ -34,6 +35,7 @@ Mặc định:
 - ghi nhận tiền thành viên nộp;
 - quản lý thu khác và khoản chi;
 - quản lý trận và người tham gia;
+- xem seed theo trận; quản lý seed/chia đội khi được policy cấp;
 - xem chatter tài chính;
 - xem danh sách và số dư thành viên.
 
@@ -56,6 +58,7 @@ Mặc định:
 - xem số dư của mình;
 - xem QR và thông tin chuyển khoản;
 - xem dữ liệu công khai được policy cho phép;
+- xem seed của người tham gia theo trận và đội hình đã xác nhận;
 - đổi mật khẩu.
 
 Không được tạo, sửa hoặc xóa dữ liệu tài chính.
@@ -70,7 +73,8 @@ Các quyền tách riêng:
 - xem tên người nộp tiền;
 - xem số dư thành viên khác;
 - xem chi tiết khoản phải đóng của người khác;
-- xem chatter.
+- xem chatter;
+- xem báo cáo phong độ suy luận từ khoản phạt thua.
 
 Policy server phải lọc dữ liệu trước khi trả về. Không chỉ ẩn cột bằng frontend.
 
@@ -82,6 +86,7 @@ Các màn hình có chatter:
 - khoản phải đóng;
 - giao dịch thu/chi;
 - trận;
+- seed người tham gia trận và phiên bản đội hình;
 - loại thu;
 - cài đặt club;
 - tài khoản.
