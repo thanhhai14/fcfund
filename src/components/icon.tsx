@@ -16,6 +16,7 @@ import {
   faCalendarCheck,
   faCalendarDay,
   faCar,
+  faCheck,
   faChampagneGlasses,
   faChartPie,
   faCircleDollarToSlot,
@@ -132,6 +133,7 @@ const icons: Record<string, IconDefinition> = {
   edit: faPen,
   trash: faTrash,
   menu: faBars,
+  check: faCheck,
 };
 
 export function Icon({

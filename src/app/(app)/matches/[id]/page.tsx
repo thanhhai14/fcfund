@@ -2,6 +2,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MatchDetailView, type MatchParticipantView, type MatchTeamView } from "@/components/match-detail-view";
+import { Icon } from "@/components/icon";
+import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import {
@@ -18,6 +20,7 @@ import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
 import { can } from "@/lib/permissions";
+import { recordMatchResultAction } from "./actions";
 
 export const metadata = { title: "Chi tiết trận đấu" };
 
@@ -36,6 +39,19 @@ function getPlacements(metrics: unknown): Record<string, number> {
   return Object.fromEntries(Object.entries(placements).flatMap(([name, place]) =>
     typeof place === "number" && Number.isFinite(place) ? [[name, place]] : [],
   ));
+}
+
+function getMetricString(metrics: unknown, key: string) {
+  if (typeof metrics === "string") {
+    try {
+      return getMetricString(JSON.parse(metrics), key);
+    } catch {
+      return null;
+    }
+  }
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const value = (metrics as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
 }
 
 export default async function MatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -92,6 +108,17 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     participantId: matchTeamMembers.participantId,
     teamId: matchTeamMembers.teamId,
   }).from(matchTeamMembers).where(eq(matchTeamMembers.versionId, confirmedVersion.id)) : [];
+  const penaltyTypes = canManageTeams && confirmedVersion ? await db.select({
+    id: chargeTypes.id,
+    name: chargeTypes.name,
+    iconName: chargeTypes.iconName,
+    defaultAmount: chargeTypes.defaultAmount,
+  }).from(chargeTypes).where(and(
+    eq(chargeTypes.clubId, user.clubId),
+    eq(chargeTypes.calculation, "OCCURRENCE"),
+    eq(chargeTypes.isLossPenalty, true),
+    eq(chargeTypes.isActive, true),
+  )).orderBy(chargeTypes.name) : [];
 
   const chargesByMember = new Map<string, typeof chargeRows>();
   for (const charge of chargeRows) {
@@ -102,6 +129,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const teamById = new Map(teamRows.map((team) => [team.id, team]));
   const participantTeam = new Map(teamMemberRows.flatMap((row) => row.participantId ? [[row.participantId, row.teamId]] : []));
   const placements = getPlacements(confirmedVersion?.metrics);
+  const selectedPenaltyTypeId = getMetricString(confirmedVersion?.metrics, "resultChargeTypeId")
+    ?? penaltyTypes[0]?.id;
+  const hasRecordedResult = teamRows.length > 0 && teamRows.every((team) => placements[team.name]);
 
   const participants: MatchParticipantView[] = participantRows.map((row) => {
     const team = teamById.get(participantTeam.get(row.id) ?? "");
@@ -153,6 +183,41 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <article><small>Khoản thu</small><strong>{formatMoney(totalAmount)}</strong><span>{chargeRows.reduce((sum, charge) => sum + charge.quantity, 0)} lần phát sinh</span></article>
         <article><small>Trạng thái</small><strong className="match-status-label">{confirmedVersion ? "Đã xác nhận" : "Chưa xác nhận"}</strong><span>đội hình trận đấu</span></article>
       </section>
+
+      {canManageTeams && confirmedVersion && teamRows.length > 0 && (
+        <section className="panel match-result-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
+            {hasRecordedResult && <span className="validation-badge valid"><Icon name="check" /> Đã có kết quả</span>}
+          </div>
+          <p className="panel-note">Xếp mỗi đội một hạng khác nhau. Hạng 1 thắng và không bị phạt; các hạng sau tự nhận số lần phạt bằng hạng trừ 1.</p>
+          {penaltyTypes.length ? (
+            <MutationForm action={recordMatchResultAction} className="match-result-form">
+              <input type="hidden" name="matchId" value={match.id} />
+              <input type="hidden" name="versionId" value={confirmedVersion.id} />
+              <label className="result-charge-type">Loại thu phạt
+                <select name="chargeTypeId" defaultValue={selectedPenaltyTypeId} required>
+                  {penaltyTypes.map((type) => <option key={type.id} value={type.id}>{type.name} · {formatMoney(type.defaultAmount)}/lần</option>)}
+                </select>
+              </label>
+              <div className="match-result-teams">
+                {teamRows.map((team) => (
+                  <label key={team.id} style={{ borderLeftColor: team.color ?? undefined }}>
+                    <span><Icon name="people-group" /><b>{team.name}</b><small>{team.memberCount} người</small></span>
+                    <select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
+                      <option value="" disabled>Chọn hạng</option>
+                      {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Thắng" : ` · Phạt ${index} lần`}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <div className="match-result-footer"><span>Ghi lại kết quả sẽ thay thế khoản phạt được sinh từ kết quả trước.</span><SubmitButton>{hasRecordedResult ? "Cập nhật kết quả" : "Xác nhận kết quả"}</SubmitButton></div>
+            </MutationForm>
+          ) : (
+            <p className="team-warning"><Icon name="triangle-exclamation" /> Chưa có loại thu theo lần nào được đánh dấu là khoản phạt. Hãy cấu hình trong Cài đặt trước.</p>
+          )}
+        </section>
+      )}
 
       <MatchDetailView participants={participants} teams={teams} canViewSeed={canViewSeed} canViewTeams={canViewTeams} />
 

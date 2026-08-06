@@ -117,7 +117,7 @@
 - Đối soát giao dịch ngân hàng tự động.
 - OTP SMS.
 - Push notification nhắc nợ.
-- Quản lý tỷ số, diễn biến hoặc đội thắng/thua được nhập trực tiếp. Kết quả hiện chỉ được suy luận từ khoản phạt thua.
+- Quản lý tỷ số và diễn biến trận đấu. MVP đã hỗ trợ nhập thứ hạng đội và tự sinh khoản phạt kết quả, nhưng không lưu tỷ số.
 - Phân bổ thanh toán vào từng khoản phải đóng.
 - Khóa sổ kỳ kế toán.
 - Cấu hình nhóm thành viên.

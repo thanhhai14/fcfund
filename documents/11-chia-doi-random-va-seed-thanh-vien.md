@@ -62,6 +62,8 @@ Số trận thắng = số trận tham gia đã hoàn tất không có khoản p
 Tỷ lệ thua = số trận thua / số trận tham gia hợp lệ
 ```
 
+Một trận chỉ được xem là đã hoàn tất cho thống kê khi đã lưu thứ hạng đội hoặc có ít nhất một khoản phạt thua. Trận chưa nhập kết quả không được mặc định là thắng.
+
 Nếu quy tắc phạt không được nhập đầy đủ, “không có khoản phạt” chỉ có nghĩa là **không bị ghi nhận phạt**, chưa chắc là thắng. UI và báo cáo phải ghi rõ đây là dữ liệu suy luận.
 
 ## 3. Điều kiện trước khi chia đội
@@ -221,7 +223,7 @@ Một khoản phạt thua chỉ được tính khi:
 
 ### 6.4. Giới hạn cần hiển thị
 
-Báo cáo phải ghi nhãn **Phong độ suy luận từ khoản phạt thua**. Nếu club không nhập khoản phạt đều đặn, số liệu không đủ độ tin cậy. Một cải tiến tương lai chính xác hơn là Admin chọn đội thắng sau trận; không cần nhập tỷ số.
+Báo cáo phải ghi nhãn **Phong độ suy luận từ khoản phạt thua**. Để bảo đảm khoản phạt được nhập đồng bộ, Admin có thể nhập thứ hạng cho từng đội trên phiên bản đội hình đã xác nhận. Hệ thống tự tạo `hạng - 1` lần phạt cho mỗi thành viên của các đội không đứng hạng 1; không cần nhập tỷ số.
 
 ## 7. Mô hình dữ liệu đề xuất
 

@@ -246,6 +246,7 @@ Hệ thống có ba vai trò:
 
 - Một người được tính một trận thua khi có ít nhất một khoản phải thu phạt thua gắn với trận đó.
 - Nhiều lần phạt trong cùng trận vẫn chỉ tính một trận thua.
+- Trận chưa ghi nhận kết quả và chưa có bất kỳ khoản phạt thua nào không được tính là trận thắng.
 - Không dùng tiền đã nộp để xác định thắng/thua vì thanh toán không phân bổ vào từng khoản phải thu.
 - Chỉ số cân bằng mặc định dùng 10 trận tham gia gần nhất, không dùng tổng tiền hoặc tổng thua trọn đời.
 - Báo cáo phải ghi rõ đây là phong độ suy luận từ khoản phạt thua.
@@ -255,3 +256,12 @@ Hệ thống có ba vai trò:
 - Chia lại, kéo/thả hoặc đổi phiên bản đội hình không tự động thay đổi khoản thu.
 - Xóa mềm trận làm ẩn đội hình nhưng vẫn bảo toàn phiên bản và activity log.
 - Chi tiết thuật toán, schema và tiêu chí nghiệm thu nằm tại tài liệu 11.
+
+## BR-41 — Nhập kết quả trận
+
+- Chỉ nhập kết quả trên phiên bản đội hình đã xác nhận.
+- Mỗi đội phải nhận đúng một thứ hạng từ 1 đến số đội và không được trùng hạng.
+- Hạng 1 được ghi nhận thắng và không phát sinh khoản phạt kết quả.
+- Đội hạng `N > 1` được ghi nhận thua; mỗi thành viên có tài khoản thành viên phát sinh `N - 1` lần của loại thu phạt được chọn.
+- Ghi lại kết quả thay thế các khoản phạt do kết quả trước sinh ra, nhưng không thay đổi loại khoản thu khác của trận.
+- Kết quả, loại thu phạt, thời điểm và người thao tác được lưu cùng phiên bản đội hình; thao tác phải có activity log.

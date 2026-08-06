@@ -1,8 +1,8 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { matches, matchParticipants, memberCharges } from "@/db/schema";
+import { matches, matchParticipants, matchTeamVersions, memberCharges } from "@/db/schema";
 
 export type MatchFormStat = {
   matchCount: number;
@@ -23,6 +23,31 @@ export async function getMatchFormStats(input: {
   }
   if (!input.memberIds.length) return result;
 
+  const [penaltyMatchRows, resultMatchRows] = await Promise.all([
+    db.selectDistinct({ matchId: memberCharges.matchId })
+      .from(memberCharges)
+      .where(and(
+        eq(memberCharges.clubId, input.clubId),
+        eq(memberCharges.isLossPenaltySnapshot, true),
+        isNull(memberCharges.deletedAt),
+        isNotNull(memberCharges.matchId),
+      )),
+    db.select({ matchId: matchTeamVersions.matchId })
+      .from(matchTeamVersions)
+      .innerJoin(matches, eq(matchTeamVersions.matchId, matches.id))
+      .where(and(
+        eq(matches.clubId, input.clubId),
+        isNull(matches.deletedAt),
+        eq(matchTeamVersions.status, "CONFIRMED"),
+        sql`${matchTeamVersions.metrics} ? 'placements'`,
+      )),
+  ]);
+  const completedMatchIds = [...new Set([
+    ...penaltyMatchRows.flatMap((row) => row.matchId ? [row.matchId] : []),
+    ...resultMatchRows.map((row) => row.matchId),
+  ])];
+  if (!completedMatchIds.length) return result;
+
   const history = await db.select({
     memberId: matchParticipants.memberId,
     matchId: matches.id,
@@ -34,6 +59,7 @@ export async function getMatchFormStats(input: {
       eq(matches.clubId, input.clubId),
       isNull(matches.deletedAt),
       lt(matches.playedOn, input.playedOn),
+      inArray(matches.id, completedMatchIds),
       inArray(matchParticipants.memberId, input.memberIds),
     ))
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
