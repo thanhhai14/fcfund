@@ -96,7 +96,7 @@ export default async function MatchesPage() {
         description="Quản lý ngày, người tham gia và khoản thu lẻ"
         action={canManage ? (
           <Disclosure label={<><Icon name="plus" /> Tạo trận</>} className="action-disclosure match-popover">
-            <MutationForm action={createMatchAction} className="form-stack">
+            <MutationForm action={createMatchAction} className="form-stack" closeDisclosureOnSuccess>
               <MatchFields
                 memberRows={memberRows}
                 occurrenceTypes={occurrenceTypes}
@@ -132,7 +132,7 @@ export default async function MatchesPage() {
                     <Link href={`/matches/${match.id}`} className="match-view-link"><Icon name="eye" /> Xem</Link>
                     {canManage && <>
                     <Disclosure label={<><Icon name="edit" /> Sửa</>} className="match-edit-disclosure match-popover">
-                      <MutationForm action={updateMatchAction} className="form-stack">
+                      <MutationForm action={updateMatchAction} className="form-stack" closeDisclosureOnSuccess>
                         <input type="hidden" name="id" value={match.id} />
                         <MatchFields
                           memberRows={memberRows}

@@ -717,6 +717,14 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
   .match-popover .box-check span { justify-self: end; }
   .match-popover .quantity-field { grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
   .match-popover .quantity-field input { width: 58px; min-width: 58px; min-height: 36px; font-size: 13px; }
+  .match-popover .form-actions {
+    position: sticky; z-index: 4; bottom: 0; width: 100%; min-width: 0; margin-top: 2px; padding: 10px 0 1px;
+    background: linear-gradient(180deg, rgba(255,255,255,0), white 9px);
+  }
+  .match-popover .form-actions .button {
+    width: 100%; min-width: 0; max-width: 100%; min-height: 44px; padding: 10px 12px;
+    white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.25;
+  }
   .account-disclosure .disclosure-backdrop { display: none; }
   .account-disclosure .disclosure-content { position: static; max-width: none; max-inline-size: none; max-height: none; overflow: visible; }
   .form-grid, .form-row { grid-template-columns: 1fr; }
