@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
+import { APP_NAME } from "@/lib/constants";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
@@ -43,7 +44,7 @@ export function AppShell({
             alt={`Logo ${clubName}`}
             className="club-logo"
           />
-          <span><strong>{clubName}</strong><small>Powered by FCFUND</small></span>
+          <span><strong>{clubName}</strong><small>Powered by {APP_NAME}</small></span>
         </Link>
         <nav className="sidebar-nav">
           {navItems.map((item) => {

@@ -1,5 +1,5 @@
 export const DEFAULT_PASSWORD = "Trailang123";
-export const APP_NAME = "FCFUND";
+export const APP_NAME = "Trai Làng FC";
 export const APP_TIMEZONE = "Asia/Ho_Chi_Minh";
 
 export const PERMISSIONS = {

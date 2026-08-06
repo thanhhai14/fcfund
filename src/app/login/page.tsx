@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAnonymous } from "@/lib/auth";
 import { LoginForm } from "./login-form";
+import { APP_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
 
@@ -23,7 +24,7 @@ export default async function LoginPage() {
           <div className="login-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/trai-lang-logo.jpg" alt="Logo Trại Làng FC" />
-            <div><strong>FCFUND</strong><small>Quỹ Trại Làng FC</small></div>
+            <div><strong>{APP_NAME}</strong><small>Quỹ Trại Làng FC</small></div>
           </div>
           <div className="login-heading">
             <span>Chào mừng trở lại</span>

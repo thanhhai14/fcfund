@@ -3,16 +3,17 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
+import { APP_NAME } from "@/lib/constants";
 
 config.autoAddCss = false;
 
 export const metadata: Metadata = {
   title: {
-    default: "FCFUND",
-    template: "%s · FCFUND",
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
   },
   description: "Quản lý quỹ minh bạch cho câu lạc bộ bóng đá",
-  applicationName: "FCFUND",
+  applicationName: APP_NAME,
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "FCFUND",
+    title: APP_NAME,
   },
 };
 

@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { APP_NAME } from "@/lib/constants";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "FCFUND — Quản lý quỹ đội bóng",
-    short_name: "FCFUND",
+    name: `${APP_NAME} — Quản lý quỹ đội bóng`,
+    short_name: APP_NAME,
     description: "Quản lý thu, chi và công nợ minh bạch cho câu lạc bộ bóng đá",
     start_url: "/dashboard",
     display: "standalone",
