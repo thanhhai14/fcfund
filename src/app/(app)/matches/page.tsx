@@ -138,23 +138,9 @@ export default async function MatchesPage() {
 
   const participantMap = new Map<string, string[]>();
   const participantIdMap = new Map<string, Set<string>>();
-  const matchDetailMap = new Map<string, Map<string, {
-    name: string;
-    charges: Array<{
-      typeId: string;
-      name: string;
-      iconName: string;
-      color: string | null;
-      quantity: number;
-      amount: number;
-    }>;
-  }>>();
   participants.forEach((row) => {
     const name = row.memberName ?? row.guestName ?? "Khách";
     participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), name]);
-    const details = matchDetailMap.get(row.matchId) ?? new Map();
-    details.set(row.memberId ?? `guest-${details.size}`, { name, charges: [] });
-    matchDetailMap.set(row.matchId, details);
     if (row.memberId) {
       const set = participantIdMap.get(row.matchId) ?? new Set<string>();
       set.add(row.memberId);
@@ -170,18 +156,6 @@ export default async function MatchesPage() {
     const quantityKey = `${row.memberId}|${row.chargeTypeId}`;
     quantities.set(quantityKey, (quantities.get(quantityKey) ?? 0) + row.quantity);
     chargeQuantityMap.set(row.matchId, quantities);
-    const details = matchDetailMap.get(row.matchId) ?? new Map();
-    const detail = details.get(row.memberId) ?? { name: row.memberName, charges: [] };
-    detail.charges.push({
-      typeId: row.chargeTypeId,
-      name: row.typeName,
-      iconName: row.iconName,
-      color: row.color,
-      quantity: row.quantity,
-      amount: row.amount,
-    });
-    details.set(row.memberId, detail);
-    matchDetailMap.set(row.matchId, details);
   });
 
   const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName }).from(members)
@@ -237,37 +211,7 @@ export default async function MatchesPage() {
                 </div>
                 <div className="match-actions">
                     {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {canManage ? "Tạo đội" : "Xem đội"}</Link>}
-                    <Disclosure label={<><Icon name="eye" /> Xem</>} className="match-view-disclosure">
-                      <div className="match-view-heading">
-                        <span className="eyebrow">Chi tiết trận</span>
-                        <h3>{formatDate(match.playedOn)} · {names.length} người</h3>
-                      </div>
-                      <div className="match-member-list">
-                        {[...(matchDetailMap.get(match.id)?.entries() ?? [])].map(([key, detail]) => (
-                          <div key={key}>
-                            <span className="member-mini-avatar">{detail.name.slice(0, 2).toUpperCase()}</span>
-                            <span>
-                              <strong>{detail.name}</strong>
-                              <small>{detail.charges.length ? `${detail.charges.length} loại khoản thu` : "Chỉ tham gia"}</small>
-                            </span>
-                            <span className="match-charge-tags">
-                              {detail.charges.map((charge) => (
-                                <span
-                                  key={charge.typeId}
-                                  style={{ color: charge.color ?? undefined }}
-                                  title={`${charge.quantity} lần · ${formatMoney(charge.amount)}`}
-                                >
-                                  <Icon name={charge.iconName} />
-                                  {charge.name}
-                                  {charge.quantity > 1 && ` ×${charge.quantity}`}
-                                </span>
-                              ))}
-                              {!detail.charges.length && <em>Không phát sinh</em>}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </Disclosure>
+                    <Link href={`/matches/${match.id}`} className="match-view-link"><Icon name="eye" /> Xem</Link>
                     {canManage && <>
                     <Disclosure label={<><Icon name="edit" /> Sửa</>} className="match-edit-disclosure match-popover">
                       <MutationForm action={updateMatchAction} className="form-stack">
