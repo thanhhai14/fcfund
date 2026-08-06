@@ -22,6 +22,13 @@ import { can } from "@/lib/permissions";
 export const metadata = { title: "Chi tiết trận đấu" };
 
 function getPlacements(metrics: unknown): Record<string, number> {
+  if (typeof metrics === "string") {
+    try {
+      return getPlacements(JSON.parse(metrics));
+    } catch {
+      return {};
+    }
+  }
   if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return {};
   const placements = (metrics as Record<string, unknown>).placements;
   if (!placements || typeof placements !== "object" || Array.isArray(placements)) return {};
@@ -106,6 +113,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       teamName: team?.name ?? null,
       teamIndex: team?.teamIndex ?? null,
       teamColor: team?.color ?? null,
+      teamPlace: team ? placements[team.name] ?? null : null,
       charges: row.memberId ? (chargesByMember.get(row.memberId) ?? []).map((charge) => ({
         id: charge.id,
         name: charge.name,

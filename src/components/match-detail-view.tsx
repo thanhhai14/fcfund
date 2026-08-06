@@ -21,6 +21,7 @@ export type MatchParticipantView = {
   teamName: string | null;
   teamIndex: number | null;
   teamColor: string | null;
+  teamPlace: number | null;
   charges: ChargeView[];
 };
 
@@ -51,6 +52,11 @@ function chargeSummary(charges: ChargeView[]) {
     quantity: charges.reduce((sum, charge) => sum + charge.quantity, 0),
     amount: charges.reduce((sum, charge) => sum + charge.amount, 0),
   };
+}
+
+function resultLabel(place: number | null) {
+  if (!place) return null;
+  return `Hạng ${place} · ${place === 1 ? "Thắng" : "Thua"}`;
 }
 
 export function MatchDetailView({
@@ -122,7 +128,7 @@ export function MatchDetailView({
                     <tr key={row.id}>
                       <td><span className="match-list-person"><b>{initials(row.name)}</b><strong>{row.name}</strong></span></td>
                       {canViewSeed && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
-                      <td>{row.teamName ? <span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span> : <span className="table-muted">Chưa chia đội</span>}</td>
+                      <td>{row.teamName ? <span className="team-result-cell"><span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>{row.teamPlace && <small className={row.teamPlace === 1 ? "won" : "lost"}>{resultLabel(row.teamPlace)}</small>}</span> : <span className="table-muted">Chưa chia đội</span>}</td>
                       <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <span key={charge.id} style={{ color: charge.color ?? undefined }}><Icon name={charge.iconName} /> {charge.name}</span>)}</span> : <span className="table-muted">Không phát sinh</span>}</td>
                       <td className="numeric-cell">{summary.quantity ? `×${summary.quantity}` : "—"}</td>
                       <td className="numeric-cell"><strong>{formatMoney(summary.amount)}</strong></td>
@@ -142,7 +148,7 @@ export function MatchDetailView({
             const teamTotals = chargeSummary(members.flatMap((member) => member.charges));
             return (
               <article className="match-team-view-card" style={{ borderTopColor: team.color ?? undefined }} key={team.id}>
-                <header><div><h2>{team.name}</h2><span>{team.place ? `Hạng ${team.place} · ` : ""}{members.length} người</span></div><Icon name="people-group" /></header>
+                <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người</span></div><Icon name="people-group" /></header>
                 <div className="match-team-view-members">
                   {members.map((member) => (
                     <div key={member.id}>
