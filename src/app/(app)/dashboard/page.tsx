@@ -103,14 +103,14 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         eyebrow={new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date())}
-        title={`Chào ${user.memberName?.split(" ").slice(-1)[0] ?? "bạn"}!`}
+        title={`Chào ${user.displayName.split(" ").slice(-1)[0] ?? "bạn"}!`}
         description="Đây là tình hình quỹ và công nợ mới nhất của đội."
       />
 
       <section className="hero-balance">
         <div>
           <span>{showClubBalance ? "Số dư quỹ hiện tại" : "Số dư của bạn"}</span>
-          <strong>{formatMoney(showClubBalance ? income - expense : ownBalance?.balance ?? 0)}</strong>
+          <strong>{showClubBalance ? formatMoney(income - expense) : user.memberId ? formatMoney(ownBalance?.balance ?? 0) : "—"}</strong>
           <small>Cập nhật đến {formatDate(todayInTimezone())}</small>
         </div>
         <div className="hero-mark"><Icon name="futbol" /></div>
@@ -120,11 +120,13 @@ export default async function DashboardPage() {
               <div><span>Thu tháng này</span><strong>+{formatMoney(Number(fundSummary?.monthIncome ?? 0))}</strong></div>
               <div><span>Chi tháng này</span><strong>-{formatMoney(Number(fundSummary?.monthExpense ?? 0))}</strong></div>
             </>
-          ) : (
+          ) : user.memberId ? (
             <>
               <div><span>Đã nộp</span><strong>{formatMoney(ownBalance?.paid ?? 0)}</strong></div>
               <div><span>Phải đóng</span><strong>{formatMoney(ownBalance?.charged ?? 0)}</strong></div>
             </>
+          ) : (
+            <div className="unlinked-personal-data"><span>Dữ liệu cá nhân</span><strong>Chưa liên kết thành viên</strong></div>
           )}
         </div>
       </section>
@@ -185,7 +187,7 @@ export default async function DashboardPage() {
               ))}
               {!balances.some((row) => row.balance < 0) && <p className="muted">Không có thành viên đang nợ.</p>}
             </div>
-          ) : (
+          ) : user.memberId ? (
             <div className="own-balance">
               <span className={`balance-pill ${(ownBalance?.balance ?? 0) < 0 ? "debt" : "credit"}`}>
                 {(ownBalance?.balance ?? 0) < 0 ? "Còn nợ" : "Số dư"}
@@ -193,6 +195,8 @@ export default async function DashboardPage() {
               <strong>{formatMoney(Math.abs(ownBalance?.balance ?? 0))}</strong>
               <p>Policy của bạn chỉ cho phép xem công nợ cá nhân.</p>
             </div>
+          ) : (
+            <div className="own-balance"><span className="balance-pill">Chưa liên kết</span><strong>Không có dữ liệu cá nhân</strong><p>Tài khoản vẫn sử dụng được các chức năng khác theo policy hiện tại.</p></div>
           )}
         </article>
       </section>

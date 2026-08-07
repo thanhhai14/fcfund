@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   chargeTypes,
@@ -19,10 +19,14 @@ import {
   changeOwnPasswordAction,
   createChargeTypeAction,
   createFundCategoryAction,
+  createUserAccountAction,
+  linkUserToMemberAction,
   resetPasswordAction,
   saveUserPoliciesAction,
+  unlinkUserFromMemberAction,
   updateClubAction,
   updateChargeTypeAction,
+  updateUserAccountAction,
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import {
@@ -46,11 +50,15 @@ export default async function SettingsPage() {
     .where(eq(fundCategories.clubId, currentUser.clubId)).orderBy(fundCategories.direction, fundCategories.name) : [];
   const accounts = manageUsers ? await db
     .select({
-      id: users.id, phone: users.phoneNormalized, role: users.role, active: users.isActive,
+      id: users.id, displayName: users.displayName, phone: users.phoneNormalized, role: users.role, active: users.isActive,
+      memberId: users.memberId,
       memberName: members.fullName,
     })
     .from(users).leftJoin(members, eq(users.memberId, members.id))
-    .where(eq(users.clubId, currentUser.clubId)).orderBy(users.role, members.fullName) : [];
+    .where(eq(users.clubId, currentUser.clubId)).orderBy(users.role, users.displayName) : [];
+  const availableMembers = manageUsers ? await db.select({ id: members.id, name: members.fullName, code: members.code })
+    .from(members).leftJoin(users, eq(members.id, users.memberId))
+    .where(and(eq(members.clubId, currentUser.clubId), isNull(users.id))).orderBy(members.fullName) : [];
   const overrides = manageUsers ? await db.select().from(userPermissionOverrides) : [];
   const rolePolicies = manageUsers ? await db.select().from(rolePermissions) : [];
   const overrideMap = new Map<string, Map<string, boolean>>();
@@ -137,11 +145,32 @@ export default async function SettingsPage() {
           </article>
 
           {manageUsers && <article className="panel">
-            <div className="panel-heading"><div><span className="eyebrow">Phân quyền</span><h2>Tài khoản & policy</h2></div></div>
+            <div className="panel-heading"><div><span className="eyebrow">Phân quyền</span><h2>Tài khoản & policy</h2></div>
+              <Disclosure label="+ Tạo tài khoản" className="inline-disclosure user-create-disclosure">
+                <MutationForm action={createUserAccountAction} className="form-stack" closeDisclosureOnSuccess>
+                  <label>Tên hiển thị<input name="displayName" required placeholder="Nguyễn Văn A" /></label>
+                  <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" required /></label>
+                  <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>
+                  <p className="panel-note">Tài khoản được tạo độc lập. Có thể gắn với một thành viên sau.</p>
+                  <SubmitButton>Tạo tài khoản</SubmitButton>
+                </MutationForm>
+              </Disclosure>
+            </div>
             <div className="account-list">
               {accounts.map((account) => {
                 const accountOverrides = overrideMap.get(account.id);
-                return <Disclosure key={account.id} label={<><span className="avatar">{(account.memberName ?? account.phone).slice(0, 2)}</span><span><strong>{account.memberName ?? "Quản trị viên"}</strong><small>{account.phone} · {ROLE_LABELS[account.role]}</small></span></>} className="account-disclosure">
+                return <Disclosure key={account.id} label={<><span className="avatar">{account.displayName.slice(0, 2)}</span><span><strong>{account.displayName}</strong><small>{account.phone} · {ROLE_LABELS[account.role]} · {account.memberName ? `Thành viên: ${account.memberName}` : "Không gắn thành viên"}</small></span></>} className="account-disclosure">
+                  <MutationForm action={updateUserAccountAction} className="form-stack account-profile-form">
+                    <input type="hidden" name="userId" value={account.id} />
+                    <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>
+                    <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={account.phone} required /></label>
+                    {account.role === "ADMIN" ? <><input type="hidden" name="role" value="ADMIN" /><label>Vai trò<input value="Admin" disabled /></label></> : <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>}
+                    <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.active} disabled={account.id === currentUser.id} /><span><strong>Cho phép đăng nhập</strong><small>{account.id === currentUser.id ? "Không thể tự khóa tài khoản đang dùng." : "Độc lập với trạng thái thành viên."}</small></span></label>
+                    <SubmitButton>Lưu tài khoản</SubmitButton>
+                  </MutationForm>
+                  <div className="account-link-box">
+                    {account.memberId ? <MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><p>Đang liên kết: <strong>{account.memberName}</strong></p><SubmitButton variant="secondary">Tháo liên kết thành viên</SubmitButton></MutationForm> : availableMembers.length ? <MutationForm action={linkUserToMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><label>Gắn với thành viên<select name="memberId" required><option value="">Chọn thành viên</option>{availableMembers.map((member) => <option value={member.id} key={member.id}>{member.name} · {member.code}</option>)}</select></label><SubmitButton variant="secondary">Gắn thành viên</SubmitButton></MutationForm> : <p>Không còn thành viên chưa liên kết.</p>}
+                  </div>
                   <form action={saveUserPoliciesAction} className="policy-form">
                     <input type="hidden" name="userId" value={account.id} /><input type="hidden" name="mode" value="custom" />
                     {PERMISSION_DEFINITIONS.map((permission) => {

@@ -17,7 +17,9 @@ import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import {
   createAssignmentAction,
   createMemberAccountAction,
+  linkUserToMemberAction,
   resetPasswordAction,
+  unlinkUserFromMemberAction,
   updateMemberAccountAction,
   updateMemberAction,
 } from "../../mutations";
@@ -72,6 +74,12 @@ export default async function MemberDetailPage({
   const canManage = await can(PERMISSIONS.MEMBERS_MANAGE);
   const canManageUsers = await can(PERMISSIONS.USERS_MANAGE);
   const canManageCharges = await can(PERMISSIONS.CHARGES_MANAGE);
+  const unlinkedAccounts = canManageUsers && !account ? await db.select({
+    id: users.id,
+    displayName: users.displayName,
+    phone: users.phoneNormalized,
+    role: users.role,
+  }).from(users).where(and(eq(users.clubId, currentUser.clubId), isNull(users.memberId))).orderBy(users.displayName) : [];
   const hasTemporaryPhone = /^0{7,}/.test(member.phone);
   const ledger = [
     ...charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note })),
@@ -142,14 +150,22 @@ export default async function MemberDetailPage({
             </div>
 
             {!account ? <>
-              <p className="panel-note">Tạo tài khoản liên kết với hồ sơ này. Thành viên đăng nhập bằng số điện thoại và mật khẩu ban đầu <strong>Trailang123</strong>.</p>
+              <p className="panel-note">Tạo tài khoản mới hoặc gắn một tài khoản độc lập đã có. Thông tin đăng nhập và hồ sơ thành viên được quản lý riêng.</p>
               {hasTemporaryPhone && <p className="account-warning">Hồ sơ đang dùng số điện thoại tạm. Hãy nhập số điện thoại thực tế trước khi tạo tài khoản.</p>}
               <MutationForm action={createMemberAccountAction} className="form-stack">
                 <input type="hidden" name="memberId" value={member.id} />
+                <label>Tên hiển thị<input name="displayName" defaultValue={member.fullName} required /></label>
                 <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={member.phone} required /></label>
                 <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
                 <SubmitButton>Tạo tài khoản đăng nhập</SubmitButton>
               </MutationForm>
+              {!!unlinkedAccounts.length && <div className="account-link-box member-link-existing">
+                <MutationForm action={linkUserToMemberAction} className="form-stack compact">
+                  <input type="hidden" name="memberId" value={member.id} />
+                  <label>Hoặc gắn tài khoản có sẵn<select name="userId" required><option value="">Chọn tài khoản</option>{unlinkedAccounts.map((item) => <option value={item.id} key={item.id}>{item.displayName} · {item.phone} · {ROLE_LABELS[item.role]}</option>)}</select></label>
+                  <SubmitButton variant="secondary">Gắn tài khoản có sẵn</SubmitButton>
+                </MutationForm>
+              </div>}
             </> : <>
               <div className="account-login-meta">
                 <span><small>Vai trò hiện tại</small><strong>{ROLE_LABELS[account.role]}</strong></span>
@@ -157,12 +173,14 @@ export default async function MemberDetailPage({
               </div>
               {account.role === "ADMIN" ? <p className="account-warning">Tài khoản Admin được quản lý tại Cài đặt để tránh thay đổi nhầm vai trò quản trị.</p> : <MutationForm action={updateMemberAccountAction} className="form-stack">
                 <input type="hidden" name="userId" value={account.id} />
+                <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>
                 <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={account.phoneNormalized} required /></label>
                 <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
                 <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.isActive} /><span><strong>Cho phép đăng nhập</strong><small>Tắt tùy chọn này để khóa tài khoản nhưng vẫn giữ dữ liệu.</small></span></label>
                 <SubmitButton>Lưu tài khoản</SubmitButton>
               </MutationForm>}
               <form action={resetPasswordAction} className="reset-row"><input type="hidden" name="userId" value={account.id} /><span>Mật khẩu mặc định: <b>Trailang123</b></span><button className="button danger small">Đặt lại mật khẩu</button></form>
+              <div className="account-link-box"><MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><p>Tháo liên kết không xóa tài khoản hoặc dữ liệu thành viên.</p><SubmitButton variant="secondary">Tháo liên kết tài khoản</SubmitButton></MutationForm></div>
             </>}
           </article>}
           <article className="panel">

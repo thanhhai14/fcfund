@@ -94,6 +94,7 @@ export async function getCurrentUser() {
       id: users.id,
       clubId: users.clubId,
       memberId: users.memberId,
+      displayName: users.displayName,
       phone: users.phoneNormalized,
       role: users.role,
       isActive: users.isActive,

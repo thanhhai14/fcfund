@@ -664,6 +664,15 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
 .account-warning { margin: 0 0 13px; padding: 10px 11px; color: #885116; background: #fff8e8; border-left: 3px solid var(--warning); font-size: 11px; line-height: 1.5; }
 .account-active-field { padding: 10px; background: #f8fafb; border: 1px solid var(--line); }
 .member-account-panel .reset-row { gap: 10px; }
+.user-create-disclosure .disclosure-content { width: 440px; }
+.account-profile-form { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+.account-profile-form > .account-active-field, .account-profile-form > button, .account-profile-form > div { grid-column: 1 / -1; }
+.account-link-box { margin: 12px 0; padding: 11px; background: var(--brand-surface); border: 1px solid #f1c4d3; border-left: 3px solid var(--brand-primary); }
+.account-link-box p { margin: 0; color: var(--muted); font-size: 10px; }
+.account-link-box .button { justify-self: start; }
+.member-link-existing { margin-top: 15px; }
+.unlinked-personal-data { min-width: 210px; }
+.unlinked-personal-data strong { font-size: 12px !important; }
 .transfer-card { text-align: center; }
 .transfer-card img { max-width: 260px; width: 100%; margin: 20px auto; display: block; border: 2px solid var(--forest-900); border-radius: 2px; }
 .transfer-card > strong { display: block; font-size: 20px; }
@@ -811,6 +820,9 @@ label > input, label > select, label > textarea { display: block; margin-top: 7p
   .account-login-meta { grid-template-columns: 1fr; }
   .member-account-panel .reset-row { align-items: stretch; flex-direction: column; }
   .member-account-panel .reset-row .button { width: 100%; }
+  .account-profile-form { grid-template-columns: 1fr; }
+  .account-profile-form > * { grid-column: auto; }
+  .account-link-box .button { width: 100%; }
 }
 
 /* UI refresh: pink-first brand, readable data and shared collection controls */

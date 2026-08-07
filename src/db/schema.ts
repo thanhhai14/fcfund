@@ -95,6 +95,7 @@ export const users = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
     memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
+    displayName: varchar("display_name", { length: 160 }).notNull(),
     phoneNormalized: varchar("phone_normalized", { length: 24 }).notNull(),
     passwordHash: text("password_hash").notNull(),
     role: userRole("role").notNull(),

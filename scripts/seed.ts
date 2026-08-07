@@ -1,12 +1,11 @@
 import { hash } from "bcryptjs";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import {
   chargeTypes,
   clubs,
   fundCategories,
-  members,
   permissions,
   rolePermissions,
   users,
@@ -132,33 +131,12 @@ async function seed() {
 
   const adminPhone = (process.env.SEED_ADMIN_PHONE ?? "0900000000").replace(/\D/g, "");
   const password = process.env.SEED_ADMIN_PASSWORD ?? DEFAULT_PASSWORD;
-  const [adminMember] = await db
-    .insert(members)
-    .values({
-      clubId: activeClub.id,
-      code: "ADMIN",
-      fullName: "Quản trị viên",
-      phone: adminPhone,
-      joinedOn: new Date().toISOString().slice(0, 10),
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  const member =
-    adminMember ??
-    (
-      await db
-        .select()
-        .from(members)
-        .where(and(eq(members.clubId, activeClub.id), eq(members.code, "ADMIN")))
-        .limit(1)
-    )[0];
-
   await db
     .insert(users)
     .values({
       clubId: activeClub.id,
-      memberId: member?.id,
+      memberId: null,
+      displayName: "Quản trị viên",
       phoneNormalized: adminPhone,
       passwordHash: await hash(password, 12),
       role: "ADMIN",

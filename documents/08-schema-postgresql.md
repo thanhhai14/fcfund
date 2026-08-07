@@ -114,7 +114,8 @@ Số điện thoại hồ sơ có thể trùng nếu nghiệp vụ sau này cho 
 |---|---|---|
 | id | uuid | PK |
 | club_id | uuid | FK clubs |
-| member_id | uuid | FK members, NULL với admin không phải cầu thủ |
+| member_id | uuid | FK members, NULL nếu User không đại diện cho thành viên; unique khi khác NULL |
+| display_name | varchar(160) | NOT NULL, tên hiển thị độc lập |
 | phone_normalized | varchar(24) | UNIQUE, NOT NULL |
 | password_hash | text | NOT NULL |
 | role | user_role | NOT NULL |
@@ -123,6 +124,8 @@ Số điện thoại hồ sơ có thể trùng nếu nghiệp vụ sau này cho 
 | created_at/updated_at | timestamptz | NOT NULL |
 
 Frontend chỉ nhận chữ số. Server tiếp tục chuẩn hóa và kiểm tra lại.
+
+`member_id` chỉ phục vụ dữ liệu mang nghĩa "của mình". Role, policy, số điện thoại đăng nhập và `is_active` thuộc User, không bị suy ra từ Member.
 
 ## 6. permissions
 
@@ -457,6 +460,7 @@ SUM(OUT fund_transactions chưa xóa)
 ## 19. Index quan trọng
 
 - `users(phone_normalized)` unique.
+- `users(member_id)` unique với các bản ghi có `member_id IS NOT NULL`.
 - `members(club_id, code)` unique.
 - `member_charges(member_id, charge_date)`.
 - `member_charges(charge_type_id, period_month)`.

@@ -22,13 +22,14 @@ export default async function ChargesPage() {
   const canViewAll = await can(PERMISSIONS.CHARGES_VIEW_ALL);
   const canViewOwn = await can(PERMISSIONS.CHARGES_VIEW_OWN);
   if (!canViewAll && !canViewOwn) redirect("/dashboard");
+  if (!canViewAll && !user.memberId) redirect("/dashboard");
   const canManage = await can(PERMISSIONS.CHARGES_MANAGE);
 
   const conditions = [
     eq(memberCharges.clubId, user.clubId),
     isNull(memberCharges.deletedAt),
   ];
-  if (!canViewAll && user.memberId) conditions.push(eq(memberCharges.memberId, user.memberId));
+  if (!canViewAll) conditions.push(eq(memberCharges.memberId, user.memberId!));
 
   const rows = await db
     .select({

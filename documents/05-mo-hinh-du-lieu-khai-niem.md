@@ -20,12 +20,22 @@ Thông tin chung của bản cài đặt:
 
 Tài khoản đăng nhập:
 
+- tên hiển thị độc lập với tên thành viên;
 - thông tin đăng nhập;
 - mật khẩu đã mã hóa;
 - vai trò;
 - trạng thái;
 - cờ yêu cầu đổi mật khẩu ở lần đăng nhập đầu;
 - liên kết hồ sơ thành viên nếu có.
+
+`UserAccount` và `Member` là hai thực thể độc lập:
+
+- user có thể không liên kết member, ví dụ Admin hoặc Thủ quỹ không tham gia đá;
+- member có thể không có user và vẫn xuất hiện trong trận, khoản thu, công nợ và báo cáo;
+- một user được liên kết tối đa một member và một member được liên kết tối đa một user;
+- gắn hoặc tháo liên kết không tạo/xóa đối tượng ở phía còn lại;
+- vai trò và trạng thái đăng nhập thuộc UserAccount, không phụ thuộc trạng thái hoạt động của Member;
+- số điện thoại đăng nhập và số điện thoại liên hệ là hai trường riêng, chỉ lấy cùng giá trị làm mặc định khi cần.
 
 Số điện thoại đăng nhập:
 
@@ -42,7 +52,7 @@ Hồ sơ thành viên:
 - tên;
 - thông tin liên hệ;
 - trạng thái hoạt động;
-- tài khoản đăng nhập liên kết.
+- tài khoản đăng nhập liên kết tùy chọn.
 
 Số dư không nên lưu như một giá trị nhập tay. Nó được tính từ sổ giao dịch thành viên.
 

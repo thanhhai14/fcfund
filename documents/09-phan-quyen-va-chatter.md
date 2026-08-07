@@ -78,6 +78,15 @@ Các quyền tách riêng:
 
 Policy server phải lọc dữ liệu trước khi trả về. Không chỉ ẩn cột bằng frontend.
 
+User không liên kết Member vẫn sử dụng đầy đủ các quyền quản trị/toàn đội được policy cấp. Các quyền mang nghĩa "của mình" như xem khoản phải thu, tiền nộp hoặc công nợ cá nhân chỉ có hiệu lực khi `users.member_id` tồn tại. Nếu thiếu liên kết, server phải trả về rỗng hoặc điều hướng khỏi màn hình cá nhân; tuyệt đối không được bỏ điều kiện lọc và chuyển thành xem toàn đội.
+
+Role và liên kết Member độc lập:
+
+- User role Thủ quỹ có thể có hoặc không có hồ sơ thành viên;
+- User role Thành viên nhưng chưa liên kết không có dữ liệu tài chính cá nhân;
+- khóa User không làm Member ngừng hoạt động;
+- Member ngừng hoạt động không tự động khóa User.
+
 ## 6. Chatter
 
 Các màn hình có chatter:

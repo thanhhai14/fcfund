@@ -30,6 +30,7 @@ export async function Chatter({
       action: activityLogs.action,
       message: activityLogs.message,
       createdAt: activityLogs.createdAt,
+      actorDisplayName: users.displayName,
       actorName: members.fullName,
       actorPhone: users.phoneNormalized,
     })
@@ -63,7 +64,7 @@ export async function Chatter({
           <div key={log.id}>
             <span className="timeline-dot" />
             <div>
-              <p><strong>{log.actorName ?? log.actorPhone ?? "Hệ thống"}</strong> {actionLabels[log.action]}</p>
+              <p><strong>{log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"}</strong> {actionLabels[log.action]}</p>
               {log.message && <blockquote>{log.message}</blockquote>}
               <time>{formatDate(log.createdAt)} · {log.createdAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</time>
             </div>

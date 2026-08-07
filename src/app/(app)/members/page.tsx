@@ -73,7 +73,7 @@ export default async function MembersPage() {
               <label>Số điện thoại<input name="phone" inputMode="numeric" pattern="[0-9]*" required placeholder="0901234567" /></label>
               <label>Ngày tham gia<input name="joinedOn" type="date" defaultValue={todayInTimezone()} /></label>
               <label>Vai trò tài khoản<select name="role"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
-              <label className="check-field"><input name="createAccount" type="checkbox" defaultChecked /> Tạo tài khoản đăng nhập</label>
+              <label className="check-field"><input name="createAccount" type="checkbox" /> Tạo và liên kết tài khoản đăng nhập</label>
               <label className="full">Ghi chú<textarea name="note" rows={2} /></label>
               <div className="form-actions full"><SubmitButton>Tạo thành viên</SubmitButton></div>
             </MutationForm>

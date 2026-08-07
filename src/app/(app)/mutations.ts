@@ -119,6 +119,7 @@ export async function createMemberAction(formData: FormData): Promise<MutationRe
         await tx.insert(users).values({
           clubId: actor.clubId,
           memberId: member.id,
+          displayName: parsed.data.fullName,
           phoneNormalized: parsed.data.phone,
           passwordHash: await hashPassword(DEFAULT_PASSWORD),
           role: parsed.data.role,
@@ -178,6 +179,7 @@ export async function updateMemberAction(formData: FormData): Promise<MutationRe
 }
 
 const memberAccountSchema = z.object({
+  displayName: z.string().min(2).max(160),
   phone: z.string().regex(/^\d{8,15}$/),
   role: z.enum(["MEMBER", "TREASURER"]),
 });
@@ -186,6 +188,7 @@ export async function createMemberAccountAction(formData: FormData): Promise<Mut
   const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
   const memberId = str(formData, "memberId");
   const parsed = memberAccountSchema.safeParse({
+    displayName: str(formData, "displayName"),
     phone: normalizePhone(str(formData, "phone")),
     role: str(formData, "role") || "MEMBER",
   });
@@ -202,19 +205,19 @@ export async function createMemberAccountAction(formData: FormData): Promise<Mut
       const [account] = await tx.insert(users).values({
         clubId: actor.clubId,
         memberId: member.id,
+        displayName: parsed.data.displayName,
         phoneNormalized: parsed.data.phone,
         passwordHash: await hashPassword(DEFAULT_PASSWORD),
         role: parsed.data.role,
-        isActive: member.status === "ACTIVE",
+        isActive: true,
       }).returning({ id: users.id });
-      await tx.update(members).set({ phone: parsed.data.phone, updatedAt: new Date() }).where(eq(members.id, member.id));
       await track(tx, {
         clubId: actor.clubId,
         entityType: "member",
         entityId: member.id,
         action: "CREATE",
         actorId: actor.id,
-        afterData: { userId: account.id, phone: parsed.data.phone, role: parsed.data.role, isActive: member.status === "ACTIVE" },
+        afterData: { userId: account.id, displayName: parsed.data.displayName, phone: parsed.data.phone, role: parsed.data.role, isActive: true },
         message: `Tạo tài khoản đăng nhập ${ROLE_LABELS[parsed.data.role] ?? parsed.data.role}`,
       });
     });
@@ -237,6 +240,7 @@ export async function updateMemberAccountAction(formData: FormData): Promise<Mut
   const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
   const userId = str(formData, "userId");
   const parsed = memberAccountSchema.safeParse({
+    displayName: str(formData, "displayName"),
     phone: normalizePhone(str(formData, "phone")),
     role: str(formData, "role") || "MEMBER",
   });
@@ -245,11 +249,11 @@ export async function updateMemberAccountAction(formData: FormData): Promise<Mut
   const [before] = await db.select({
     id: users.id,
     memberId: users.memberId,
+    displayName: users.displayName,
     phone: users.phoneNormalized,
     role: users.role,
     isActive: users.isActive,
-    memberStatus: members.status,
-  }).from(users).leftJoin(members, eq(users.memberId, members.id)).where(and(
+  }).from(users).where(and(
     eq(users.id, userId),
     eq(users.clubId, actor.clubId),
   )).limit(1);
@@ -257,27 +261,24 @@ export async function updateMemberAccountAction(formData: FormData): Promise<Mut
   if (before.role === "ADMIN") return { ok: false, message: "Không thể thay đổi tài khoản Admin từ hồ sơ thành viên." };
 
   const requestedActive = formData.get("isActive") === "on";
-  if (requestedActive && before.memberStatus !== "ACTIVE") {
-    return { ok: false, message: "Hãy chuyển hồ sơ sang Đang hoạt động trước khi mở đăng nhập." };
-  }
-  const next = { phone: parsed.data.phone, role: parsed.data.role, isActive: requestedActive };
+  const next = { displayName: parsed.data.displayName, phone: parsed.data.phone, role: parsed.data.role, isActive: requestedActive };
 
   try {
     await db.transaction(async (tx) => {
       await tx.update(users).set({
+        displayName: next.displayName,
         phoneNormalized: next.phone,
         role: next.role,
         isActive: next.isActive,
         updatedAt: new Date(),
       }).where(and(eq(users.id, before.id), eq(users.clubId, actor.clubId)));
-      await tx.update(members).set({ phone: next.phone, updatedAt: new Date() }).where(eq(members.id, before.memberId!));
       await track(tx, {
         clubId: actor.clubId,
         entityType: "member",
         entityId: before.memberId!,
         action: "UPDATE",
         actorId: actor.id,
-        beforeData: { phone: before.phone, role: before.role, isActive: before.isActive },
+        beforeData: { displayName: before.displayName, phone: before.phone, role: before.role, isActive: before.isActive },
         afterData: next,
         message: `${next.isActive ? "Cập nhật" : "Khóa"} tài khoản đăng nhập`,
       });
@@ -295,6 +296,173 @@ export async function updateMemberAccountAction(formData: FormData): Promise<Mut
   revalidatePath(`/members/${before.memberId}`);
   revalidatePath("/settings");
   return { ok: true, message: "Đã cập nhật tài khoản đăng nhập." };
+}
+
+const userAccountSchema = z.object({
+  displayName: z.string().min(2).max(160),
+  phone: z.string().regex(/^\d{8,15}$/),
+  role: z.enum(["ADMIN", "TREASURER", "MEMBER"]),
+});
+
+export async function createUserAccountAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const parsed = userAccountSchema.safeParse({
+    displayName: str(formData, "displayName"),
+    phone: normalizePhone(str(formData, "phone")),
+    role: str(formData, "role") || "MEMBER",
+  });
+  if (!parsed.success) return { ok: false, message: "Thông tin tài khoản không hợp lệ." };
+  if (parsed.data.role === "ADMIN" && actor.role !== "ADMIN") {
+    return { ok: false, message: "Chỉ Admin có thể tạo tài khoản Admin." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      const [account] = await tx.insert(users).values({
+        clubId: actor.clubId,
+        memberId: null,
+        displayName: parsed.data.displayName,
+        phoneNormalized: parsed.data.phone,
+        passwordHash: await hashPassword(DEFAULT_PASSWORD),
+        role: parsed.data.role,
+        isActive: true,
+      }).returning({ id: users.id });
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "user",
+        entityId: account.id,
+        action: "CREATE",
+        actorId: actor.id,
+        afterData: { displayName: parsed.data.displayName, phone: parsed.data.phone, role: parsed.data.role, isActive: true },
+        message: `Tạo tài khoản độc lập ${parsed.data.displayName}`,
+      });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Số điện thoại đăng nhập đang được sử dụng."
+        : "Không thể tạo tài khoản.",
+    };
+  }
+  revalidatePath("/settings");
+  return { ok: true, message: `Đã tạo tài khoản. Mật khẩu ban đầu: ${DEFAULT_PASSWORD}` };
+}
+
+export async function updateUserAccountAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const userId = str(formData, "userId");
+  const parsed = userAccountSchema.safeParse({
+    displayName: str(formData, "displayName"),
+    phone: normalizePhone(str(formData, "phone")),
+    role: str(formData, "role"),
+  });
+  if (!parsed.success) return { ok: false, message: "Thông tin tài khoản không hợp lệ." };
+
+  const [before] = await db.select().from(users).where(and(
+    eq(users.id, userId),
+    eq(users.clubId, actor.clubId),
+  )).limit(1);
+  if (!before) return { ok: false, message: "Không tìm thấy tài khoản." };
+  if ((before.role === "ADMIN" || parsed.data.role === "ADMIN") && actor.role !== "ADMIN") {
+    return { ok: false, message: "Chỉ Admin có thể thay đổi tài khoản Admin." };
+  }
+
+  const nextRole = before.role === "ADMIN" ? "ADMIN" : parsed.data.role;
+  const nextActive = actor.id === before.id ? true : formData.get("isActive") === "on";
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({
+        displayName: parsed.data.displayName,
+        phoneNormalized: parsed.data.phone,
+        role: nextRole,
+        isActive: nextActive,
+        updatedAt: new Date(),
+      }).where(eq(users.id, before.id));
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "user",
+        entityId: before.id,
+        action: "UPDATE",
+        actorId: actor.id,
+        beforeData: { displayName: before.displayName, phone: before.phoneNormalized, role: before.role, isActive: before.isActive },
+        afterData: { displayName: parsed.data.displayName, phone: parsed.data.phone, role: nextRole, isActive: nextActive },
+        message: "Cập nhật tài khoản và vai trò",
+      });
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error && error.message.includes("unique")
+        ? "Số điện thoại đăng nhập đang được sử dụng."
+        : "Không thể cập nhật tài khoản.",
+    };
+  }
+  revalidatePath("/settings");
+  if (before.memberId) revalidatePath(`/members/${before.memberId}`);
+  return { ok: true, message: "Đã cập nhật tài khoản." };
+}
+
+export async function linkUserToMemberAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const userId = str(formData, "userId");
+  const memberId = str(formData, "memberId");
+  const [[account], [member], [existingLink]] = await Promise.all([
+    db.select().from(users).where(and(eq(users.id, userId), eq(users.clubId, actor.clubId))).limit(1),
+    db.select().from(members).where(and(eq(members.id, memberId), eq(members.clubId, actor.clubId))).limit(1),
+    db.select({ id: users.id }).from(users).where(eq(users.memberId, memberId)).limit(1),
+  ]);
+  if (!account || !member) return { ok: false, message: "Không tìm thấy tài khoản hoặc thành viên." };
+  if (account.memberId) return { ok: false, message: "Tài khoản đã liên kết với một thành viên." };
+  if (existingLink) return { ok: false, message: "Thành viên đã liên kết với tài khoản khác." };
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ memberId: member.id, updatedAt: new Date() }).where(eq(users.id, account.id));
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "member",
+        entityId: member.id,
+        action: "UPDATE",
+        actorId: actor.id,
+        afterData: { userId: account.id, displayName: account.displayName },
+        message: `Gắn tài khoản ${account.displayName} với thành viên`,
+      });
+    });
+  } catch {
+    return { ok: false, message: "Không thể gắn tài khoản; liên kết có thể vừa được thay đổi." };
+  }
+  revalidatePath("/settings");
+  revalidatePath("/members");
+  revalidatePath(`/members/${member.id}`);
+  return { ok: true, message: "Đã gắn tài khoản với thành viên." };
+}
+
+export async function unlinkUserFromMemberAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.USERS_MANAGE);
+  const userId = str(formData, "userId");
+  const [account] = await db.select().from(users).where(and(
+    eq(users.id, userId),
+    eq(users.clubId, actor.clubId),
+  )).limit(1);
+  if (!account?.memberId) return { ok: false, message: "Tài khoản chưa liên kết thành viên." };
+  const oldMemberId = account.memberId;
+  await db.transaction(async (tx) => {
+    await tx.update(users).set({ memberId: null, updatedAt: new Date() }).where(eq(users.id, account.id));
+    await track(tx, {
+      clubId: actor.clubId,
+      entityType: "member",
+      entityId: oldMemberId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: { userId: account.id, displayName: account.displayName },
+      message: `Tháo liên kết tài khoản ${account.displayName}`,
+    });
+  });
+  revalidatePath("/settings");
+  revalidatePath("/members");
+  revalidatePath(`/members/${oldMemberId}`);
+  return { ok: true, message: "Đã tháo liên kết. Tài khoản vẫn được giữ lại." };
 }
 
 export async function createChargeTypeAction(formData: FormData): Promise<MutationResult> {
