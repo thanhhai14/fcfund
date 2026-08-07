@@ -1,7 +1,7 @@
 import "server-only";
 
 import { compare, hash } from "bcryptjs";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -103,7 +103,7 @@ export async function getCurrentUser() {
     })
     .from(users)
     .leftJoin(members, eq(users.memberId, members.id))
-    .leftJoin(avatars, eq(users.id, avatars.userId))
+    .leftJoin(avatars, or(eq(users.id, avatars.userId), eq(users.memberId, avatars.memberId)))
     .where(and(eq(users.id, session.sub), eq(users.clubId, session.clubId)))
     .limit(1);
 

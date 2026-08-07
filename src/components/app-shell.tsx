@@ -22,6 +22,7 @@ export function AppShell({
   clubName,
   logoUrl,
   userName,
+  userId,
   userMemberId,
   userAvatarVersion,
   roleLabel,
@@ -31,6 +32,7 @@ export function AppShell({
   clubName: string;
   logoUrl?: string | null;
   userName: string;
+  userId: string;
   userMemberId?: string | null;
   userAvatarVersion?: Date | string | number | null;
   roleLabel: string;
@@ -68,10 +70,10 @@ export function AppShell({
         </nav>
         <div className="sidebar-user">
           {userMemberId ? <Link href={`/members/${userMemberId}`} className="sidebar-profile-link" onClick={() => setOpen(false)} title="Mở hồ sơ cá nhân">
-            <MemberAvatar memberId={userMemberId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
+            <MemberAvatar memberId={userMemberId} userId={userId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
             <span><strong>{userName}</strong><small>{roleLabel}</small></span>
           </Link> : <>
-            <MemberAvatar memberId={null} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
+            <MemberAvatar memberId={null} userId={userId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
             <span><strong>{userName}</strong><small>{roleLabel}</small></span>
           </>}
           <form action={logoutAction}>

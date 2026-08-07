@@ -154,3 +154,5 @@ Khi admin xóa:
 - `members.manage` tiếp tục cho phép quản trị sửa hồ sơ của mọi thành viên.
 - User không liên kết Member không được dùng quyền cá nhân để sửa hồ sơ bất kỳ ai.
 - Thay avatar, xóa avatar và cập nhật CV đều ghi activity log theo entity Member.
+- Avatar của User độc lập được định danh bằng `avatars.user_id` và vẫn hiển thị trên sidebar.
+- Khi User liên kết Member, một bản ghi avatar dùng đồng thời `user_id` và `member_id`; cập nhật từ hồ sơ tài khoản hoặc hồ sơ cầu thủ đều thay cùng một ảnh.

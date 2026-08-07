@@ -2,7 +2,7 @@
 
 import { del, put } from "@vercel/blob";
 import { hash } from "bcryptjs";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -199,8 +199,14 @@ export async function updateMemberProfileAction(formData: FormData): Promise<Mut
   const shirtNumber = shirtNumberText ? Number(shirtNumberText) : null;
   if (shirtNumber !== null && (!Number.isInteger(shirtNumber) || shirtNumber < 0 || shirtNumber > 99)) return { ok: false, message: "Số áo phải từ 0 đến 99." };
 
-  const [beforeAvatar] = await db.select().from(avatars).where(eq(avatars.memberId, memberId)).limit(1);
   const [linkedAccount] = await db.select({ id: users.id }).from(users).where(eq(users.memberId, memberId)).limit(1);
+  const avatarOwnerCondition = linkedAccount
+    ? or(eq(avatars.memberId, memberId), eq(avatars.userId, linkedAccount.id))
+    : eq(avatars.memberId, memberId);
+  const [beforeAvatar] = await db.select().from(avatars).where(and(
+    eq(avatars.clubId, actor.clubId),
+    avatarOwnerCondition,
+  )).limit(1);
   let uploaded: Awaited<ReturnType<typeof put>> | null = null;
   try {
     if (avatarFile instanceof File && avatarFile.size > 0) {
@@ -243,6 +249,74 @@ export async function updateMemberProfileAction(formData: FormData): Promise<Mut
   return { ok: true, message: "Đã cập nhật hồ sơ thành viên." };
 }
 
+export async function updateOwnAvatarAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requireUser();
+  const avatarFile = formData.get("avatar");
+  const removeAvatar = str(formData, "removeAvatar") === "on";
+  if (!(avatarFile instanceof File) || avatarFile.size === 0) {
+    if (!removeAvatar) return { ok: false, message: "Hãy chọn ảnh avatar hoặc chọn xóa ảnh hiện tại." };
+  } else {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(avatarFile.type)) return { ok: false, message: "Avatar chỉ nhận PNG, JPEG hoặc WebP." };
+    if (avatarFile.size > 2 * 1024 * 1024) return { ok: false, message: "Avatar không được lớn hơn 2 MB." };
+  }
+
+  const ownerCondition = actor.memberId
+    ? or(eq(avatars.userId, actor.id), eq(avatars.memberId, actor.memberId))
+    : eq(avatars.userId, actor.id);
+  const [beforeAvatar] = await db.select().from(avatars).where(and(
+    eq(avatars.clubId, actor.clubId),
+    ownerCondition,
+  )).limit(1);
+  let uploaded: Awaited<ReturnType<typeof put>> | null = null;
+  try {
+    if (avatarFile instanceof File && avatarFile.size > 0) {
+      uploaded = await put(`clubs/${actor.clubId}/users/${actor.id}/avatar-${Date.now()}`, avatarFile, { access: "private", addRandomSuffix: true });
+    }
+  } catch {
+    return { ok: false, message: "Không thể tải avatar lên kho lưu trữ." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      if (removeAvatar && !uploaded && beforeAvatar) {
+        await tx.delete(avatars).where(eq(avatars.id, beforeAvatar.id));
+      } else if (uploaded && avatarFile instanceof File) {
+        const next = {
+          clubId: actor.clubId,
+          userId: actor.id,
+          memberId: actor.memberId ?? null,
+          blobUrl: uploaded.url,
+          pathname: uploaded.pathname,
+          mimeType: avatarFile.type,
+          fileSize: avatarFile.size,
+          updatedAt: new Date(),
+        };
+        if (beforeAvatar) await tx.update(avatars).set(next).where(eq(avatars.id, beforeAvatar.id));
+        else await tx.insert(avatars).values(next);
+      }
+      await track(tx, {
+        clubId: actor.clubId,
+        entityType: "user",
+        entityId: actor.id,
+        action: "UPDATE",
+        actorId: actor.id,
+        message: uploaded ? "Cập nhật avatar tài khoản" : "Xóa avatar tài khoản",
+      });
+    });
+  } catch {
+    if (uploaded) void del(uploaded.url).catch(() => undefined);
+    return { ok: false, message: "Không thể cập nhật avatar tài khoản." };
+  }
+  if (beforeAvatar && (uploaded || removeAvatar)) void del(beforeAvatar.blobUrl).catch(() => undefined);
+  revalidatePath("/settings");
+  if (actor.memberId) {
+    revalidatePath(`/members/${actor.memberId}`);
+    revalidatePath("/members");
+  }
+  revalidatePath("/", "layout");
+  return { ok: true, message: uploaded ? "Đã cập nhật avatar tài khoản." : "Đã xóa avatar tài khoản." };
+}
+
 const memberAccountSchema = z.object({
   displayName: z.string().min(2).max(160),
   phone: z.string().regex(/^\d{8,15}$/),
@@ -276,6 +350,8 @@ export async function createMemberAccountAction(formData: FormData): Promise<Mut
         role: parsed.data.role,
         isActive: true,
       }).returning({ id: users.id });
+      await tx.update(avatars).set({ userId: account.id, updatedAt: new Date() })
+        .where(eq(avatars.memberId, member.id));
       await track(tx, {
         clubId: actor.clubId,
         entityType: "member",

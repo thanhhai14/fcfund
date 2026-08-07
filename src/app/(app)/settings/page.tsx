@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
   avatars,
@@ -28,6 +28,7 @@ import {
   updateClubAction,
   updateChargeTypeAction,
   updateUserAccountAction,
+  updateOwnAvatarAction,
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import {
@@ -37,7 +38,7 @@ import {
 } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
-import { MemberIdentity } from "@/components/member-identity";
+import { MemberAvatar, MemberIdentity } from "@/components/member-identity";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -58,7 +59,7 @@ export default async function SettingsPage() {
       avatarUpdatedAt: avatars.updatedAt,
     })
     .from(users).leftJoin(members, eq(users.memberId, members.id))
-    .leftJoin(avatars, eq(users.id, avatars.userId))
+    .leftJoin(avatars, or(eq(users.id, avatars.userId), eq(users.memberId, avatars.memberId)))
     .where(eq(users.clubId, currentUser.clubId)).orderBy(users.role, users.displayName) : [];
   const availableMembers = manageUsers ? await db.select({ id: members.id, name: members.fullName, code: members.code })
     .from(members).leftJoin(users, eq(members.id, users.memberId))
@@ -140,6 +141,18 @@ export default async function SettingsPage() {
 
         <div className="stack">
           <article className="panel">
+            <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>
+            <div className="account-avatar-editor">
+              <MemberAvatar userId={currentUser.id} memberId={currentUser.memberId} name={currentUser.displayName} avatarVersion={currentUser.avatarUpdatedAt} />
+              <MutationForm action={updateOwnAvatarAction} className="form-stack">
+                <label>Ảnh đại diện<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                {currentUser.avatarUpdatedAt && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}
+                <SubmitButton>Lưu avatar</SubmitButton>
+              </MutationForm>
+            </div>
+          </article>
+
+          <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Bảo mật</span><h2>Đổi mật khẩu</h2></div></div>
             <MutationForm action={changeOwnPasswordAction} className="form-stack">
               <label>Mật khẩu hiện tại<input name="currentPassword" type="password" required /></label>
@@ -163,7 +176,7 @@ export default async function SettingsPage() {
             <div className="account-list">
               {accounts.map((account) => {
                 const accountOverrides = overrideMap.get(account.id);
-                return <Disclosure key={account.id} label={<MemberIdentity memberId={account.memberId} name={account.displayName} avatarVersion={account.avatarUpdatedAt} secondary={`${account.phone} · ${ROLE_LABELS[account.role]} · ${account.memberName ? `Thành viên: ${account.memberName}` : "Không gắn thành viên"}`} />} className="account-disclosure">
+                return <Disclosure key={account.id} label={<MemberIdentity memberId={account.memberId} userId={account.id} name={account.displayName} avatarVersion={account.avatarUpdatedAt} secondary={`${account.phone} · ${ROLE_LABELS[account.role]} · ${account.memberName ? `Thành viên: ${account.memberName}` : "Không gắn thành viên"}`} />} className="account-disclosure">
                   <MutationForm action={updateUserAccountAction} className="form-stack account-profile-form">
                     <input type="hidden" name="userId" value={account.id} />
                     <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>

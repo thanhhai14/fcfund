@@ -34,6 +34,7 @@ export async function Chatter({
       actorDisplayName: users.displayName,
       actorName: members.fullName,
       actorPhone: users.phoneNormalized,
+      actorUserId: users.id,
       actorMemberId: users.memberId,
       avatarUpdatedAt: avatars.updatedAt,
     })
@@ -68,7 +69,7 @@ export async function Chatter({
           <div key={log.id}>
             <span className="timeline-dot" />
             <div>
-              <p className="chatter-actor"><MemberIdentity memberId={log.actorMemberId} name={log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"} avatarVersion={log.avatarUpdatedAt} compact /><span>{actionLabels[log.action]}</span></p>
+              <p className="chatter-actor"><MemberIdentity memberId={log.actorMemberId} userId={log.actorUserId} name={log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"} avatarVersion={log.avatarUpdatedAt} compact /><span>{actionLabels[log.action]}</span></p>
               {log.message && <blockquote>{log.message}</blockquote>}
               <time>{formatDateTime(log.createdAt)}</time>
             </div>
