@@ -79,7 +79,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
             {columns.isVisible("rank") && <strong className="member-rank-column">#{index + 1}</strong>}
             <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} />
             {columns.isVisible("phone") && <span>{member.phone}</span>}
-            {columns.isVisible("status") && <span><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>}
+            {columns.isVisible("status") && <span className="member-status-cell"><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>}
             {columns.isVisible("account") && <span>{member.accountLabel}</span>}
             {showForm && columns.isVisible("form") && <strong className="member-form-score member-form-column">{Math.round(member.formScore / 100)} điểm</strong>}
             {columns.isVisible("balance") && <strong className={member.balance < 0 ? "money-out" : "money-in"}>{member.balance > 0 ? "+" : ""}{formatMoney(member.balance)}</strong>}

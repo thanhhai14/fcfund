@@ -5127,10 +5127,15 @@ label {
   background: var(--brand-surface);
 }
 
-.member-list-row>span:nth-child(3) {
+.member-status-cell {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.member-status-cell .status-dot {
+  display: inline-block;
+  flex: 0 0 8px;
 }
 
 .member-list-row>strong {
