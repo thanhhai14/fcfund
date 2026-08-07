@@ -2,7 +2,14 @@ import "server-only";
 
 import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { matches, matchParticipants, matchTeamVersions, memberCharges } from "@/db/schema";
+import {
+  matches,
+  matchParticipants,
+  matchTeamMembers,
+  matchTeams,
+  matchTeamVersions,
+  memberCharges,
+} from "@/db/schema";
 
 export type MatchFormStat = {
   matchCount: number;
@@ -10,6 +17,66 @@ export type MatchFormStat = {
   winCount: number;
   lossRate: number | null;
 };
+
+export type MemberCareerStats = {
+  matchCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number | null;
+};
+
+function metricsRecord(metrics: unknown): Record<string, unknown> {
+  if (typeof metrics === "string") {
+    try {
+      return metricsRecord(JSON.parse(metrics));
+    } catch {
+      return {};
+    }
+  }
+  return metrics && typeof metrics === "object" && !Array.isArray(metrics)
+    ? metrics as Record<string, unknown>
+    : {};
+}
+
+export async function getMemberCareerStats(input: { clubId: string; memberId: string }): Promise<MemberCareerStats> {
+  const rows = await db.select({
+    matchId: matches.id,
+    teamName: matchTeams.name,
+    metrics: matchTeamVersions.metrics,
+  })
+    .from(matchTeamMembers)
+    .innerJoin(matchTeams, eq(matchTeamMembers.teamId, matchTeams.id))
+    .innerJoin(matchTeamVersions, eq(matchTeamMembers.versionId, matchTeamVersions.id))
+    .innerJoin(matches, eq(matchTeamVersions.matchId, matches.id))
+    .where(and(
+      eq(matchTeamMembers.memberId, input.memberId),
+      eq(matches.clubId, input.clubId),
+      isNull(matches.deletedAt),
+      eq(matchTeamVersions.status, "CONFIRMED"),
+      sql`${matchTeamVersions.metrics} ? 'placements'`,
+    ));
+
+  let winCount = 0;
+  let lossCount = 0;
+  const countedMatches = new Set<string>();
+  for (const row of rows) {
+    if (countedMatches.has(row.matchId)) continue;
+    const placements = metricsRecord(metricsRecord(row.metrics).placements);
+    const place = Number(placements[row.teamName]);
+    if (!Number.isInteger(place) || place < 1) continue;
+    countedMatches.add(row.matchId);
+    if (place === 1) winCount += 1;
+    else lossCount += 1;
+  }
+
+  const matchCount = winCount + lossCount;
+  return {
+    matchCount,
+    winCount,
+    lossCount,
+    winRate: matchCount ? Math.round((winCount / matchCount) * 1_000) / 10 : null,
+  };
+}
 
 export async function getMatchFormStats(input: {
   clubId: string;

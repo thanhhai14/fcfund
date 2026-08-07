@@ -1632,6 +1632,73 @@ label>textarea {
   color: var(--brand-primary-strong);
 }
 
+.member-match-stats {
+  position: relative;
+  z-index: 1;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: white;
+  border-top: 1px solid var(--line);
+}
+
+.member-match-stats>span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 76px;
+  padding: 13px 20px;
+  border-right: 1px solid var(--line);
+}
+
+.member-match-stats>span:last-child {
+  border-right: 0;
+}
+
+.member-match-stats>span>i {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+  color: var(--brand-primary-strong);
+  background: var(--brand-surface);
+  border-bottom: 3px solid var(--brand-primary);
+  font-size: 14px;
+  font-style: normal;
+}
+
+.member-match-stats>span>span {
+  min-width: 0;
+}
+
+.member-match-stats small,
+.member-match-stats strong {
+  display: block;
+}
+
+.member-match-stats small {
+  margin-bottom: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .045em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.member-match-stats strong {
+  font-size: 20px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.member-match-stats>span:last-child strong {
+  color: var(--brand-primary-strong);
+}
+
 .member-finance-grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr;
@@ -5534,5 +5601,32 @@ label {
 
   .member-profile-meta>span:nth-child(2n) {
     border-right: 0;
+  }
+
+  .member-match-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .member-match-stats>span {
+    min-height: 68px;
+    padding: 11px 13px;
+  }
+
+  .member-match-stats>span:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .member-match-stats>span:nth-child(n+3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .member-match-stats>span>i {
+    width: 31px;
+    height: 31px;
+    flex-basis: 31px;
+  }
+
+  .member-match-stats strong {
+    font-size: 17px;
   }
 }

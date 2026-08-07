@@ -32,6 +32,7 @@ import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { Icon } from "@/components/icon";
 import { MemberAvatar } from "@/components/member-identity";
+import { getMemberCareerStats } from "@/lib/match-form-stats";
 
 export default async function MemberDetailPage({
   params,
@@ -46,10 +47,10 @@ export default async function MemberDetailPage({
   if (!member) notFound();
 
   const isOwnProfile = currentUser.memberId === id;
-  const [canManage, canManageUsers, canManageCharges, canAudit, canViewOtherBalances, canViewAllCharges, canViewOwnCharges, canViewAllPayments, canViewOwnPayments] = await Promise.all([
+  const [canManage, canManageUsers, canManageCharges, canAudit, canViewOtherBalances, canViewAllCharges, canViewOwnCharges, canViewAllPayments, canViewOwnPayments, canViewMatchForm] = await Promise.all([
     can(PERMISSIONS.MEMBERS_MANAGE), can(PERMISSIONS.USERS_MANAGE), can(PERMISSIONS.CHARGES_MANAGE), can(PERMISSIONS.AUDIT_VIEW),
     can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW), can(PERMISSIONS.CHARGES_VIEW_ALL), can(PERMISSIONS.CHARGES_VIEW_OWN),
-    can(PERMISSIONS.PAYMENTS_VIEW_ALL), can(PERMISSIONS.PAYMENTS_VIEW_OWN),
+    can(PERMISSIONS.PAYMENTS_VIEW_ALL), can(PERMISSIONS.PAYMENTS_VIEW_OWN), can(PERMISSIONS.MATCH_FORM_REPORT_VIEW),
   ]);
   const mayViewCharges = canViewAllCharges || (isOwnProfile && canViewOwnCharges);
   const mayViewPayments = canViewAllPayments || (isOwnProfile && canViewOwnPayments);
@@ -99,6 +100,7 @@ export default async function MemberDetailPage({
     role: users.role,
   }).from(users).where(and(eq(users.clubId, currentUser.clubId), isNull(users.memberId))).orderBy(users.displayName) : [];
   const hasTemporaryPhone = /^0{7,}/.test(member.phone);
+  const careerStats = canViewMatchForm ? await getMemberCareerStats({ clubId: currentUser.clubId, memberId: id }) : null;
   const ledger = [
     ...(mayViewCharges ? charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note, iconName: row.iconName, color: row.color })) : []),
     ...(mayViewPayments ? payments.map((row) => ({ id: `p-${row.id}`, date: row.transactionDate, label: "Đã nộp tiền", amount: row.amount, note: row.note, iconName: "money-bill-transfer", color: "#287a55" })) : []),
@@ -148,6 +150,13 @@ export default async function MemberDetailPage({
             <span><small>Trạng thái</small><strong>{member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}</strong></span>
           </div>
         </article>
+
+        {careerStats && <div className="member-match-stats" aria-label="Thống kê kết quả thi đấu">
+          <span><i><Icon name="futbol" /></i><span><small>Trận có kết quả</small><strong>{careerStats.matchCount}</strong></span></span>
+          <span><i><Icon name="trophy" /></i><span><small>Thắng</small><strong>{careerStats.winCount}</strong></span></span>
+          <span><i><Icon name="flag" /></i><span><small>Thua</small><strong>{careerStats.lossCount}</strong></span></span>
+          <span><i><Icon name="chart" /></i><span><small>Tỷ lệ thắng</small><strong>{careerStats.winRate === null ? "—" : `${careerStats.winRate.toLocaleString("vi-VN")} %`}</strong></span></span>
+        </div>}
       </section>
 
       <section className="detail-columns">
