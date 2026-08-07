@@ -65,6 +65,7 @@ export const PERMISSION_DEFINITIONS: Array<{
 export const ROLE_LABELS = {
   ADMIN: "Admin",
   TREASURER: "Thủ quỹ",
+  ORGANIZER: "Người tổ chức",
   MEMBER: "Thành viên",
 } as const;
 

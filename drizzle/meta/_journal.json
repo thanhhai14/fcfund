@@ -43,6 +43,13 @@
       "when": 1786087814412,
       "tag": "0005_living_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786095371820,
+      "tag": "0006_slow_praxagora",
+      "breakpoints": true
     }
   ]
 }

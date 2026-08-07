@@ -90,7 +90,7 @@ const memberSchema = z.object({
   code: z.string().min(1).max(40),
   fullName: z.string().min(2).max(160),
   phone: z.string().regex(/^\d{8,15}$/),
-  role: z.enum(["MEMBER", "TREASURER"]),
+  role: z.enum(["MEMBER", "ORGANIZER", "TREASURER"]),
 });
 
 export async function createMemberAction(formData: FormData): Promise<MutationResult> {
@@ -246,7 +246,7 @@ export async function updateMemberProfileAction(formData: FormData): Promise<Mut
 const memberAccountSchema = z.object({
   displayName: z.string().min(2).max(160),
   phone: z.string().regex(/^\d{8,15}$/),
-  role: z.enum(["MEMBER", "TREASURER"]),
+  role: z.enum(["MEMBER", "ORGANIZER", "TREASURER"]),
 });
 
 export async function createMemberAccountAction(formData: FormData): Promise<MutationResult> {
@@ -366,7 +366,7 @@ export async function updateMemberAccountAction(formData: FormData): Promise<Mut
 const userAccountSchema = z.object({
   displayName: z.string().min(2).max(160),
   phone: z.string().regex(/^\d{8,15}$/),
-  role: z.enum(["ADMIN", "TREASURER", "MEMBER"]),
+  role: z.enum(["ADMIN", "TREASURER", "ORGANIZER", "MEMBER"]),
 });
 
 export async function createUserAccountAction(formData: FormData): Promise<MutationResult> {

@@ -23,7 +23,7 @@ const auditColumns = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
 
-export const userRole = pgEnum("user_role", ["ADMIN", "TREASURER", "MEMBER"]);
+export const userRole = pgEnum("user_role", ["ADMIN", "TREASURER", "ORGANIZER", "MEMBER"]);
 export const memberStatus = pgEnum("member_status", ["ACTIVE", "INACTIVE"]);
 export const chargeCalculation = pgEnum("charge_calculation", ["MONTHLY", "OCCURRENCE"]);
 export const chargeSource = pgEnum("charge_source", ["AUTO_MONTHLY", "MANUAL", "MATCH", "ADJUSTMENT"]);

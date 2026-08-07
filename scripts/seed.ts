@@ -46,13 +46,26 @@ const treasurerPermissions = [
 ];
 const memberPermissions = [
   PERMISSIONS.DASHBOARD_VIEW,
+  PERMISSIONS.MEMBERS_VIEW,
   PERMISSIONS.MEMBER_PROFILE_EDIT_OWN,
   PERMISSIONS.CHARGES_VIEW_OWN,
+  PERMISSIONS.CHARGES_VIEW_ALL,
   PERMISSIONS.PAYMENTS_VIEW_OWN,
+  PERMISSIONS.PAYMENTS_VIEW_ALL,
   PERMISSIONS.EXPENSES_VIEW,
   PERMISSIONS.MATCHES_VIEW,
   PERMISSIONS.MATCH_SEED_VIEW,
   PERMISSIONS.MATCH_TEAMS_VIEW,
+  PERMISSIONS.MATCH_FORM_REPORT_VIEW,
+  PERMISSIONS.CLUB_BALANCE_VIEW,
+  PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW,
+  PERMISSIONS.AUDIT_VIEW,
+];
+const organizerPermissions = [
+  ...memberPermissions,
+  PERMISSIONS.MATCHES_MANAGE,
+  PERMISSIONS.MATCH_SEED_MANAGE,
+  PERMISSIONS.MATCH_TEAMS_MANAGE,
 ];
 
 async function seed() {
@@ -71,6 +84,7 @@ async function seed() {
   for (const [role, allowedKeys] of [
     ["ADMIN", adminPermissions],
     ["TREASURER", treasurerPermissions],
+    ["ORGANIZER", organizerPermissions],
     ["MEMBER", memberPermissions],
   ] as const) {
     const allowedSet = new Set<string>(allowedKeys);

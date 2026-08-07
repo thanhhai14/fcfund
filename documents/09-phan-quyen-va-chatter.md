@@ -52,18 +52,29 @@ Admin có thể cấp thêm bằng policy ghi đè.
 
 Mặc định:
 
-- xem dashboard thành viên;
-- xem khoản phải đóng của mình;
-- xem lịch sử nộp tiền của mình;
-- xem số dư của mình;
+- xem dashboard và danh sách thành viên;
+- xem khoản phải đóng, tiền nộp và công nợ của toàn đội;
+- xem tổng số dư quỹ và báo cáo phong độ;
+- xem giao dịch thu chi công khai;
+- xem trận, seed theo trận và đội hình đã xác nhận;
+- xem chatter/audit;
+- sửa CV và avatar của chính Member đang liên kết;
 - xem QR và thông tin chuyển khoản;
-- xem dữ liệu công khai được policy cho phép;
-- xem seed của người tham gia theo trận và đội hình đã xác nhận;
 - đổi mật khẩu.
 
-Không được tạo, sửa hoặc xóa dữ liệu tài chính.
+Không được tạo, sửa, xóa hoặc quản lý dữ liệu nghiệp vụ.
 
-## 5. Policy xem dữ liệu
+## 5. Vai trò Người tổ chức
+
+Mặc định bao gồm toàn bộ quyền của Thành viên và thêm:
+
+- tạo và sửa trận đấu;
+- đánh giá, lưu và khóa Seed theo trận;
+- tạo, chỉnh sửa và xác nhận phiên bản đội hình.
+
+Không được quản lý thành viên, tài khoản, tài chính hoặc cài đặt hệ thống nếu không được cấp policy riêng.
+
+## 6. Policy xem dữ liệu
 
 Các quyền tách riêng:
 
@@ -87,7 +98,7 @@ Role và liên kết Member độc lập:
 - khóa User không làm Member ngừng hoạt động;
 - Member ngừng hoạt động không tự động khóa User.
 
-## 6. Chatter
+## 7. Chatter
 
 Các màn hình có chatter:
 
@@ -108,7 +119,7 @@ Chatter hiển thị theo thời gian:
 29/07/2026 10:21 — Nguyễn A: "Điều chỉnh do nhập dư một lần mời nước"
 ```
 
-## 7. Dữ liệu tracking
+## 8. Dữ liệu tracking
 
 Với CREATE/UPDATE/DELETE/RESTORE:
 
@@ -121,7 +132,7 @@ Với CREATE/UPDATE/DELETE/RESTORE:
 
 Password hash, token, cookie và bí mật không được ghi vào chatter.
 
-## 8. Xóa mềm
+## 9. Xóa mềm
 
 Khi admin xóa:
 
@@ -131,13 +142,13 @@ Khi admin xóa:
 - không xóa activity log;
 - admin có thể RESTORE và hệ thống tính lại số dư.
 
-## 9. Bảo vệ audit
+## 10. Bảo vệ audit
 
 - Activity log chỉ được thêm, không được sửa/xóa từ giao diện.
 - Mọi thay đổi dữ liệu tài chính và activity log nằm trong cùng CSDL transaction.
 - API phải kiểm tra policy ở server.
 
-## 10. Hồ sơ cá nhân
+## 11. Hồ sơ cá nhân
 
 - `member_profile.edit_own` cho phép User sửa CV/avatar của Member đang liên kết.
 - `members.manage` tiếp tục cho phép quản trị sửa hồ sơ của mọi thành viên.

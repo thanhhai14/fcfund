@@ -20,6 +20,7 @@
 ```text
 ADMIN
 TREASURER
+ORGANIZER
 MEMBER
 ```
 

@@ -154,7 +154,7 @@ export default async function SettingsPage() {
                 <MutationForm action={createUserAccountAction} className="form-stack" closeDisclosureOnSuccess>
                   <label>Tên hiển thị<input name="displayName" required placeholder="Nguyễn Văn A" /></label>
                   <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" required /></label>
-                  <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>
+                  <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="ORGANIZER">Người tổ chức</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>
                   <p className="panel-note">Tài khoản được tạo độc lập. Có thể gắn với một thành viên sau.</p>
                   <SubmitButton>Tạo tài khoản</SubmitButton>
                 </MutationForm>
@@ -168,7 +168,7 @@ export default async function SettingsPage() {
                     <input type="hidden" name="userId" value={account.id} />
                     <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>
                     <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={account.phone} required /></label>
-                    {account.role === "ADMIN" ? <><input type="hidden" name="role" value="ADMIN" /><label>Vai trò<input value="Admin" disabled /></label></> : <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>}
+                    {account.role === "ADMIN" ? <><input type="hidden" name="role" value="ADMIN" /><label>Vai trò<input value="Admin" disabled /></label></> : <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="ORGANIZER">Người tổ chức</option><option value="TREASURER">Thủ quỹ</option>{currentUser.role === "ADMIN" && <option value="ADMIN">Admin</option>}</select></label>}
                     <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.active} disabled={account.id === currentUser.id} /><span><strong>Cho phép đăng nhập</strong><small>{account.id === currentUser.id ? "Không thể tự khóa tài khoản đang dùng." : "Độc lập với trạng thái thành viên."}</small></span></label>
                     <SubmitButton>Lưu tài khoản</SubmitButton>
                   </MutationForm>

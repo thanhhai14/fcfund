@@ -15,7 +15,7 @@ type SessionPayload = {
   sub: string;
   clubId: string;
   memberId?: string;
-  role: "ADMIN" | "TREASURER" | "MEMBER";
+  role: "ADMIN" | "TREASURER" | "ORGANIZER" | "MEMBER";
 };
 
 function authSecret() {
@@ -70,7 +70,7 @@ export async function readSession(): Promise<SessionPayload | null> {
     if (
       !payload.sub ||
       typeof payload.clubId !== "string" ||
-      !["ADMIN", "TREASURER", "MEMBER"].includes(String(payload.role))
+      !["ADMIN", "TREASURER", "ORGANIZER", "MEMBER"].includes(String(payload.role))
     ) {
       return null;
     }

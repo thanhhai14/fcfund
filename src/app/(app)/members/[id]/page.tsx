@@ -223,7 +223,7 @@ export default async function MemberDetailPage({
                 <input type="hidden" name="memberId" value={member.id} />
                 <label>Tên hiển thị<input name="displayName" defaultValue={member.fullName} required /></label>
                 <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={member.phone} required /></label>
-                <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
+                <label>Vai trò<select name="role" defaultValue="MEMBER"><option value="MEMBER">Thành viên</option><option value="ORGANIZER">Người tổ chức</option><option value="TREASURER">Thủ quỹ</option></select></label>
                 <SubmitButton>Tạo tài khoản đăng nhập</SubmitButton>
               </MutationForm>
               {!!unlinkedAccounts.length && <div className="account-link-box member-link-existing">
@@ -242,7 +242,7 @@ export default async function MemberDetailPage({
                 <input type="hidden" name="userId" value={account.id} />
                 <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>
                 <label>Số điện thoại đăng nhập<input name="phone" inputMode="numeric" pattern="[0-9]*" defaultValue={account.phoneNormalized} required /></label>
-                <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="TREASURER">Thủ quỹ</option></select></label>
+                <label>Vai trò<select name="role" defaultValue={account.role}><option value="MEMBER">Thành viên</option><option value="ORGANIZER">Người tổ chức</option><option value="TREASURER">Thủ quỹ</option></select></label>
                 <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.isActive} /><span><strong>Cho phép đăng nhập</strong><small>Tắt tùy chọn này để khóa tài khoản nhưng vẫn giữ dữ liệu.</small></span></label>
                 <SubmitButton>Lưu tài khoản</SubmitButton>
               </MutationForm>}
