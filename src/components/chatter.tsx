@@ -1,7 +1,7 @@
 import { desc, eq, and } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLogs, avatars, members, users } from "@/db/schema";
-import { formatDate } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { addCommentAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
 
@@ -70,7 +70,7 @@ export async function Chatter({
             <div>
               <p className="chatter-actor"><MemberIdentity memberId={log.actorMemberId} name={log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"} avatarVersion={log.avatarUpdatedAt} compact /><span>{actionLabels[log.action]}</span></p>
               {log.message && <blockquote>{log.message}</blockquote>}
-              <time>{formatDate(log.createdAt)} · {log.createdAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</time>
+              <time>{formatDateTime(log.createdAt)}</time>
             </div>
           </div>
         ))}

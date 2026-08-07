@@ -1833,6 +1833,18 @@ label>textarea {
   font-size: 10px;
 }
 
+.assignment-list>div.inactive {
+  opacity: .55;
+}
+
+.assignment-edit-disclosure {
+  flex: 0 0 auto;
+}
+
+.assignment-edit-disclosure .disclosure-content {
+  width: 450px;
+}
+
 .ledger-icon {
   display: inline-grid;
   width: 32px;

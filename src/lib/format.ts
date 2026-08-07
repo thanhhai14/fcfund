@@ -1,3 +1,5 @@
+import { APP_TIMEZONE } from "./constants";
+
 export function formatMoney(value: number | bigint) {
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -6,16 +8,41 @@ export function formatMoney(value: number | bigint) {
   }).format(Number(value));
 }
 
-export function formatDate(value: string | Date) {
-  const date = typeof value === "string" ? new Date(`${value}T00:00:00`) : value;
+function dateValue(value: string | Date) {
+  if (value instanceof Date) return value;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00Z`) : new Date(value);
+}
+
+export function formatDate(value: string | Date, timezone = APP_TIMEZONE) {
   return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: timezone,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(date);
+  }).format(dateValue(value));
 }
 
-export function todayInTimezone(timezone = "Asia/Ho_Chi_Minh") {
+export function formatTime(value: string | Date, timezone = APP_TIMEZONE) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(dateValue(value));
+}
+
+export function formatDateTime(value: string | Date, timezone = APP_TIMEZONE) {
+  return `${formatDate(value, timezone)} · ${formatTime(value, timezone)}`;
+}
+
+export function formatLongDate(value: string | Date = new Date(), timezone = APP_TIMEZONE) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: timezone,
+    dateStyle: "full",
+  }).format(dateValue(value));
+}
+
+export function todayInTimezone(timezone = APP_TIMEZONE) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
     year: "numeric",

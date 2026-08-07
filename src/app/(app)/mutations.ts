@@ -664,7 +664,7 @@ export async function createAssignmentAction(formData: FormData): Promise<Mutati
     }).returning();
 
     await track(tx, {
-      clubId: actor.clubId, entityType: "charge_assignment", entityId: record.id,
+      clubId: actor.clubId, entityType: "member", entityId: memberId,
       action: "CREATE", actorId: actor.id, afterData: record, message: "Gán khoản thu cho thành viên",
     });
 
@@ -684,6 +684,67 @@ export async function createAssignmentAction(formData: FormData): Promise<Mutati
   revalidatePath("/charges");
   revalidatePath("/dashboard");
   return { ok: true, message: "Đã gán khoản thu." };
+}
+
+export async function updateAssignmentAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.CHARGES_MANAGE);
+  const id = str(formData, "id");
+  const validFrom = str(formData, "validFrom");
+  const validUntil = str(formData, "validUntil") || null;
+  const customAmountRaw = str(formData, "customAmount");
+  const customAmount = customAmountRaw === "" ? null : Number(customAmountRaw);
+  const validDate = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  };
+  if (!id || !validDate(validFrom) || (validUntil && !validDate(validUntil))) {
+    return { ok: false, message: "Thời hạn áp dụng không hợp lệ." };
+  }
+  if (validUntil && validUntil < validFrom) {
+    return { ok: false, message: "Ngày kết thúc không được trước ngày bắt đầu." };
+  }
+  if (customAmount !== null && (!Number.isSafeInteger(customAmount) || customAmount < 0)) {
+    return { ok: false, message: "Đơn giá riêng không hợp lệ." };
+  }
+
+  const [row] = await db.select({
+    assignment: memberChargeAssignments,
+    chargeTypeName: chargeTypes.name,
+  }).from(memberChargeAssignments)
+    .innerJoin(chargeTypes, eq(memberChargeAssignments.chargeTypeId, chargeTypes.id))
+    .where(and(eq(memberChargeAssignments.id, id), eq(chargeTypes.clubId, actor.clubId)))
+    .limit(1);
+  if (!row) return { ok: false, message: "Không tìm thấy khoản thu đang áp dụng." };
+
+  const next = {
+    customAmount,
+    validFrom,
+    validUntil,
+    isActive: formData.get("isActive") === "on",
+    note: str(formData, "note") || null,
+    updatedAt: new Date(),
+  };
+  await db.transaction(async (tx) => {
+    const [after] = await tx.update(memberChargeAssignments).set(next)
+      .where(eq(memberChargeAssignments.id, id)).returning();
+    await track(tx, {
+      clubId: actor.clubId,
+      entityType: "member",
+      entityId: row.assignment.memberId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: row.assignment,
+      afterData: after,
+      message: `${next.isActive ? "Cập nhật" : "Dừng"} khoản thu áp dụng ${row.chargeTypeName}`,
+    });
+  });
+
+  revalidatePath(`/members/${row.assignment.memberId}`);
+  revalidatePath("/members");
+  revalidatePath("/charges");
+  revalidatePath("/dashboard");
+  return { ok: true, message: next.isActive ? "Đã cập nhật khoản thu áp dụng." : "Đã dừng khoản thu áp dụng." };
 }
 
 export async function createMemberChargeAction(formData: FormData): Promise<MutationResult> {

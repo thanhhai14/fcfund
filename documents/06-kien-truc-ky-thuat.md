@@ -113,6 +113,8 @@ Trên Vercel:
 
 Vercel Cron dùng UTC. Việc chạy hàng ngày rồi kiểm tra ngày địa phương giúp tránh sai kỳ do chênh lệch múi giờ.
 
+Các cột `timestamptz` tiếp tục lưu theo UTC trong PostgreSQL. Khi hiển thị ngày giờ trên giao diện, server và frontend phải định dạng tường minh theo `Asia/Ho_Chi_Minh`; không phụ thuộc múi giờ mặc định của Vercel hoặc thiết bị người dùng.
+
 Tài liệu:
 
 - <https://vercel.com/docs/cron-jobs>

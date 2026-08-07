@@ -12,7 +12,7 @@ import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatDate, formatMoney, monthStart, todayInTimezone } from "@/lib/format";
+import { formatDate, formatLongDate, formatMoney, monthStart, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MemberIdentity } from "@/components/member-identity";
 
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow={new Intl.DateTimeFormat("vi-VN", { dateStyle: "full" }).format(new Date())}
+        eyebrow={formatLongDate()}
         title={`Chào ${user.displayName.split(" ").slice(-1)[0] ?? "bạn"}!`}
         description="Đây là tình hình quỹ và công nợ mới nhất của đội."
       />

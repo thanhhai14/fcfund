@@ -22,13 +22,14 @@ import {
   linkUserToMemberAction,
   resetPasswordAction,
   unlinkUserFromMemberAction,
+  updateAssignmentAction,
   updateMemberAccountAction,
   updateMemberAction,
   updateMemberProfileAction,
 } from "../../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
-import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { Icon } from "@/components/icon";
 import { MemberAvatar } from "@/components/member-identity";
@@ -71,6 +72,7 @@ export default async function MemberDetailPage({
       validFrom: memberChargeAssignments.validFrom,
       validUntil: memberChargeAssignments.validUntil,
       active: memberChargeAssignments.isActive,
+      note: memberChargeAssignments.note,
     })
     .from(memberChargeAssignments)
     .innerJoin(chargeTypes, eq(memberChargeAssignments.chargeTypeId, chargeTypes.id))
@@ -184,7 +186,7 @@ export default async function MemberDetailPage({
               </Disclosure>}
             </div>
             <div className="assignment-list">
-              {assignments.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{formatDate(item.validFrom)} → {item.validUntil ? formatDate(item.validUntil) : "Vĩnh viễn"}</small></span><b>{formatMoney(item.customAmount ?? item.defaultAmount)}</b></div>)}
+              {assignments.map((item) => <div className={!item.active ? "inactive" : undefined} key={item.id}><span><strong>{item.name}</strong><small>{formatDate(item.validFrom)} → {item.validUntil ? formatDate(item.validUntil) : "Vĩnh viễn"} · {item.active ? "Đang áp dụng" : "Đã dừng"}</small></span><b>{formatMoney(item.customAmount ?? item.defaultAmount)}</b>{canManageCharges && <Disclosure label={<Icon name="edit" />} className="assignment-edit-disclosure type-edit-disclosure"><MutationForm action={updateAssignmentAction} className="form-stack"><input type="hidden" name="id" value={item.id} /><label>Đơn giá riêng<input name="customAmount" type="number" min="0" defaultValue={item.customAmount ?? ""} placeholder={`Mặc định ${formatMoney(item.defaultAmount)}`} /></label><div className="form-row"><label>Từ ngày<input name="validFrom" type="date" defaultValue={item.validFrom} required /></label><label>Đến ngày<input name="validUntil" type="date" defaultValue={item.validUntil ?? ""} /></label></div><label className="check-field"><input name="isActive" type="checkbox" defaultChecked={item.active} /> Đang áp dụng</label><label>Ghi chú<textarea name="note" rows={2} defaultValue={item.note ?? ""} /></label><p className="panel-note">Thay đổi chỉ áp dụng cho phát sinh tương lai, không sửa các khoản đã tạo.</p><SubmitButton>Lưu cấu hình</SubmitButton></MutationForm></Disclosure>}</div>)}
               {!assignments.length && <p className="muted">Chưa gán khoản thu nào.</p>}
             </div>
           </article>}
@@ -236,7 +238,7 @@ export default async function MemberDetailPage({
             </> : <>
               <div className="account-login-meta">
                 <span><small>Vai trò hiện tại</small><strong>{ROLE_LABELS[account.role]}</strong></span>
-                <span><small>Đăng nhập gần nhất</small><strong>{account.lastLoginAt ? `${formatDate(account.lastLoginAt)} · ${account.lastLoginAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Chưa đăng nhập"}</strong></span>
+                <span><small>Đăng nhập gần nhất</small><strong>{account.lastLoginAt ? formatDateTime(account.lastLoginAt) : "Chưa đăng nhập"}</strong></span>
               </div>
               {account.role === "ADMIN" ? <p className="account-warning">Tài khoản Admin được quản lý tại Cài đặt để tránh thay đổi nhầm vai trò quản trị.</p> : <MutationForm action={updateMemberAccountAction} className="form-stack">
                 <input type="hidden" name="userId" value={account.id} />

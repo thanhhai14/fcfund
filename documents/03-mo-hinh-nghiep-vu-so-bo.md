@@ -106,6 +106,8 @@ Hệ thống có chia từ 2 đội trở lên theo seed Tier 1–4/Thủ môn v
 
 Không phải ai tham gia cũng phải đóng Quỹ lẻ. Admin tự chọn khoản thu áp dụng cho từng người.
 
+Khoản thu định kỳ của thành viên có thể sửa thời hạn, đơn giá riêng hoặc tạm dừng. Việc thay đổi chỉ áp dụng cho phát sinh tương lai và không sửa các khoản đã tạo. Ví dụ thành viên chuyển từ Quỹ tháng sang đóng từng trận trong tháng 9 thì kết thúc assignment Quỹ tháng vào 31/08; khi quay lại có thể tạo assignment mới từ 01/10.
+
 Các khoản chi như tiền sân và tiền nước có thể được gắn với trận. Các khoản chi chung không bắt buộc có trận.
 
 ## 5. Thanh toán
