@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { CollectionToolbar, normalizeSearch } from "./collection-controls";
 import { Icon } from "./icon";
+import { MemberIdentity } from "./member-identity";
 import { formatMoney } from "@/lib/format";
 
-type MatrixMember = { id: string; fullName: string };
+type MatrixMember = { id: string; fullName: string; avatarUpdatedAt: Date | null };
 type MatrixChargeType = { id: string; name: string; defaultAmount: number; iconName: string; color: string | null };
 
 export function MatchFields({
@@ -54,7 +55,7 @@ export function MatchFields({
           const isSelected = selected.has(member.id);
           const visible = (!search || normalizeSearch(member.fullName).includes(search)) && (filter === "ALL" || (filter === "SELECTED" ? isSelected : !isSelected));
           return <div className={`matrix-row ${visible ? "" : "filtered-out"}`} style={{ gridTemplateColumns: columns }} key={member.id}>
-            <strong>{member.fullName}</strong>
+            <MemberIdentity memberId={member.id} name={member.fullName} avatarVersion={member.avatarUpdatedAt} compact />
             <label className="box-check" title="Đánh dấu tham gia"><input type="checkbox" name="participants" value={member.id} checked={isSelected} onChange={(event) => setParticipant(member.id, event.target.checked)} /><small className="matrix-mobile-label">Tham gia</small><span>✓</span></label>
             {occurrenceTypes.map((type) => { const key = `${member.id}|${type.id}`; return <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}><small className="matrix-mobile-label"><Icon name={type.iconName} />{type.name}<em>{formatMoney(type.defaultAmount)}</em></small><input type="number" name={`matchChargeQuantity:${member.id}:${type.id}`} min="0" max="99" step="1" inputMode="numeric" defaultValue={initialChargeQuantities[key] ?? 0} onChange={(event) => { if (Number(event.target.value) > 0) setParticipant(member.id, true); }} aria-label={`Số lần ${type.name} của ${member.fullName}`} /></label>; })}
           </div>;

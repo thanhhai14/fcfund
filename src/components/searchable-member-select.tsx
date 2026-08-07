@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeSearch } from "./collection-controls";
 import { Icon } from "./icon";
+import { MemberIdentity } from "./member-identity";
 
 export type MemberSelectOption = {
   id: string;
   name: string;
   code?: string | null;
   phone?: string | null;
+  avatarVersion?: number | string | Date | null;
 };
 
 export function SearchableMemberSelect({
@@ -73,8 +75,7 @@ export function SearchableMemberSelect({
           {emptyLabel && <button type="button" onClick={() => { setSelectedId(""); setQuery(""); setOpen(false); }}><b>{emptyLabel}</b></button>}
           {visible.map((option) => (
             <button type="button" key={option.id} onClick={() => { setSelectedId(option.id); setQuery(option.name); setOpen(false); }}>
-              <b>{option.name}</b>
-              {(option.code || option.phone) && <small>{[option.code, option.phone].filter(Boolean).join(" · ")}</small>}
+              <MemberIdentity memberId={option.id} name={option.name} avatarVersion={option.avatarVersion} secondary={option.phone} compact />
             </button>
           ))}
           {!visible.length && <em>Không tìm thấy thành viên.</em>}

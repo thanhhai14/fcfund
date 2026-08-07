@@ -110,6 +110,36 @@ export const users = pgTable(
   ],
 );
 
+export const memberProfiles = pgTable("member_profiles", {
+  memberId: uuid("member_id").primaryKey().references(() => members.id, { onDelete: "cascade" }),
+  bio: text("bio"),
+  nickname: varchar("nickname", { length: 100 }),
+  preferredPosition: varchar("preferred_position", { length: 100 }),
+  preferredFoot: varchar("preferred_foot", { length: 20 }),
+  shirtNumber: integer("shirt_number"),
+  ...auditColumns,
+}, (table) => [
+  check("member_profiles_shirt_number_range", sql`${table.shirtNumber} IS NULL OR (${table.shirtNumber} >= 0 AND ${table.shirtNumber} <= 99)`),
+]);
+
+export const avatars = pgTable("avatars", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
+  memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  blobUrl: text("blob_url").notNull(),
+  pathname: text("pathname").notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  ...auditColumns,
+}, (table) => [
+  uniqueIndex("avatars_member_unique").on(table.memberId).where(sql`${table.memberId} IS NOT NULL`),
+  uniqueIndex("avatars_user_unique").on(table.userId).where(sql`${table.userId} IS NOT NULL`),
+  index("avatars_club_idx").on(table.clubId),
+  check("avatars_owner_required", sql`${table.memberId} IS NOT NULL OR ${table.userId} IS NOT NULL`),
+  check("avatars_file_size_positive", sql`${table.fileSize} > 0`),
+]);
+
 export const permissions = pgTable("permissions", {
   key: varchar("key", { length: 100 }).primaryKey(),
   name: varchar("name", { length: 160 }).notNull(),

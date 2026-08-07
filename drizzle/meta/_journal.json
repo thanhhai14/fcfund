@@ -29,6 +29,13 @@
       "when": 1786069060206,
       "tag": "0003_stormy_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786077526850,
+      "tag": "0004_yielding_multiple_man",
+      "breakpoints": true
     }
   ]
 }

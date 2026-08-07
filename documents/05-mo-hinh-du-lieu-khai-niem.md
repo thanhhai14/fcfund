@@ -257,3 +257,12 @@ Các bảng nghiệp vụ nên có:
 - trạng thái xóa mềm nếu quyết định sử dụng.
 
 Giao dịch tài chính được sửa/xóa mềm; mọi thay đổi được ghi vào activity log/chatter.
+
+## 17. Hồ sơ và avatar thành viên
+
+- CV được lưu trong `MemberProfile`, quan hệ một-một với `Member`.
+- Avatar là model độc lập; một bản ghi có thể gắn `member_id`, `user_id` hoặc đồng thời cả hai.
+- Khi User liên kết Member, hai ID cùng trỏ đến một avatar để không sao chép file hoặc URL.
+- Khi tháo liên kết, Member giữ avatar và `user_id` được bỏ khỏi bản ghi avatar.
+- Nếu cả User và Member đều có avatar trước khi liên kết, avatar Member được ưu tiên.
+- Ảnh lưu private trong Vercel Blob; thay ảnh chỉ xóa Blob cũ sau khi transaction CSDL thành công.

@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { db } from "@/db";
 import {
   chargeTypes,
+  avatars,
   matches,
   matchParticipants,
   matchTeamMembers,
@@ -76,8 +77,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     memberName: members.fullName,
     guestName: matchParticipants.guestName,
     seedTier: matchParticipants.seedTier,
+    avatarUpdatedAt: avatars.updatedAt,
   }).from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
+    .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
     .where(eq(matchParticipants.matchId, id));
 
   const chargeRows = await db.select({
@@ -138,7 +141,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     const team = teamById.get(participantTeam.get(row.id) ?? "");
     return {
       id: row.id,
+      memberId: row.memberId,
       name: row.memberName ?? row.guestName ?? "Khách",
+      avatarVersion: row.avatarUpdatedAt?.getTime() ?? null,
       seedTier: canViewSeed ? row.seedTier : null,
       teamId: team?.id ?? null,
       teamName: team?.name ?? null,

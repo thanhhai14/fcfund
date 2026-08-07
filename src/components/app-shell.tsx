@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import { APP_NAME } from "@/lib/constants";
+import { MemberAvatar } from "./member-identity";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
@@ -21,6 +22,8 @@ export function AppShell({
   clubName,
   logoUrl,
   userName,
+  userMemberId,
+  userAvatarVersion,
   roleLabel,
   logoutAction,
 }: {
@@ -28,6 +31,8 @@ export function AppShell({
   clubName: string;
   logoUrl?: string | null;
   userName: string;
+  userMemberId?: string | null;
+  userAvatarVersion?: Date | string | number | null;
   roleLabel: string;
   logoutAction: () => Promise<void>;
 }) {
@@ -62,7 +67,7 @@ export function AppShell({
           })}
         </nav>
         <div className="sidebar-user">
-          <span className="avatar">{userName.slice(0, 2).toUpperCase()}</span>
+          <MemberAvatar memberId={userMemberId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
           <span><strong>{userName}</strong><small>{roleLabel}</small></span>
           <form action={logoutAction}>
             <button title="Đăng xuất"><Icon name="logout" /></button>

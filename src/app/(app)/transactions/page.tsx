@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { fundCategories, fundTransactions, matches, members } from "@/db/schema";
+import { avatars, fundCategories, fundTransactions, matches, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -31,17 +31,20 @@ export default async function TransactionsPage() {
       amount: fundTransactions.amount,
       date: fundTransactions.transactionDate,
       note: fundTransactions.note,
+      memberId: fundTransactions.memberId,
       memberName: members.fullName,
+      avatarUpdatedAt: avatars.updatedAt,
       categoryName: fundCategories.name,
       matchDate: matches.playedOn,
     })
     .from(fundTransactions)
     .leftJoin(members, eq(fundTransactions.memberId, members.id))
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
     .leftJoin(fundCategories, eq(fundTransactions.categoryId, fundCategories.id))
     .leftJoin(matches, eq(fundTransactions.matchId, matches.id))
     .where(and(eq(fundTransactions.clubId, user.clubId), isNull(fundTransactions.deletedAt)))
     .orderBy(desc(fundTransactions.transactionDate), desc(fundTransactions.createdAt));
-  const memberRows = canManage ? await db.select().from(members)
+  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName, code: members.code, phone: members.phone, avatarUpdatedAt: avatars.updatedAt }).from(members).leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE"))).orderBy(members.fullName) : [];
   const categories = canManage ? await db.select().from(fundCategories)
     .where(and(eq(fundCategories.clubId, user.clubId), eq(fundCategories.isActive, true))).orderBy(fundCategories.direction, fundCategories.name) : [];
@@ -65,7 +68,7 @@ export default async function TransactionsPage() {
                 <option value="EXPENSE">Khoản chi</option>
                 <option value="ADJUSTMENT">Điều chỉnh quỹ</option>
               </select></label>
-              <SearchableMemberSelect name="memberId" options={memberRows.map((member) => ({ id: member.id, name: member.fullName, code: member.code, phone: member.phone }))} emptyLabel="Không gắn thành viên" />
+              <SearchableMemberSelect name="memberId" options={memberRows.map((member) => ({ id: member.id, name: member.fullName, code: member.code, phone: member.phone, avatarVersion: member.avatarUpdatedAt }))} emptyLabel="Không gắn thành viên" />
               <label>Danh mục<select name="categoryId"><option value="">Không chọn</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.direction === "IN" ? "Thu" : "Chi"} · {category.name}</option>)}</select></label>
               <label>Số tiền<input name="amount" type="number" min="1" required /></label>
               <label>Ngày giao dịch<input name="transactionDate" type="date" defaultValue={todayInTimezone()} required /></label>

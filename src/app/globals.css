@@ -1470,6 +1470,182 @@ label>textarea {
   font-size: 10px;
 }
 
+.ledger-icon {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  background: color-mix(in srgb, currentColor 10%, white);
+  border-left: 3px solid currentColor;
+}
+
+.column-visibility-disclosure {
+  position: relative;
+}
+
+.column-visibility-disclosure>summary {
+  min-height: 36px;
+  padding: 8px 11px;
+  color: var(--forest-800);
+  background: white;
+  border: 1px solid var(--line);
+  box-shadow: none;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.column-visibility-disclosure>.disclosure-content {
+  width: min(300px, calc(100vw - 32px));
+  right: 0;
+  left: auto;
+  padding: 16px;
+}
+
+.column-visibility-menu {
+  display: grid;
+  gap: 9px;
+}
+
+.column-visibility-menu>strong {
+  margin-bottom: 3px;
+  font-size: 13px;
+}
+
+.column-visibility-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.column-visibility-menu input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.column-visibility-menu small {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.member-identity {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.member-identity>span:last-child {
+  min-width: 0;
+}
+
+.member-identity strong,
+.member-identity small {
+  display: block;
+}
+
+.member-identity strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-identity small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.member-identity-avatar {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  overflow: hidden;
+  color: white;
+  background: var(--brand-primary-strong);
+  border: 2px solid white;
+  box-shadow: 2px 2px 0 var(--brand-decoration);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.member-identity.compact .member-identity-avatar {
+  width: 31px;
+  height: 31px;
+  flex-basis: 31px;
+}
+
+.member-identity-avatar.large {
+  width: 76px;
+  height: 76px;
+  flex-basis: 76px;
+  font-size: 20px;
+}
+
+.member-identity-avatar.shell-avatar {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+}
+
+.member-identity-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.member-profile-form input[type="file"] {
+  padding: 8px;
+}
+
+.member-cv-view>p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.member-cv-view>div {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.member-cv-view>div>span {
+  padding: 10px;
+  background: #f7f9fa;
+  border-left: 3px solid var(--brand-primary);
+}
+
+.member-cv-view small,
+.member-cv-view strong {
+  display: block;
+}
+
+.member-cv-view small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.member-cv-view strong {
+  margin-top: 3px;
+  font-size: 12px;
+}
+
+.chatter-actor {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chatter-actor>span:last-child {
+  color: var(--muted);
+}
+
 .reset-row {
   display: flex;
   align-items: center;
@@ -1835,6 +2011,23 @@ label>textarea {
   display: grid;
   place-items: center;
   align-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.match-date-background {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  opacity: .14;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+}
+
+.match-date strong,
+.match-date span {
+  position: relative;
+  z-index: 1;
 }
 
 .match-date strong {
@@ -2417,7 +2610,6 @@ label>textarea {
   gap: 4px;
   padding: 5px 7px;
   background: #f7f9fa;
-  border-left: 2px solid currentColor;
   font-size: 8px;
   font-weight: 750;
 }
@@ -4704,7 +4896,6 @@ label {
   height: 30px;
   place-items: center;
   background: color-mix(in srgb, currentColor 10%, white);
-  border-left: 3px solid currentColor;
   font-size: 14px;
 }
 

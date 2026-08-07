@@ -1,7 +1,7 @@
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { chargeTypes, fundTransactions, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, fundTransactions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Icon } from "@/components/icon";
 import { can } from "@/lib/permissions";
@@ -49,7 +49,8 @@ export default async function ReportsPage({
     code: members.code,
     name: members.fullName,
     status: members.status,
-  }).from(members).where(and(
+    avatarUpdatedAt: avatars.updatedAt,
+  }).from(members).leftJoin(avatars, eq(members.id, avatars.memberId)).where(and(
     eq(members.clubId, user.clubId),
     eq(members.status, "ACTIVE"),
   )).orderBy(members.fullName);
@@ -148,6 +149,7 @@ export default async function ReportsPage({
           }))}
           members={visibleMembers.map((member) => ({
             ...member,
+            avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
             total: memberMonthTotals.get(member.id) ?? 0,
             cells: monthlyTypes.flatMap((type) => {
               const cell = monthlyCells.get(`${member.id}|${type.id}`);
@@ -155,7 +157,7 @@ export default async function ReportsPage({
             }),
           }))}
         />}
-        balances={<BalanceCollection rows={balances} />}
+        balances={<BalanceCollection rows={balances.map((row) => ({ ...row, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))} />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>
           <div className="type-report">

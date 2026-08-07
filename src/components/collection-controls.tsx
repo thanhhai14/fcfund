@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "./icon";
+import { Disclosure } from "./disclosure";
 
 export type CollectionView = "list" | "card";
+export type CollectionColumn = { id: string; label: string; required?: boolean; defaultVisible?: boolean };
 
 export function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("vi").trim();
@@ -27,6 +29,42 @@ export function useResponsiveView(storageKey: string, allowToggle = true) {
   }
 
   return [view, setView] as const;
+}
+
+export function useColumnVisibility(storageKey: string, columns: CollectionColumn[]) {
+  const [hidden, setHidden] = useState<string[]>([]);
+  const defaultHidden = JSON.stringify(columns.filter((column) => column.defaultVisible === false && !column.required).map((column) => column.id));
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const stored = window.localStorage.getItem(storageKey);
+      if (stored) {
+        try { setHidden(JSON.parse(stored)); } catch { setHidden([]); }
+      } else setHidden(JSON.parse(defaultHidden));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [defaultHidden, storageKey]);
+
+  function toggle(id: string) {
+    const column = columns.find((item) => item.id === id);
+    if (!column || column.required) return;
+    setHidden((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    });
+  }
+
+  return { hidden, isVisible: (id: string) => !hidden.includes(id), toggle };
+}
+
+export function ColumnVisibilityMenu({ columns, hidden, onToggle }: { columns: CollectionColumn[]; hidden: string[]; onToggle: (id: string) => void }) {
+  return <Disclosure label={<><Icon name="list" /> Cột hiển thị</>} className="column-visibility-disclosure">
+    <div className="column-visibility-menu">
+      <strong>Chọn cột hiển thị</strong>
+      {columns.map((column) => <label key={column.id}><input type="checkbox" checked={!hidden.includes(column.id)} disabled={column.required} onChange={() => onToggle(column.id)} />{column.label}{column.required && <small>Bắt buộc</small>}</label>)}
+    </div>
+  </Disclosure>;
 }
 
 export function CollectionToolbar({

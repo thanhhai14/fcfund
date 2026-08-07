@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CollectionToolbar, normalizeSearch, useResponsiveView } from "./collection-controls";
-import { formatMoney, initials } from "@/lib/format";
+import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
+import { formatMoney } from "@/lib/format";
+import { MemberIdentity } from "./member-identity";
 
 export type MemberCollectionRow = {
   id: string;
@@ -14,7 +15,16 @@ export type MemberCollectionRow = {
   hasAccount: boolean;
   accountLabel: string;
   balance: number;
+  avatarVersion: number | null;
 };
+
+const MEMBER_COLUMNS: CollectionColumn[] = [
+  { id: "member", label: "Thành viên", required: true },
+  { id: "phone", label: "Điện thoại" },
+  { id: "status", label: "Trạng thái" },
+  { id: "account", label: "Tài khoản" },
+  { id: "balance", label: "Công nợ" },
+];
 
 export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
   const [query, setQuery] = useState("");
@@ -23,6 +33,8 @@ export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
   const [balance, setBalance] = useState("ALL");
   const [sort, setSort] = useState("NAME_ASC");
   const [view, setView] = useResponsiveView("fcfund:members:view");
+  const columns = useColumnVisibility("fcfund:members:columns", MEMBER_COLUMNS);
+  const gridTemplateColumns = MEMBER_COLUMNS.filter((column) => columns.isVisible(column.id)).map((column) => column.id === "member" ? "2fr" : column.id === "phone" ? "1.2fr" : "1fr").join(" ");
 
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
@@ -53,23 +65,24 @@ export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
         <select value={account} onChange={(event) => setAccount(event.target.value)} aria-label="Tài khoản"><option value="ALL">Mọi tài khoản</option><option value="HAS">Có tài khoản</option><option value="NONE">Chưa có tài khoản</option></select>
         <select value={balance} onChange={(event) => setBalance(event.target.value)} aria-label="Công nợ"><option value="ALL">Mọi công nợ</option><option value="DEBT">Đang nợ</option><option value="CREDIT">Đóng dư</option><option value="EVEN">Cân bằng</option></select>
         <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sắp xếp"><option value="NAME_ASC">Tên A–Z</option><option value="NAME_DESC">Tên Z–A</option><option value="CODE">Mã thành viên</option><option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option></select>
+        {view === "list" && <ColumnVisibilityMenu columns={MEMBER_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
       </CollectionToolbar>
 
       {view === "list" ? (
         <div className="member-list-view">
-          <div className="member-list-head"><span>Thành viên</span><span>Điện thoại</span><span>Trạng thái</span><span>Tài khoản</span><span>Công nợ</span></div>
-          {visible.map((member) => <Link href={`/members/${member.id}`} className="member-list-row" key={member.id}>
-            <span className="member-list-identity"><b>{initials(member.name)}</b><span><strong>{member.name}</strong></span></span>
-            <span>{member.phone}</span>
-            <span><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>
-            <span>{member.accountLabel}</span>
-            <strong className={member.balance < 0 ? "money-out" : "money-in"}>{member.balance > 0 ? "+" : ""}{formatMoney(member.balance)}</strong>
+          <div className="member-list-head" style={{ gridTemplateColumns }}>{columns.isVisible("member") && <span>Thành viên</span>}{columns.isVisible("phone") && <span>Điện thoại</span>}{columns.isVisible("status") && <span>Trạng thái</span>}{columns.isVisible("account") && <span>Tài khoản</span>}{columns.isVisible("balance") && <span>Công nợ</span>}</div>
+          {visible.map((member) => <Link href={`/members/${member.id}`} className="member-list-row" style={{ gridTemplateColumns }} key={member.id}>
+            <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} />
+            {columns.isVisible("phone") && <span>{member.phone}</span>}
+            {columns.isVisible("status") && <span><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>}
+            {columns.isVisible("account") && <span>{member.accountLabel}</span>}
+            {columns.isVisible("balance") && <strong className={member.balance < 0 ? "money-out" : "money-in"}>{member.balance > 0 ? "+" : ""}{formatMoney(member.balance)}</strong>}
           </Link>)}
         </div>
       ) : (
         <section className="member-grid">
           {visible.map((member) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
-            <div className="member-card-top"><span className="member-avatar">{initials(member.name)}</span><div><h2>{member.name}</h2><p>{member.phone}</p></div><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
+            <div className="member-card-top"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={member.phone} /><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
             <div className="member-card-meta"><div><small>Tài khoản</small><strong>{member.accountLabel}</strong></div><div className="align-right"><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}
         </section>

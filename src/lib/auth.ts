@@ -6,7 +6,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { members, users } from "@/db/schema";
+import { avatars, members, users } from "@/db/schema";
 
 const COOKIE_NAME = "fcfund_session";
 const SESSION_DURATION = 60 * 60 * 24 * 14;
@@ -99,9 +99,11 @@ export async function getCurrentUser() {
       role: users.role,
       isActive: users.isActive,
       memberName: members.fullName,
+      avatarUpdatedAt: avatars.updatedAt,
     })
     .from(users)
     .leftJoin(members, eq(users.memberId, members.id))
+    .leftJoin(avatars, eq(users.id, avatars.userId))
     .where(and(eq(users.id, session.sub), eq(users.clubId, session.clubId)))
     .limit(1);
 

@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { formatMoney, initials } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import { Icon } from "./icon";
+import { ColumnVisibilityMenu, useColumnVisibility, type CollectionColumn } from "./collection-controls";
+import { MemberIdentity } from "./member-identity";
 
 type ChargeView = {
   id: string;
@@ -16,7 +18,9 @@ type ChargeView = {
 
 export type MatchParticipantView = {
   id: string;
+  memberId: string | null;
   name: string;
+  avatarVersion: number | null;
   seedTier: string | null;
   teamId: string | null;
   teamName: string | null;
@@ -87,6 +91,14 @@ export function MatchDetailView({
   const [sortMode, setSortMode] = useState<SortMode>("name");
   const [descending, setDescending] = useState(false);
   const [query, setQuery] = useState("");
+  const columnDefinitions = useMemo<CollectionColumn[]>(() => [
+    { id: "member", label: "Thành viên", required: true },
+    ...(canViewSeed ? [{ id: "seed", label: "Seed" }] : []),
+    { id: "team", label: "Đội" }, { id: "charges", label: "Khoản thu" },
+    { id: "quantity", label: "Số lần" }, { id: "amount", label: "Thành tiền" },
+  ], [canViewSeed]);
+  const columns = useColumnVisibility("fcfund:match-detail:columns", columnDefinitions);
+  const visibleColumnCount = columnDefinitions.filter((column) => columns.isVisible(column.id)).length;
 
   const visibleRows = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("vi");
@@ -136,27 +148,28 @@ export function MatchDetailView({
               <button type="button" className={sortMode === "team" ? "active" : ""} onClick={() => selectSort("team")}><Icon name="people-group" /> Đội {sortMode === "team" && (descending ? "↓" : "↑")}</button>
               <button type="button" className={sortMode === "charge" ? "active" : ""} onClick={() => selectSort("charge")}><Icon name="medal" /> Loại thu {sortMode === "charge" && (descending ? "↓" : "↑")}</button>
             </div>
+            <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />
           </div>
           <div className="match-detail-table-wrap">
             <table className="match-detail-table">
-              <thead><tr><th>Thành viên</th>{canViewSeed && <th>Seed</th>}<th>Đội</th><th>Khoản thu</th><th>Số lần</th><th>Thành tiền</th></tr></thead>
+              <thead><tr><th>Thành viên</th>{canViewSeed && columns.isVisible("seed") && <th>Seed</th>}{columns.isVisible("team") && <th>Đội</th>}{columns.isVisible("charges") && <th>Khoản thu</th>}{columns.isVisible("quantity") && <th>Số lần</th>}{columns.isVisible("amount") && <th>Thành tiền</th>}</tr></thead>
               <tbody>
                 {visibleRows.map((row) => {
                   const summary = chargeSummary(row.charges);
                   return (
                     <tr key={row.id}>
-                      <td><span className="match-list-person"><b>{initials(row.name)}</b><strong>{row.name}</strong></span></td>
-                      {canViewSeed && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
-                      <td>{row.teamName ? <span className="team-result-cell"><span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>{row.teamPlace && <small className={row.teamPlace === 1 ? "won" : "lost"}>{resultLabel(row.teamPlace)}</small>}</span> : <span className="table-muted">Chưa chia đội</span>}</td>
-                      <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <ChargeMark charge={charge} key={charge.id} />)}</span> : <span className="table-muted">Không phát sinh</span>}</td>
-                      <td className="numeric-cell">{summary.quantity ? `×${summary.quantity}` : "—"}</td>
-                      <td className="numeric-cell"><strong>{formatMoney(summary.amount)}</strong></td>
+                      <td><MemberIdentity memberId={row.memberId} name={row.name} avatarVersion={row.avatarVersion} /></td>
+                      {canViewSeed && columns.isVisible("seed") && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
+                      {columns.isVisible("team") && <td>{row.teamName ? <span className="team-result-cell"><span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>{row.teamPlace && <small className={row.teamPlace === 1 ? "won" : "lost"}>{resultLabel(row.teamPlace)}</small>}</span> : <span className="table-muted">Chưa chia đội</span>}</td>}
+                      {columns.isVisible("charges") && <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <ChargeMark charge={charge} key={charge.id} />)}</span> : <span className="table-muted">Không phát sinh</span>}</td>}
+                      {columns.isVisible("quantity") && <td className="numeric-cell">{summary.quantity ? `×${summary.quantity}` : "—"}</td>}
+                      {columns.isVisible("amount") && <td className="numeric-cell"><strong>{formatMoney(summary.amount)}</strong></td>}
                     </tr>
                   );
                 })}
-                {!visibleRows.length && <tr><td colSpan={canViewSeed ? 6 : 5} className="no-table-results">Không tìm thấy thành viên phù hợp.</td></tr>}
+                {!visibleRows.length && <tr><td colSpan={visibleColumnCount} className="no-table-results">Không tìm thấy thành viên phù hợp.</td></tr>}
               </tbody>
-              <tfoot><tr><td colSpan={canViewSeed ? 3 : 2}>Hiển thị {visibleRows.length} / {participants.length} thành viên</td><td>Tổng cộng</td><td className="numeric-cell">{totals.quantity} lần</td><td className="numeric-cell"><strong>{formatMoney(totals.amount)}</strong></td></tr></tfoot>
+              <tfoot><tr><td colSpan={visibleColumnCount}>Hiển thị {visibleRows.length} / {participants.length} thành viên · Tổng {totals.quantity} lần · {formatMoney(totals.amount)}</td></tr></tfoot>
             </table>
           </div>
           <div className="match-detail-card-list">
@@ -164,7 +177,7 @@ export function MatchDetailView({
               const summary = chargeSummary(row.charges);
               return <article className="match-detail-member-card" key={row.id}>
                 <header>
-                  <span className="match-list-person"><b>{initials(row.name)}</b><strong>{row.name}</strong></span>
+                  <MemberIdentity memberId={row.memberId} name={row.name} avatarVersion={row.avatarVersion} />
                   {row.teamName && <span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>}
                 </header>
                 <div className="match-member-card-meta">
@@ -195,8 +208,7 @@ export function MatchDetailView({
                 <div className="match-team-view-members">
                   {members.map((member) => (
                     <div key={member.id}>
-                      <b className="member-mini-avatar">{initials(member.name)}</b>
-                      <span><strong>{member.name}</strong>{canViewSeed && <small>{member.seedTier ? SEED_LABELS[member.seedTier] ?? member.seedTier : "Chưa có Seed"}</small>}</span>
+                      <MemberIdentity memberId={member.memberId} name={member.name} avatarVersion={member.avatarVersion} secondary={canViewSeed ? member.seedTier ? SEED_LABELS[member.seedTier] ?? member.seedTier : "Chưa có Seed" : null} compact />
                       <span className="team-member-charge">{member.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />)}{!member.charges.length && <small>—</small>}</span>
                     </div>
                   ))}

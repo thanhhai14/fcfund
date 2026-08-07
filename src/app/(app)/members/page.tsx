@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { fundTransactions, memberCharges, members, users } from "@/db/schema";
+import { avatars, fundTransactions, memberCharges, members, users } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -29,9 +29,11 @@ export default async function MembersPage() {
       status: members.status,
       role: users.role,
       hasAccount: sql<boolean>`${users.id} IS NOT NULL`,
+      avatarUpdatedAt: avatars.updatedAt,
     })
     .from(members)
     .leftJoin(users, eq(members.id, users.memberId))
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(eq(members.clubId, currentUser.clubId))
     .orderBy(members.status, members.fullName);
 
@@ -97,6 +99,7 @@ export default async function MembersPage() {
         hasAccount: member.hasAccount,
         accountLabel: member.hasAccount ? ROLE_LABELS[member.role!] : "Chưa tạo",
         balance: (paymentMap.get(member.id) ?? 0) - (chargeMap.get(member.id) ?? 0),
+        avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
       }))} />
     </>
   );

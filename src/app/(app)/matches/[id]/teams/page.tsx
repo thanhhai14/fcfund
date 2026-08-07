@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
 import {
+  avatars,
   matches,
   matchParticipants,
   matchTeamMembers,
@@ -63,8 +64,10 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     guestName: matchParticipants.guestName,
     seedTier: matchParticipants.seedTier,
     seedEvaluatedAt: matchParticipants.seedEvaluatedAt,
+    avatarUpdatedAt: avatars.updatedAt,
   }).from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
+    .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
     .where(eq(matchParticipants.matchId, id));
   const participants = participantRows
     .map((row) => ({ ...row, name: row.memberName ?? row.guestName ?? "Khách" }))
@@ -126,6 +129,8 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               return {
                 id: participant.id,
                 name: participant.name,
+                memberId: participant.memberId,
+                avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
                 isGuest: !participant.memberId,
                 seedTier: participant.seedTier,
                 matchCount: stat?.matchCount ?? 0,

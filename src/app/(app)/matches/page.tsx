@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { chargeTypes, matches, matchParticipants, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, matches, matchParticipants, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -76,7 +76,7 @@ export default async function MatchesPage() {
     chargeQuantityMap.set(row.matchId, quantities);
   });
 
-  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName }).from(members)
+  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName, avatarUpdatedAt: avatars.updatedAt }).from(members).leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE"))).orderBy(members.fullName) : [];
   const occurrenceTypes = canManage ? await db.select({
     id: chargeTypes.id,
@@ -114,6 +114,7 @@ export default async function MatchesPage() {
           return (
             <article className="match-card" key={match.id}>
               <div className="match-date">
+                <Icon name="calendar" className="match-date-background" />
                 <strong>{new Date(`${match.playedOn}T00:00:00`).getDate()}</strong>
                 <span>Tháng {new Date(`${match.playedOn}T00:00:00`).getMonth() + 1}</span>
               </div>

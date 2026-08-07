@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { chargeTypes, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -14,6 +14,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { ChargesCollection } from "@/components/charges-collection";
+import { SearchableMemberSelect } from "@/components/searchable-member-select";
 
 export const metadata = { title: "Khoản phải thu" };
 
@@ -36,6 +37,7 @@ export default async function ChargesPage() {
       id: memberCharges.id,
       memberId: memberCharges.memberId,
       memberName: members.fullName,
+      avatarUpdatedAt: avatars.updatedAt,
       typeName: chargeTypes.name,
       iconName: chargeTypes.iconName,
       color: chargeTypes.color,
@@ -48,11 +50,12 @@ export default async function ChargesPage() {
     })
     .from(memberCharges)
     .innerJoin(members, eq(memberCharges.memberId, members.id))
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
     .innerJoin(chargeTypes, eq(memberCharges.chargeTypeId, chargeTypes.id))
     .where(and(...conditions))
     .orderBy(desc(memberCharges.chargeDate), desc(memberCharges.createdAt));
 
-  const memberRows = canManage ? await db.select().from(members)
+  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName, code: members.code, phone: members.phone, avatarUpdatedAt: avatars.updatedAt }).from(members).leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE")))
     .orderBy(members.fullName) : [];
   const typeRows = canManage ? await db.select().from(chargeTypes)
@@ -69,7 +72,7 @@ export default async function ChargesPage() {
         action={canManage ? (
           <Disclosure label={<><Icon name="plus" /> Thêm khoản thu</>} className="action-disclosure">
             <MutationForm action={createMemberChargeAction} className="form-grid">
-              <label>Thành viên<select name="memberId" required>{memberRows.map((member) => <option value={member.id} key={member.id}>{member.fullName}</option>)}</select></label>
+              <SearchableMemberSelect name="memberId" options={memberRows.map((member) => ({ id: member.id, name: member.fullName, code: member.code, phone: member.phone, avatarVersion: member.avatarUpdatedAt }))} required />
               <label>Loại thu<select name="chargeTypeId" required>{typeRows.map((type) => <option value={type.id} key={type.id}>{type.name} · {formatMoney(type.defaultAmount)}</option>)}</select></label>
               <label>Số lần<input name="quantity" type="number" min="1" defaultValue={1} required /></label>
               <label>Đơn giá riêng<input name="unitAmount" type="number" min="0" placeholder="Để trống dùng mặc định" /></label>

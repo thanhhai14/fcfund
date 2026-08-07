@@ -21,6 +21,8 @@ export default async function DashboardLayout({
       clubName={club?.name ?? "Đội bóng"}
       logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
       userName={user.displayName}
+      userMemberId={user.memberId}
+      userAvatarVersion={user.avatarUpdatedAt}
       roleLabel={ROLE_LABELS[user.role]}
       logoutAction={logoutAction}
     >

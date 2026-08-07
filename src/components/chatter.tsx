@@ -1,8 +1,9 @@
 import { desc, eq, and } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLogs, members, users } from "@/db/schema";
+import { activityLogs, avatars, members, users } from "@/db/schema";
 import { formatDate } from "@/lib/format";
 import { addCommentAction } from "@/app/(app)/mutations";
+import { MemberIdentity } from "./member-identity";
 
 const actionLabels = {
   CREATE: "đã tạo",
@@ -33,10 +34,13 @@ export async function Chatter({
       actorDisplayName: users.displayName,
       actorName: members.fullName,
       actorPhone: users.phoneNormalized,
+      actorMemberId: users.memberId,
+      avatarUpdatedAt: avatars.updatedAt,
     })
     .from(activityLogs)
     .leftJoin(users, eq(activityLogs.actorId, users.id))
     .leftJoin(members, eq(users.memberId, members.id))
+    .leftJoin(avatars, eq(users.id, avatars.userId))
     .where(
       and(
         eq(activityLogs.clubId, clubId),
@@ -64,7 +68,7 @@ export async function Chatter({
           <div key={log.id}>
             <span className="timeline-dot" />
             <div>
-              <p><strong>{log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"}</strong> {actionLabels[log.action]}</p>
+              <p className="chatter-actor"><MemberIdentity memberId={log.actorMemberId} name={log.actorDisplayName ?? log.actorName ?? log.actorPhone ?? "Hệ thống"} avatarVersion={log.avatarUpdatedAt} compact /><span>{actionLabels[log.action]}</span></p>
               {log.message && <blockquote>{log.message}</blockquote>}
               <time>{formatDate(log.createdAt)} · {log.createdAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</time>
             </div>

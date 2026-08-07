@@ -472,6 +472,13 @@ SUM(OUT fund_transactions chưa xóa)
 - `match_teams(version_id, team_index)` unique.
 - `match_team_members(version_id, participant_id)` unique.
 - `member_charges(match_id, is_loss_penalty_snapshot)` để tính phong độ suy luận.
+- `avatars(member_id)` unique khi `member_id IS NOT NULL`.
+- `avatars(user_id)` unique khi `user_id IS NOT NULL`.
+- `avatars(club_id)` để bảo vệ phạm vi tenant khi tải ảnh.
+
+## 19.1. Profile và avatar
+
+`member_profiles` chứa nội dung CV như giới thiệu, biệt danh, vị trí, chân thuận và số áo. `avatars` chứa metadata file Blob và liên kết tùy chọn đến Member/User. Không lưu binary hoặc base64 trong PostgreSQL.
 
 ## 20. Giao dịch CSDL
 

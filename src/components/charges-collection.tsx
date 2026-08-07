@@ -1,16 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CollectionToolbar, normalizeSearch, useResponsiveView } from "./collection-controls";
+import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { Disclosure } from "./disclosure";
 import { Icon } from "./icon";
 import { MutationForm, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateMemberChargeAction } from "@/app/(app)/mutations";
+import { MemberIdentity } from "./member-identity";
 
 export type ChargeCollectionRow = {
   id: string;
   memberName: string;
+  memberId: string;
+  avatarUpdatedAt: Date | null;
   typeName: string;
   iconName: string;
   color: string | null;
@@ -23,6 +26,11 @@ export type ChargeCollectionRow = {
 };
 
 const SOURCE_LABELS: Record<string, string> = { AUTO_MONTHLY: "Theo tháng", MANUAL: "Nhập tay", MATCH: "Trận đấu", ADJUSTMENT: "Điều chỉnh" };
+const CHARGE_COLUMNS: CollectionColumn[] = [
+  { id: "member", label: "Thành viên", required: true }, { id: "source", label: "Nguồn" },
+  { id: "date", label: "Ngày" }, { id: "type", label: "Loại thu" },
+  { id: "quantity", label: "Số lượng" }, { id: "amount", label: "Số tiền" },
+];
 
 function ChargeActions({ row }: { row: ChargeCollectionRow }) {
   return <Disclosure label="•••" className="row-disclosure">
@@ -46,6 +54,7 @@ export function ChargesCollection({ rows, canManage }: { rows: ChargeCollectionR
   const [dateTo, setDateTo] = useState("");
   const [sort, setSort] = useState("DATE_DESC");
   const [view, setView] = useResponsiveView("fcfund:charges:view");
+  const columns = useColumnVisibility("fcfund:charges:columns", CHARGE_COLUMNS);
   const types = useMemo(() => [...new Set(rows.map((row) => row.typeName))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
@@ -75,8 +84,9 @@ export function ChargesCollection({ rows, canManage }: { rows: ChargeCollectionR
       <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Từ ngày" title="Từ ngày" />
       <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="Đến ngày" title="Đến ngày" />
       <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="DATE_DESC">Mới nhất</option><option value="DATE_ASC">Cũ nhất</option><option value="NAME">Tên thành viên</option><option value="AMOUNT_DESC">Tiền cao nhất</option><option value="AMOUNT_ASC">Tiền thấp nhất</option><option value="QUANTITY">Số lần nhiều nhất</option></select>
+      {view === "list" && <ColumnVisibilityMenu columns={CHARGE_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
     </CollectionToolbar>
-    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table charges-list-table"><thead><tr><th>Thành viên</th><th>Nguồn</th><th>Ngày</th><th>Loại thu</th><th className="align-right">Số lượng</th><th className="align-right">Số tiền</th>{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><strong>{row.memberName}</strong></td><td>{SOURCE_LABELS[row.source] ?? row.source}</td><td>{formatDate(row.date)}</td><td><span className="charge-type-icon-only" style={{ color: row.color ?? undefined }} title={row.typeName} aria-label={row.typeName}><Icon name={row.iconName} /></span></td><td className="align-right">×{row.quantity}</td><td className="align-right"><strong className="money-out">{formatMoney(row.totalAmount)}</strong></td>{canManage && <td><ChargeActions row={row} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className="financial-card" key={row.id}><header><div><small>{SOURCE_LABELS[row.source] ?? row.source} · {formatDate(row.date)}</small><h2>{row.memberName}</h2></div>{canManage && <ChargeActions row={row} />}</header><span className="category-pill" style={{ color: row.color ?? undefined, borderLeftColor: row.color ?? undefined }}><Icon name={row.iconName} /> {row.typeName}</span><p>{row.note || "Không có ghi chú"}</p><footer><span>{row.quantity} × {formatMoney(row.unitAmount)}</span><strong className="money-out">{formatMoney(row.totalAmount)}</strong></footer></article>)}</div>}
+    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table charges-list-table"><thead><tr><th>Thành viên</th>{columns.isVisible("source") && <th>Nguồn</th>}{columns.isVisible("date") && <th>Ngày</th>}{columns.isVisible("type") && <th>Loại thu</th>}{columns.isVisible("quantity") && <th className="align-right">Số lượng</th>}{columns.isVisible("amount") && <th className="align-right">Số tiền</th>}{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} compact /></td>{columns.isVisible("source") && <td>{SOURCE_LABELS[row.source] ?? row.source}</td>}{columns.isVisible("date") && <td>{formatDate(row.date)}</td>}{columns.isVisible("type") && <td><span className="charge-type-icon-only" style={{ color: row.color ?? undefined }} title={row.typeName} aria-label={row.typeName}><Icon name={row.iconName} /></span></td>}{columns.isVisible("quantity") && <td className="align-right">×{row.quantity}</td>}{columns.isVisible("amount") && <td className="align-right"><strong className="money-out">{formatMoney(row.totalAmount)}</strong></td>}{canManage && <td><ChargeActions row={row} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className="financial-card" key={row.id}><header><MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} secondary={`${SOURCE_LABELS[row.source] ?? row.source} · ${formatDate(row.date)}`} />{canManage && <ChargeActions row={row} />}</header><span className="category-pill" style={{ color: row.color ?? undefined, borderLeftColor: row.color ?? undefined }}><Icon name={row.iconName} /> {row.typeName}</span><p>{row.note || "Không có ghi chú"}</p><footer><span>{row.quantity} × {formatMoney(row.unitAmount)}</span><strong className="money-out">{formatMoney(row.totalAmount)}</strong></footer></article>)}</div>}
     {!visible.length && <div className="panel collection-empty">Không có khoản phải thu phù hợp.</div>}
   </>;
 }

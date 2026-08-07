@@ -2,6 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   chargeTypes,
+  avatars,
   fundCategories,
   fundTransactions,
   memberCharges,
@@ -13,6 +14,7 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney, monthStart, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { MemberIdentity } from "@/components/member-identity";
 
 export const metadata = { title: "Tổng quan" };
 
@@ -57,8 +59,9 @@ export default async function DashboardPage() {
     .groupBy(fundTransactions.memberId);
 
   const memberRows = await db
-    .select({ id: members.id, name: members.fullName, code: members.code })
+    .select({ id: members.id, name: members.fullName, code: members.code, avatarUpdatedAt: avatars.updatedAt })
     .from(members)
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE")));
 
   const chargeMap = new Map(chargeSums.map((row) => [row.memberId, Number(row.amount)]));
@@ -80,11 +83,14 @@ export default async function DashboardPage() {
       amount: fundTransactions.amount,
       date: fundTransactions.transactionDate,
       note: fundTransactions.note,
+      memberId: fundTransactions.memberId,
       memberName: members.fullName,
+      avatarUpdatedAt: avatars.updatedAt,
       categoryName: fundCategories.name,
     })
     .from(fundTransactions)
     .leftJoin(members, eq(fundTransactions.memberId, members.id))
+    .leftJoin(avatars, eq(fundTransactions.memberId, avatars.memberId))
     .leftJoin(fundCategories, eq(fundTransactions.categoryId, fundCategories.id))
     .where(and(eq(fundTransactions.clubId, user.clubId), isNull(fundTransactions.deletedAt)))
     .orderBy(desc(fundTransactions.transactionDate), desc(fundTransactions.createdAt))
@@ -163,10 +169,7 @@ export default async function DashboardPage() {
                 <span className={`activity-icon ${item.direction === "IN" ? "in" : "out"}`}>
                   <Icon name={item.direction === "IN" ? "money-bill-wave" : "transactions"} />
                 </span>
-                <div>
-                  <strong>{item.memberName ?? item.categoryName ?? (item.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>
-                  <small>{item.note || item.categoryName || "Không có ghi chú"} · {formatDate(item.date)}</small>
-                </div>
+                {item.memberName && item.memberId ? <MemberIdentity memberId={item.memberId} name={item.memberName} avatarVersion={item.avatarUpdatedAt} secondary={`${item.note || item.categoryName || "Không có ghi chú"} · ${formatDate(item.date)}`} compact /> : <div><strong>{item.categoryName ?? (item.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong><small>{item.note || item.categoryName || "Không có ghi chú"} · {formatDate(item.date)}</small></div>}
                 <b className={item.direction === "IN" ? "money-in" : "money-out"}>
                   {item.direction === "IN" ? "+" : "-"}{formatMoney(item.amount)}
                 </b>
@@ -185,8 +188,7 @@ export default async function DashboardPage() {
             <div className="debt-list">
               {balances.filter((row) => row.balance < 0).sort((a, b) => a.balance - b.balance).slice(0, 6).map((row) => (
                 <div key={row.id}>
-                  <span className="avatar">{row.name.split(" ").slice(-2).map((x) => x[0]).join("")}</span>
-                  <span><strong>{row.name}</strong><small>{row.code}</small></span>
+                  <MemberIdentity memberId={row.id} name={row.name} avatarVersion={row.avatarUpdatedAt} compact />
                   <b>{formatMoney(-row.balance)}</b>
                 </div>
               ))}

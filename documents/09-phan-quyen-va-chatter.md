@@ -136,3 +136,10 @@ Khi admin xóa:
 - Activity log chỉ được thêm, không được sửa/xóa từ giao diện.
 - Mọi thay đổi dữ liệu tài chính và activity log nằm trong cùng CSDL transaction.
 - API phải kiểm tra policy ở server.
+
+## 10. Hồ sơ cá nhân
+
+- `member_profile.edit_own` cho phép User sửa CV/avatar của Member đang liên kết.
+- `members.manage` tiếp tục cho phép quản trị sửa hồ sơ của mọi thành viên.
+- User không liên kết Member không được dùng quyền cá nhân để sửa hồ sơ bất kỳ ai.
+- Thay avatar, xóa avatar và cập nhật CV đều ghi activity log theo entity Member.

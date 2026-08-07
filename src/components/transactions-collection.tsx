@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CollectionToolbar, normalizeSearch, useResponsiveView } from "./collection-controls";
+import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { Disclosure } from "./disclosure";
 import { MutationForm, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateFundTransactionAction } from "@/app/(app)/mutations";
+import { MemberIdentity } from "./member-identity";
 
 export type TransactionCollectionRow = {
   id: string;
@@ -15,11 +16,17 @@ export type TransactionCollectionRow = {
   date: string;
   note: string | null;
   memberName: string | null;
+  memberId: string | null;
+  avatarUpdatedAt: Date | null;
   categoryName: string | null;
   matchDate: string | null;
 };
 
 const KIND_LABELS: Record<string, string> = { MEMBER_PAYMENT: "Thành viên nộp", OTHER_INCOME: "Thu khác", EXPENSE: "Khoản chi", OPENING_BALANCE: "Số dư đầu kỳ", ADJUSTMENT: "Điều chỉnh" };
+const TRANSACTION_COLUMNS: CollectionColumn[] = [
+  { id: "content", label: "Nội dung", required: true }, { id: "category", label: "Danh mục" },
+  { id: "date", label: "Ngày" }, { id: "member", label: "Thành viên" }, { id: "amount", label: "Số tiền" },
+];
 
 function TransactionActions({ row }: { row: TransactionCollectionRow }) {
   return <Disclosure label="•••" className="row-disclosure"><MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} /><label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><button className="button danger wide small">Xóa giao dịch</button></form></Disclosure>;
@@ -35,6 +42,7 @@ export function TransactionsCollection({ rows, canManage }: { rows: TransactionC
   const [dateTo, setDateTo] = useState("");
   const [sort, setSort] = useState("DATE_DESC");
   const [view, setView] = useResponsiveView("fcfund:transactions:view");
+  const columns = useColumnVisibility("fcfund:transactions:columns", TRANSACTION_COLUMNS);
   const categories = useMemo(() => [...new Set(rows.flatMap((row) => row.categoryName ? [row.categoryName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
   const kinds = useMemo(() => [...new Set(rows.map((row) => row.kind))], [rows]);
   const memberNames = useMemo(() => [...new Set(rows.flatMap((row) => row.memberName ? [row.memberName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
@@ -69,8 +77,9 @@ export function TransactionsCollection({ rows, canManage }: { rows: TransactionC
       <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Từ ngày" title="Từ ngày" />
       <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="Đến ngày" title="Đến ngày" />
       <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="DATE_DESC">Mới nhất</option><option value="DATE_ASC">Cũ nhất</option><option value="AMOUNT_DESC">Tiền cao nhất</option><option value="AMOUNT_ASC">Tiền thấp nhất</option><option value="MEMBER">Tên thành viên</option></select>
+      {view === "list" && <ColumnVisibilityMenu columns={TRANSACTION_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
     </CollectionToolbar>
-    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nội dung</th><th>Danh mục</th><th>Ngày</th><th>Thành viên</th><th className="align-right">Số tiền</th>{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><strong>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>{row.matchDate && <small>Trận ngày {formatDate(row.matchDate)}</small>}</td><td><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span></td><td>{formatDate(row.date)}</td><td>{row.memberName ?? "—"}</td><td className="align-right"><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></td>{canManage && <td><TransactionActions row={row} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className={`financial-card ${row.direction.toLowerCase()}`} key={row.id}><header><div><small>{formatDate(row.date)}{row.matchDate ? ` · Trận ${formatDate(row.matchDate)}` : ""}</small><h2>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</h2></div>{canManage && <TransactionActions row={row} />}</header><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span><p>{row.memberName ?? "Không gắn thành viên"}</p><footer><span>{KIND_LABELS[row.kind] ?? row.kind}</span><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></footer></article>)}</div>}
+    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nội dung</th>{columns.isVisible("category") && <th>Danh mục</th>}{columns.isVisible("date") && <th>Ngày</th>}{columns.isVisible("member") && <th>Thành viên</th>}{columns.isVisible("amount") && <th className="align-right">Số tiền</th>}{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><strong>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>{row.matchDate && <small>Trận ngày {formatDate(row.matchDate)}</small>}</td>{columns.isVisible("category") && <td><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span></td>}{columns.isVisible("date") && <td>{formatDate(row.date)}</td>}{columns.isVisible("member") && <td>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} compact /> : "—"}</td>}{columns.isVisible("amount") && <td className="align-right"><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></td>}{canManage && <td><TransactionActions row={row} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className={`financial-card ${row.direction.toLowerCase()}`} key={row.id}><header><div><small>{formatDate(row.date)}{row.matchDate ? ` · Trận ${formatDate(row.matchDate)}` : ""}</small><h2>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</h2></div>{canManage && <TransactionActions row={row} />}</header><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} /> : <p>Không gắn thành viên</p>}<footer><span>{KIND_LABELS[row.kind] ?? row.kind}</span><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></footer></article>)}</div>}
     {!visible.length && <div className="panel collection-empty">Không có giao dịch phù hợp.</div>}
   </>;
 }

@@ -2,6 +2,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  avatars,
   chargeTypes,
   clubs,
   fundCategories,
@@ -36,6 +37,7 @@ import {
 } from "@/lib/constants";
 import { formatMoney } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { MemberIdentity } from "@/components/member-identity";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -53,8 +55,10 @@ export default async function SettingsPage() {
       id: users.id, displayName: users.displayName, phone: users.phoneNormalized, role: users.role, active: users.isActive,
       memberId: users.memberId,
       memberName: members.fullName,
+      avatarUpdatedAt: avatars.updatedAt,
     })
     .from(users).leftJoin(members, eq(users.memberId, members.id))
+    .leftJoin(avatars, eq(users.id, avatars.userId))
     .where(eq(users.clubId, currentUser.clubId)).orderBy(users.role, users.displayName) : [];
   const availableMembers = manageUsers ? await db.select({ id: members.id, name: members.fullName, code: members.code })
     .from(members).leftJoin(users, eq(members.id, users.memberId))
@@ -159,7 +163,7 @@ export default async function SettingsPage() {
             <div className="account-list">
               {accounts.map((account) => {
                 const accountOverrides = overrideMap.get(account.id);
-                return <Disclosure key={account.id} label={<><span className="avatar">{account.displayName.slice(0, 2)}</span><span><strong>{account.displayName}</strong><small>{account.phone} · {ROLE_LABELS[account.role]} · {account.memberName ? `Thành viên: ${account.memberName}` : "Không gắn thành viên"}</small></span></>} className="account-disclosure">
+                return <Disclosure key={account.id} label={<MemberIdentity memberId={account.memberId} name={account.displayName} avatarVersion={account.avatarUpdatedAt} secondary={`${account.phone} · ${ROLE_LABELS[account.role]} · ${account.memberName ? `Thành viên: ${account.memberName}` : "Không gắn thành viên"}`} />} className="account-disclosure">
                   <MutationForm action={updateUserAccountAction} className="form-stack account-profile-form">
                     <input type="hidden" name="userId" value={account.id} />
                     <label>Tên hiển thị<input name="displayName" defaultValue={account.displayName} required /></label>

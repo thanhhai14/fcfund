@@ -1,6 +1,6 @@
 "use server";
 
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { hash } from "bcryptjs";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   activityLogs,
+  avatars,
   chargeTypes,
   clubs,
   fundCategories,
@@ -17,6 +18,7 @@ import {
   matchTeamVersions,
   memberChargeAssignments,
   memberCharges,
+  memberProfiles,
   members,
   userPermissionOverrides,
   users,
@@ -30,7 +32,7 @@ import {
 } from "@/lib/constants";
 import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
-import { requirePermission } from "@/lib/permissions";
+import { can, requirePermission } from "@/lib/permissions";
 
 type MutationResult = { ok: boolean; message: string };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -176,6 +178,69 @@ export async function updateMemberAction(formData: FormData): Promise<MutationRe
   revalidatePath("/members");
   revalidatePath(`/members/${id}`);
   return { ok: true, message: "Đã cập nhật thành viên." };
+}
+
+export async function updateMemberProfileAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requireUser();
+  const memberId = str(formData, "memberId");
+  const [member] = await db.select().from(members).where(and(eq(members.id, memberId), eq(members.clubId, actor.clubId))).limit(1);
+  if (!member) return { ok: false, message: "Không tìm thấy thành viên." };
+  const mayManage = actor.role === "ADMIN" || await can(PERMISSIONS.MEMBERS_MANAGE);
+  const mayEditOwn = actor.memberId === memberId && await can(PERMISSIONS.MEMBER_PROFILE_EDIT_OWN);
+  if (!mayManage && !mayEditOwn) return { ok: false, message: "Bạn không có quyền sửa hồ sơ này." };
+
+  const avatarFile = formData.get("avatar");
+  const removeAvatar = str(formData, "removeAvatar") === "on";
+  if (avatarFile instanceof File && avatarFile.size > 0) {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(avatarFile.type)) return { ok: false, message: "Avatar chỉ nhận PNG, JPEG hoặc WebP." };
+    if (avatarFile.size > 2 * 1024 * 1024) return { ok: false, message: "Avatar không được lớn hơn 2 MB." };
+  }
+  const shirtNumberText = str(formData, "shirtNumber");
+  const shirtNumber = shirtNumberText ? Number(shirtNumberText) : null;
+  if (shirtNumber !== null && (!Number.isInteger(shirtNumber) || shirtNumber < 0 || shirtNumber > 99)) return { ok: false, message: "Số áo phải từ 0 đến 99." };
+
+  const [beforeAvatar] = await db.select().from(avatars).where(eq(avatars.memberId, memberId)).limit(1);
+  const [linkedAccount] = await db.select({ id: users.id }).from(users).where(eq(users.memberId, memberId)).limit(1);
+  let uploaded: Awaited<ReturnType<typeof put>> | null = null;
+  try {
+    if (avatarFile instanceof File && avatarFile.size > 0) {
+      uploaded = await put(`clubs/${actor.clubId}/members/${memberId}/avatar-${Date.now()}`, avatarFile, { access: "private", addRandomSuffix: true });
+    }
+  } catch {
+    return { ok: false, message: "Không thể tải avatar lên kho lưu trữ." };
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(memberProfiles).values({
+        memberId,
+        bio: str(formData, "bio") || null,
+        nickname: str(formData, "nickname") || null,
+        preferredPosition: str(formData, "preferredPosition") || null,
+        preferredFoot: str(formData, "preferredFoot") || null,
+        shirtNumber,
+        updatedAt: new Date(),
+      }).onConflictDoUpdate({
+        target: memberProfiles.memberId,
+        set: { bio: str(formData, "bio") || null, nickname: str(formData, "nickname") || null, preferredPosition: str(formData, "preferredPosition") || null, preferredFoot: str(formData, "preferredFoot") || null, shirtNumber, updatedAt: new Date() },
+      });
+      if (removeAvatar && !uploaded && beforeAvatar) await tx.delete(avatars).where(eq(avatars.id, beforeAvatar.id));
+      if (uploaded && avatarFile instanceof File) {
+        const next = { clubId: actor.clubId, memberId, userId: linkedAccount?.id ?? null, blobUrl: uploaded.url, pathname: uploaded.pathname, mimeType: avatarFile.type, fileSize: avatarFile.size, updatedAt: new Date() };
+        if (beforeAvatar) await tx.update(avatars).set(next).where(eq(avatars.id, beforeAvatar.id));
+        else await tx.insert(avatars).values(next);
+      }
+      await track(tx, { clubId: actor.clubId, entityType: "member", entityId: memberId, action: "UPDATE", actorId: actor.id, message: uploaded ? "Cập nhật CV và avatar thành viên" : removeAvatar ? "Cập nhật CV và xóa avatar thành viên" : "Cập nhật CV thành viên" });
+    });
+  } catch {
+    if (uploaded) void del(uploaded.url).catch(() => undefined);
+    return { ok: false, message: "Không thể cập nhật hồ sơ thành viên." };
+  }
+  if ((uploaded || (removeAvatar && !uploaded)) && beforeAvatar) void del(beforeAvatar.blobUrl).catch(() => undefined);
+  revalidatePath(`/members/${memberId}`);
+  revalidatePath("/members");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Đã cập nhật hồ sơ thành viên." };
 }
 
 const memberAccountSchema = z.object({
@@ -416,9 +481,23 @@ export async function linkUserToMemberAction(formData: FormData): Promise<Mutati
   if (account.memberId) return { ok: false, message: "Tài khoản đã liên kết với một thành viên." };
   if (existingLink) return { ok: false, message: "Thành viên đã liên kết với tài khoản khác." };
 
+  const [memberAvatar, userAvatar] = await Promise.all([
+    db.select().from(avatars).where(eq(avatars.memberId, member.id)).limit(1).then((rows) => rows[0]),
+    db.select().from(avatars).where(eq(avatars.userId, account.id)).limit(1).then((rows) => rows[0]),
+  ]);
+  let obsoleteAvatarUrl: string | null = null;
   try {
     await db.transaction(async (tx) => {
       await tx.update(users).set({ memberId: member.id, updatedAt: new Date() }).where(eq(users.id, account.id));
+      if (memberAvatar) {
+        if (userAvatar && userAvatar.id !== memberAvatar.id) {
+          obsoleteAvatarUrl = userAvatar.blobUrl;
+          await tx.delete(avatars).where(eq(avatars.id, userAvatar.id));
+        }
+        await tx.update(avatars).set({ userId: account.id, updatedAt: new Date() }).where(eq(avatars.id, memberAvatar.id));
+      } else if (userAvatar) {
+        await tx.update(avatars).set({ memberId: member.id, updatedAt: new Date() }).where(eq(avatars.id, userAvatar.id));
+      }
       await track(tx, {
         clubId: actor.clubId,
         entityType: "member",
@@ -432,6 +511,7 @@ export async function linkUserToMemberAction(formData: FormData): Promise<Mutati
   } catch {
     return { ok: false, message: "Không thể gắn tài khoản; liên kết có thể vừa được thay đổi." };
   }
+  if (obsoleteAvatarUrl) void del(obsoleteAvatarUrl).catch(() => undefined);
   revalidatePath("/settings");
   revalidatePath("/members");
   revalidatePath(`/members/${member.id}`);
@@ -449,6 +529,7 @@ export async function unlinkUserFromMemberAction(formData: FormData): Promise<Mu
   const oldMemberId = account.memberId;
   await db.transaction(async (tx) => {
     await tx.update(users).set({ memberId: null, updatedAt: new Date() }).where(eq(users.id, account.id));
+    await tx.update(avatars).set({ userId: null, updatedAt: new Date() }).where(and(eq(avatars.memberId, oldMemberId), eq(avatars.userId, account.id)));
     await track(tx, {
       clubId: actor.clubId,
       entityType: "member",
