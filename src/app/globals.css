@@ -1542,9 +1542,27 @@ label>textarea {
 }
 
 .member-cv-disclosure>.disclosure-content {
-  right: 0;
-  left: auto;
+  position: fixed;
+  top: 50%;
+  right: auto;
+  left: 50%;
+  z-index: 60;
   width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  transform: translate(-50%, -50%);
+}
+
+.member-cv-disclosure>.disclosure-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: rgba(4, 25, 42, .5);
 }
 
 .member-profile-bio {
@@ -4071,6 +4089,14 @@ label>textarea {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+
+  .member-cv-disclosure>.disclosure-content {
+    inset: auto max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    width: auto !important;
+    max-width: 100%;
+    max-height: 82vh;
+    transform: none;
   }
 
   .disclosure-content>*,
