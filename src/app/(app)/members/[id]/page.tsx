@@ -108,15 +108,45 @@ export default async function MemberDetailPage({
     <>
       <PageHeader
         eyebrow={`Thành viên · ${member.code}`}
-        title={member.fullName}
-        description={`${mayViewPhone ? `${member.phone} · ` : ""}${member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}`}
+        title="Hồ sơ cầu thủ"
+        description="Thông tin cá nhân và hoạt động quỹ của thành viên"
         action={<Link href="/members" className="button secondary">← Danh sách</Link>}
       />
-      <section className="profile-hero member-profile-hero">
-        <MemberAvatar memberId={member.id} name={member.fullName} avatarVersion={avatar?.updatedAt} className="large" />
-        <article className="panel member-cv-panel">
-          <div className="panel-heading"><div><span className="eyebrow">Cầu thủ</span><h2>Giới thiệu bản thân</h2></div>{canEditProfile && <Disclosure label={<><Icon name="edit" /> Chỉnh sửa CV</>} className="inline-disclosure member-cv-disclosure"><MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form"><input type="hidden" name="memberId" value={member.id} /><label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>{avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}<label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label><div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Tiền đạo, hậu vệ..." /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div><label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label><label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label><SubmitButton>Lưu CV và avatar</SubmitButton></MutationForm></Disclosure>}</div>
-          <div className="member-cv-view"><p>{profile?.bio || "Thành viên chưa cập nhật giới thiệu."}</p><div>{profile?.nickname && <span><small>Biệt danh</small><strong>{profile.nickname}</strong></span>}{profile?.preferredPosition && <span><small>Vị trí</small><strong>{profile.preferredPosition}</strong></span>}{profile?.preferredFoot && <span><small>Chân thuận</small><strong>{profile.preferredFoot === "LEFT" ? "Chân trái" : profile.preferredFoot === "BOTH" ? "Hai chân" : "Chân phải"}</strong></span>}{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined && <span><small>Số áo</small><strong>#{profile.shirtNumber}</strong></span>}</div></div>
+      <section className="member-profile-passport">
+        <div className="member-profile-portrait" data-code={member.code}>
+          <div className="member-profile-avatar-frame">
+            <MemberAvatar memberId={member.id} name={member.fullName} avatarVersion={avatar?.updatedAt} className="profile-avatar" />
+            <span className={`member-profile-status ${member.status === "ACTIVE" ? "active" : "inactive"}`}>
+              <i aria-hidden="true" /> {member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}
+            </span>
+            {profile?.shirtNumber !== null && profile?.shirtNumber !== undefined && <span className="member-profile-shirt-number">#{profile.shirtNumber}</span>}
+          </div>
+        </div>
+
+        <article className="member-cv-panel">
+          <div className="member-profile-heading">
+            <div>
+              <span className="eyebrow">Cầu thủ · {member.code}</span>
+              <h2>{member.fullName}</h2>
+              <div className="member-profile-subline">
+                <span>{profile?.nickname ? `Biệt danh: ${profile.nickname}` : "Chưa cập nhật biệt danh"}</span>
+                {mayViewPhone && <span className="member-profile-phone">{member.phone}</span>}
+              </div>
+            </div>
+            {canEditProfile && <Disclosure label={<><Icon name="edit" /> Chỉnh sửa CV</>} className="member-cv-disclosure"><MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form"><input type="hidden" name="memberId" value={member.id} /><label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>{avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}<label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label><div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Tiền đạo, hậu vệ..." /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div><label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label><label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label><SubmitButton>Lưu CV và avatar</SubmitButton></MutationForm></Disclosure>}
+          </div>
+
+          <div className="member-profile-bio">
+            <span className="eyebrow">Giới thiệu bản thân</span>
+            <p>{profile?.bio || "Thành viên chưa cập nhật giới thiệu."}</p>
+          </div>
+
+          <div className="member-profile-meta">
+            <span><small>Vị trí sở trường</small><strong>{profile?.preferredPosition || "Chưa cập nhật"}</strong></span>
+            <span><small>Chân thuận</small><strong>{profile?.preferredFoot === "LEFT" ? "Chân trái" : profile?.preferredFoot === "BOTH" ? "Hai chân" : profile?.preferredFoot === "RIGHT" ? "Chân phải" : "Chưa cập nhật"}</strong></span>
+            <span><small>Số áo</small><strong className="accent">{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined ? `#${profile.shirtNumber}` : "Chưa cập nhật"}</strong></span>
+            <span><small>Trạng thái</small><strong>{member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}</strong></span>
+          </div>
         </article>
       </section>
 

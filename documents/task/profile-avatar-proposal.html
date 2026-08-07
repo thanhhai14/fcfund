@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FCFund — Profile avatar proposal</title>
+  <style>
+    :root {
+      --pink: #bc2f64;
+      --pink-dark: #9f2554;
+      --pink-soft: #fff1f6;
+      --navy: #062f50;
+      --navy-2: #0b4169;
+      --ink: #072b49;
+      --muted: #6b7d8f;
+      --line: #ced9e3;
+      --canvas: #fbf9fa;
+      --panel: #ffffff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 1180px;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      background-color: var(--canvas);
+      background-image:
+        linear-gradient(rgba(188, 47, 100, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(188, 47, 100, .035) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .app { min-height: 900px; display: grid; grid-template-columns: 250px 1fr; }
+    .sidebar {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 900px;
+      padding: 28px 19px 20px;
+      color: white;
+      background: linear-gradient(180deg, var(--pink) 0%, #a82759 100%);
+      border-right: 3px solid var(--navy);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 26px; }
+    .brand img { width: 45px; height: 45px; object-fit: cover; background: white; border: 2px solid var(--navy); }
+    .brand strong { display: block; font-size: 15px; }
+    .brand small { display: block; margin-top: 3px; font-size: 9px; opacity: .8; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item {
+      display: grid;
+      grid-template-columns: 24px 1fr 14px;
+      align-items: center;
+      min-height: 43px;
+      padding: 0 14px;
+      font-weight: 750;
+      color: rgba(255,255,255,.9);
+      border-left: 3px solid transparent;
+    }
+    .nav-item.active { background: rgba(7, 42, 73, .22); border-left-color: var(--navy); color: white; }
+    .nav-item .icon { font-size: 13px; }
+    .nav-item .dash { height: 2px; background: var(--navy); }
+    .account { margin-top: auto; padding: 18px 7px 0; border-top: 1px solid rgba(255,255,255,.16); display: flex; gap: 10px; align-items: center; }
+    .account-mark { width: 37px; height: 37px; display: grid; place-items: center; background: rgba(255,255,255,.15); font-size: 11px; font-weight: 900; }
+    .account strong { display: block; font-size: 11px; }
+    .account small { display: block; font-size: 9px; opacity: .75; margin-top: 3px; }
+
+    main { padding: 35px 40px 70px; }
+    .page-head { display: flex; align-items: end; justify-content: space-between; margin-bottom: 24px; }
+    .eyebrow { display: block; margin-bottom: 6px; color: var(--pink); font-size: 11px; line-height: 1; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .page-head h1 { margin: 0; font-size: 31px; line-height: 1.05; letter-spacing: -.035em; }
+    .page-head p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+    button { font: inherit; }
+    .button {
+      min-height: 40px;
+      padding: 0 16px;
+      color: var(--ink);
+      background: white;
+      border: 1px solid #bfcdda;
+      border-bottom: 3px solid var(--navy);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .passport {
+      position: relative;
+      display: grid;
+      grid-template-columns: 238px minmax(0, 1fr);
+      min-height: 292px;
+      margin-bottom: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--pink);
+      box-shadow: 5px 5px 0 rgba(6, 47, 80, .10);
+      overflow: hidden;
+    }
+    .passport::after {
+      content: "";
+      position: absolute;
+      right: -44px;
+      top: -62px;
+      width: 165px;
+      height: 165px;
+      transform: rotate(45deg);
+      border: 1px solid rgba(188,47,100,.13);
+      pointer-events: none;
+    }
+    .portrait-zone {
+      position: relative;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: var(--navy);
+      overflow: hidden;
+    }
+    .portrait-zone::before {
+      content: "03";
+      position: absolute;
+      right: -4px;
+      bottom: -23px;
+      color: rgba(255,255,255,.055);
+      font-size: 125px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -.08em;
+    }
+    .portrait-frame {
+      position: relative;
+      width: 174px;
+      height: 214px;
+      background: #dce6e7;
+      border: 4px solid white;
+      box-shadow: 8px 8px 0 var(--pink);
+      overflow: hidden;
+    }
+    .portrait-frame svg { display: block; width: 100%; height: 100%; }
+    .shirt-number {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 43px;
+      color: white;
+      background: var(--pink);
+      border-top: 3px solid white;
+      border-right: 3px solid white;
+      font-size: 17px;
+      font-weight: 950;
+    }
+    .status {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      padding: 6px 8px;
+      color: #d9ffe8;
+      background: rgba(4, 41, 70, .82);
+      border-left: 3px solid #34c878;
+      font-size: 8px;
+      font-weight: 900;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .passport-body { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; padding: 27px 30px 0; }
+    .passport-title { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+    .passport-title h2 { margin: 0; font-size: 27px; letter-spacing: -.035em; }
+    .nickname { display: flex; align-items: center; gap: 8px; margin-top: 7px; color: var(--muted); font-size: 12px; }
+    .nickname::before { content: ""; width: 22px; height: 2px; background: var(--pink); }
+    .edit { color: white; background: var(--pink); border: 0; border-right: 3px solid var(--navy); border-bottom: 3px solid var(--navy); min-height: 39px; padding: 0 14px; font-size: 11px; font-weight: 850; }
+    .bio { align-self: center; max-width: 730px; margin: 18px 0; padding: 0 0 0 18px; border-left: 3px solid var(--pink); }
+    .bio .eyebrow { margin-bottom: 9px; }
+    .bio p { margin: 0; color: #506579; font-size: 14px; line-height: 1.65; }
+    .player-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin: 0 -30px;
+      border-top: 1px solid var(--line);
+      background: #f6f8fa;
+    }
+    .player-meta div { min-height: 68px; padding: 14px 18px; border-right: 1px solid var(--line); }
+    .player-meta div:last-child { border-right: 0; }
+    .player-meta small { display: block; margin-bottom: 6px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .055em; }
+    .player-meta strong { display: block; font-size: 13px; }
+    .player-meta .accent { color: var(--pink); }
+
+    .section-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, .75fr); gap: 18px; align-items: start; }
+    .panel { background: white; border: 1px solid var(--line); box-shadow: 3px 3px 0 rgba(6,47,80,.045); padding: 22px; }
+    .panel h3 { margin: 0; font-size: 16px; }
+    .finance { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 17px; border: 1px solid var(--line); }
+    .finance div { padding: 15px 16px; border-right: 1px solid var(--line); }
+    .finance div:first-child { border-left: 4px solid var(--pink); }
+    .finance div:last-child { border-right: 0; }
+    .finance small { display: block; color: var(--muted); font-size: 9px; }
+    .finance strong { display: block; margin-top: 5px; font-size: 18px; }
+    .finance .debt { color: var(--pink); }
+    .config-row { display: flex; justify-content: space-between; gap: 20px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #e4e9ee; }
+    .config-row strong { font-size: 12px; }
+    .config-row small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="../../public/trai-lang-logo.jpg" alt="Logo Trại Làng Town" />
+        <div><strong>Trại Làng Town</strong><small>Powered by Trai Làng FC</small></div>
+      </div>
+      <nav class="nav">
+        <div class="nav-item"><span class="icon">◆</span><span>Tổng quan</span></div>
+        <div class="nav-item active"><span class="icon">♟</span><span>Thành viên</span><span class="dash"></span></div>
+        <div class="nav-item"><span class="icon">◉</span><span>Khoản phải thu</span></div>
+        <div class="nav-item"><span class="icon">⇄</span><span>Thu &amp; chi</span></div>
+        <div class="nav-item"><span class="icon">⚽</span><span>Trận đấu</span></div>
+        <div class="nav-item"><span class="icon">◔</span><span>Báo cáo</span></div>
+        <div class="nav-item"><span class="icon">✣</span><span>Cài đặt</span></div>
+      </nav>
+      <div class="account"><div class="account-mark">LF</div><div><strong>Trại Làng FC</strong><small>Thành viên</small></div></div>
+    </aside>
+
+    <main>
+      <header class="page-head">
+        <div><span class="eyebrow">Thành viên · 3</span><h1>Hồ sơ cầu thủ</h1><p>Thông tin cá nhân và hoạt động quỹ của thành viên</p></div>
+        <button class="button">← Danh sách</button>
+      </header>
+
+      <section class="passport">
+        <div class="portrait-zone">
+          <div class="portrait-frame">
+            <svg viewBox="0 0 166 206" role="img" aria-label="Ảnh đại diện Ông Thọ">
+              <defs>
+                <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#dce6e7"/><stop offset="1" stop-color="#9fbfc2"/></linearGradient>
+                <linearGradient id="shirt" x1="0" x2="1"><stop stop-color="#bc2f64"/><stop offset="1" stop-color="#8e214b"/></linearGradient>
+              </defs>
+              <rect width="166" height="206" fill="url(#bg)"/>
+              <path d="M0 160 L38 132 L83 123 L129 132 L166 160 V206 H0Z" fill="url(#shirt)"/>
+              <path d="M67 113 L66 135 Q83 148 100 135 L98 111Z" fill="#bd856b"/>
+              <ellipse cx="83" cy="78" rx="35" ry="45" fill="#cc9275"/>
+              <path d="M48 73 Q45 29 82 25 Q122 27 119 74 L111 58 Q89 62 64 48 L54 78Z" fill="#172b32"/>
+              <path d="M50 72 Q43 72 47 89 Q50 99 56 94" fill="#c78d72"/>
+              <path d="M116 71 Q124 72 120 89 Q118 99 112 94" fill="#c78d72"/>
+              <ellipse cx="70" cy="78" rx="3" ry="2.3" fill="#152a31"/>
+              <ellipse cx="96" cy="78" rx="3" ry="2.3" fill="#152a31"/>
+              <path d="M78 94 Q83 98 89 94" fill="none" stroke="#7c403d" stroke-width="2" stroke-linecap="round"/>
+              <path d="M55 150 L68 206 H98 L112 150 L83 164Z" fill="#f7f8f8" opacity=".97"/>
+              <path d="M83 164 L83 206" stroke="#062f50" stroke-width="4" opacity=".9"/>
+              <circle cx="83" cy="160" r="8" fill="#fff" stroke="#062f50" stroke-width="2"/>
+              <path d="M79 158h8M83 154v8" stroke="#bc2f64" stroke-width="1.5"/>
+            </svg>
+            <span class="status">● Đang hoạt động</span>
+            <span class="shirt-number">#0</span>
+          </div>
+        </div>
+
+        <div class="passport-body">
+          <div class="passport-title">
+            <div><span class="eyebrow">Cầu thủ · Trại Làng FC</span><h2>Ông Thọ</h2><div class="nickname">Biệt danh: Ông Thọ</div></div>
+            <button class="edit">✎ Chỉnh sửa CV</button>
+          </div>
+          <div class="bio"><span class="eyebrow">Giới thiệu bản thân</span><p>Lừa qua hết sút ra ngoài. Chơi bóng vì niềm vui, luôn sẵn sàng lấp vào vị trí đội còn thiếu.</p></div>
+          <div class="player-meta">
+            <div><small>Vị trí sở trường</small><strong>Chưa cập nhật</strong></div>
+            <div><small>Chân thuận</small><strong>Hai chân</strong></div>
+            <div><small>Số áo</small><strong class="accent">#0</strong></div>
+            <div><small>Trạng thái</small><strong>Đang hoạt động</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-grid">
+        <article class="panel"><span class="eyebrow">Công nợ</span><h3>Tình trạng số dư</h3><div class="finance"><div><small>Số dư thành viên</small><strong class="debt">−245.000 đ</strong></div><div><small>Phải đóng</small><strong>245.000 đ</strong></div><div><small>Đã nộp</small><strong>0 đ</strong></div></div></article>
+        <article class="panel"><span class="eyebrow">Cấu hình</span><h3>Khoản thu đang áp dụng</h3><div class="config-row"><div><strong>Quỹ tháng</strong><small>01/08/2026 → Vĩnh viễn</small></div><strong>200.000 đ</strong></div></article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
