@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
@@ -72,6 +72,28 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const participants = participantRows
     .map((row) => ({ ...row, name: row.memberName ?? row.guestName ?? "Khách" }))
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  const memberIds = participants.flatMap((participant) => participant.memberId ? [participant.memberId] : []);
+  const previousSeedRows = memberIds.length ? await db.select({
+    memberId: matchParticipants.memberId,
+    seedTier: matchParticipants.seedTier,
+    playedOn: matches.playedOn,
+    seedEvaluatedAt: matchParticipants.seedEvaluatedAt,
+  }).from(matchParticipants)
+    .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+    .where(and(
+      eq(matches.clubId, user.clubId),
+      isNull(matches.deletedAt),
+      lt(matches.playedOn, match.playedOn),
+      inArray(matchParticipants.memberId, memberIds),
+      isNotNull(matchParticipants.seedTier),
+    ))
+    .orderBy(desc(matches.playedOn), desc(matchParticipants.seedEvaluatedAt)) : [];
+  const previousSeeds = new Map<string, NonNullable<(typeof previousSeedRows)[number]["seedTier"]>>();
+  for (const row of previousSeedRows) {
+    if (row.memberId && row.seedTier && !previousSeeds.has(row.memberId)) {
+      previousSeeds.set(row.memberId, row.seedTier);
+    }
+  }
 
   const versions = await db.select().from(matchTeamVersions)
     .where(eq(matchTeamVersions.matchId, id))
@@ -83,7 +105,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const stats = await getMatchFormStats({
     clubId: user.clubId,
     playedOn: match.playedOn,
-    memberIds: participants.flatMap((row) => row.memberId ? [row.memberId] : []),
+    memberIds,
     lookbackMatches,
   });
 
@@ -93,8 +115,10 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const teamMemberRows = displayedVersion ? await db.select().from(matchTeamMembers)
     .where(eq(matchTeamMembers.versionId, displayedVersion.id))
     .orderBy(matchTeamMembers.displayOrder) : [];
-  const missingSeeds = participants.filter((participant) => !participant.seedTier);
-  const goalkeeperCount = participants.filter((participant) => participant.seedTier === "GOALKEEPER").length;
+  const effectiveSeed = (participant: (typeof participants)[number]) => participant.seedTier
+    ?? (participant.memberId ? previousSeeds.get(participant.memberId) : undefined);
+  const missingSeeds = participants.filter((participant) => !effectiveSeed(participant));
+  const goalkeeperCount = participants.filter((participant) => effectiveSeed(participant) === "GOALKEEPER").length;
   const maxTeamCount = Math.floor(participants.length / 5);
   const isDraftLocked = Boolean(draft?.tierLockedAt);
 
@@ -121,7 +145,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               {missingSeeds.length ? `Thiếu ${missingSeeds.length} Seed` : "Đã đủ Seed"}
             </span>
           </div>
-          <p className="panel-note">Seed trận trước chỉ dùng tham khảo. Mỗi người phải được đánh giá lại cho trận hiện tại.</p>
+          <p className="panel-note">Dropdown được chọn sẵn theo Seed gần nhất. Hãy đánh giá lại và lưu để xác nhận Seed cho trận hiện tại.</p>
           <MutationForm action={saveAndLockMatchSeedsAction} className="form-stack">
             <input type="hidden" name="matchId" value={match.id} />
             <SeedEvaluationTable rows={participants.map((participant) => {
@@ -133,11 +157,10 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
                 avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
                 isGuest: !participant.memberId,
                 seedTier: participant.seedTier,
+                suggestedSeedTier: participant.memberId ? previousSeeds.get(participant.memberId) ?? null : null,
                 matchCount: stat?.matchCount ?? 0,
                 winCount: stat?.winCount ?? 0,
-                lossCount: stat?.lossCount ?? 0,
                 formScore: stat?.formScore ?? 5000,
-                formConfidence: stat?.formConfidence ?? 0,
                 inferredMatchCount: stat?.inferredMatchCount ?? 0,
                 lowForm: stat?.lowForm ?? false,
               };

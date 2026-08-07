@@ -120,12 +120,12 @@ Xem | Sửa | Xóa | Tạo đội
 
 Trang tạo đội tải toàn bộ người đã được check tham gia trận và hiển thị:
 
-| Thành viên | Seed | Trận gần đây | Hạng nhất | Không hạng nhất | Điểm phong độ | Độ tin cậy |
-|---|---|---:|---:|---:|---:|
+| Thành viên | Seed trận này | Số trận | Hạng nhất | Phong độ |
+|---|---|---:|---:|---:|
 
 - Seed có thể nhập nhanh ngay trong bảng.
 - Seed được lưu trên bản ghi người tham gia của trận hiện tại, không ghi vào hồ sơ thành viên.
-- Có thể hiển thị seed của trận gần nhất chỉ để Admin tham khảo khi đánh giá lại.
+- Nếu trận hiện tại chưa có Seed, dropdown tự chọn sẵn Seed gần nhất trước đó của chính thành viên. Gợi ý này chỉ được ghi nhận khi Admin lưu và khóa Seed.
 - Người thiếu seed được tô cảnh báo.
 - Thành viên không thuộc danh sách tham gia không xuất hiện trong trình tạo đội.
 
@@ -229,7 +229,7 @@ Mặc định lấy 10 trận có kết quả gần nhất trước ngày của 
 - Tổng số trận có kết quả trong cửa sổ nhìn lại.
 - Số lần hạng nhất và không hạng nhất.
 - Điểm phong độ đã điều chỉnh theo độ mới và dữ liệu nền.
-- Độ tin cậy và số trận lấy từ nguồn suy luận.
+- Số trận lấy từ nguồn suy luận vẫn được đánh dấu trong thông tin thành viên. Độ tin cậy được tính nội bộ khi điều chỉnh Điểm phong độ nhưng không hiển thị tại bảng Seed và không trực tiếp tham gia chia đội.
 
 ### 6.3. Quy tắc dữ liệu thiếu
 
