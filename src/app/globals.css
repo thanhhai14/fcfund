@@ -2422,6 +2422,29 @@ label>textarea {
   font-weight: 750;
 }
 
+.match-charge-mark small {
+  margin-left: 2px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 900;
+}
+
+.match-charge-mark.text-only {
+  color: var(--forest-800);
+}
+
+.team-member-charge .match-charge-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 5px;
+  background: #f7f9fa;
+  border-left: 2px solid currentColor;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .table-muted {
   color: var(--muted);
   font-size: 8px;
@@ -4675,6 +4698,20 @@ label {
   font-size: 14px;
 }
 
+.charge-type-icon-only {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  background: color-mix(in srgb, currentColor 10%, white);
+  border-left: 3px solid currentColor;
+  font-size: 14px;
+}
+
+.charges-list-table td:nth-child(5) {
+  font-weight: 800;
+}
+
 .filtered-out {
   display: none !important;
 }
@@ -4714,6 +4751,35 @@ label {
   gap: 10px;
   padding: 13px;
   border-bottom: 1px solid var(--line);
+}
+
+.report-rank-column,
+.report-rank-cell {
+  width: 58px;
+  text-align: center !important;
+}
+
+.report-rank-cell {
+  color: var(--brand-primary);
+  font-weight: 900;
+}
+
+.report-rank-badge {
+  display: inline-grid;
+  min-width: 34px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: white;
+  background: var(--brand-primary);
+  border-left: 3px solid var(--forest-800);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.report-rank-badge+div {
+  min-width: 0;
+  flex: 1;
 }
 
 .monthly-member-card h3,

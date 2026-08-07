@@ -86,6 +86,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     name: chargeTypes.name,
     iconName: chargeTypes.iconName,
     color: chargeTypes.color,
+    reportAsIcon: chargeTypes.reportAsIcon,
     quantity: memberCharges.quantity,
     amount: memberCharges.totalAmount,
   }).from(memberCharges)
@@ -149,6 +150,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         name: charge.name,
         iconName: charge.iconName,
         color: charge.color,
+        reportAsIcon: charge.reportAsIcon,
         quantity: charge.quantity,
         amount: charge.amount,
       })) : [],

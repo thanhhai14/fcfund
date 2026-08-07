@@ -59,7 +59,7 @@ export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
         <div className="member-list-view">
           <div className="member-list-head"><span>Thành viên</span><span>Điện thoại</span><span>Trạng thái</span><span>Tài khoản</span><span>Công nợ</span></div>
           {visible.map((member) => <Link href={`/members/${member.id}`} className="member-list-row" key={member.id}>
-            <span className="member-list-identity"><b>{initials(member.name)}</b><span><strong>{member.name}</strong><small>{member.code}</small></span></span>
+            <span className="member-list-identity"><b>{initials(member.name)}</b><span><strong>{member.name}</strong></span></span>
             <span>{member.phone}</span>
             <span><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>
             <span>{member.accountLabel}</span>
@@ -69,7 +69,7 @@ export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
       ) : (
         <section className="member-grid">
           {visible.map((member) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
-            <div className="member-card-top"><span className="member-avatar">{initials(member.name)}</span><div><h2>{member.name}</h2><p>{member.code} · {member.phone}</p></div><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
+            <div className="member-card-top"><span className="member-avatar">{initials(member.name)}</span><div><h2>{member.name}</h2><p>{member.phone}</p></div><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
             <div className="member-card-meta"><div><small>Tài khoản</small><strong>{member.accountLabel}</strong></div><div className="align-right"><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}
         </section>

@@ -91,7 +91,12 @@ export default async function DashboardPage() {
     .limit(6);
 
   const monthlyTypes = await db
-    .select({ name: chargeTypes.name, amount: chargeTypes.defaultAmount, color: chargeTypes.color })
+    .select({
+      name: chargeTypes.name,
+      amount: chargeTypes.defaultAmount,
+      color: chargeTypes.color,
+      iconName: chargeTypes.iconName,
+    })
     .from(chargeTypes)
     .where(and(eq(chargeTypes.clubId, user.clubId), eq(chargeTypes.isActive, true)))
     .limit(4);
@@ -204,7 +209,7 @@ export default async function DashboardPage() {
       <section className="type-strip">
         {monthlyTypes.map((type) => (
           <article key={type.name}>
-            <span style={{ backgroundColor: `${type.color}18`, color: type.color ?? undefined }}><Icon name="coins" /></span>
+            <span style={{ backgroundColor: type.color ? `${type.color}18` : undefined, color: type.color ?? undefined }}><Icon name={type.iconName} /></span>
             <div><small>{type.name}</small><strong>{formatMoney(type.amount)}</strong></div>
           </article>
         ))}

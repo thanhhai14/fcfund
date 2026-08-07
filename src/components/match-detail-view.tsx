@@ -9,6 +9,7 @@ type ChargeView = {
   name: string;
   iconName: string;
   color: string | null;
+  reportAsIcon: boolean;
   quantity: number;
   amount: number;
 };
@@ -52,6 +53,14 @@ function chargeSummary(charges: ChargeView[]) {
     quantity: charges.reduce((sum, charge) => sum + charge.quantity, 0),
     amount: charges.reduce((sum, charge) => sum + charge.amount, 0),
   };
+}
+
+function ChargeMark({ charge, showQuantity = false }: { charge: ChargeView; showQuantity?: boolean }) {
+  const title = `${charge.name} · ${charge.quantity} lần · ${formatMoney(charge.amount)}`;
+  if (charge.reportAsIcon) {
+    return <span className="match-charge-mark icon-only" style={{ color: charge.color ?? undefined }} title={title} aria-label={title}><Icon name={charge.iconName} />{showQuantity && <small>×{charge.quantity}</small>}</span>;
+  }
+  return <span className="match-charge-mark text-only" title={title}>{charge.name}{showQuantity && <small>×{charge.quantity}</small>}</span>;
 }
 
 function resultLabel(place: number | null) {
@@ -139,7 +148,7 @@ export function MatchDetailView({
                       <td><span className="match-list-person"><b>{initials(row.name)}</b><strong>{row.name}</strong></span></td>
                       {canViewSeed && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
                       <td>{row.teamName ? <span className="team-result-cell"><span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>{row.teamPlace && <small className={row.teamPlace === 1 ? "won" : "lost"}>{resultLabel(row.teamPlace)}</small>}</span> : <span className="table-muted">Chưa chia đội</span>}</td>
-                      <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <span key={charge.id} style={{ color: charge.color ?? undefined }}><Icon name={charge.iconName} /> {charge.name}</span>)}</span> : <span className="table-muted">Không phát sinh</span>}</td>
+                      <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <ChargeMark charge={charge} key={charge.id} />)}</span> : <span className="table-muted">Không phát sinh</span>}</td>
                       <td className="numeric-cell">{summary.quantity ? `×${summary.quantity}` : "—"}</td>
                       <td className="numeric-cell"><strong>{formatMoney(summary.amount)}</strong></td>
                     </tr>
@@ -164,7 +173,7 @@ export function MatchDetailView({
                   <span><small>Số lần</small><strong>{summary.quantity || "—"}</strong></span>
                   <span><small>Thành tiền</small><strong>{formatMoney(summary.amount)}</strong></span>
                 </div>
-                <div className="detail-charge-tags">{row.charges.length ? row.charges.map((charge) => <span key={charge.id} style={{ color: charge.color ?? undefined }}><Icon name={charge.iconName} /> {charge.name} ×{charge.quantity}</span>) : <span className="table-muted">Không phát sinh khoản thu</span>}</div>
+                <div className="detail-charge-tags">{row.charges.length ? row.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />) : <span className="table-muted">Không phát sinh khoản thu</span>}</div>
               </article>;
             })}
             {!visibleRows.length && <p className="collection-empty">Không tìm thấy thành viên phù hợp.</p>}
@@ -188,7 +197,7 @@ export function MatchDetailView({
                     <div key={member.id}>
                       <b className="member-mini-avatar">{initials(member.name)}</b>
                       <span><strong>{member.name}</strong>{canViewSeed && <small>{member.seedTier ? SEED_LABELS[member.seedTier] ?? member.seedTier : "Chưa có Seed"}</small>}</span>
-                      <span className="team-member-charge">{member.charges.map((charge) => <em key={charge.id} style={{ color: charge.color ?? undefined }} title={`${charge.name} · ${formatMoney(charge.amount)}`}><Icon name={charge.iconName} /> ×{charge.quantity}</em>)}{!member.charges.length && <small>—</small>}</span>
+                      <span className="team-member-charge">{member.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />)}{!member.charges.length && <small>—</small>}</span>
                     </div>
                   ))}
                 </div>
