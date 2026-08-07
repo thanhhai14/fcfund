@@ -3615,27 +3615,11 @@ label>textarea {
   border-top: 1px solid var(--line);
 }
 
-.monthly-table th:first-child,
-.monthly-table td:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  min-width: 180px;
-  text-align: left;
-  border-left: 0;
-  background: white;
-}
-
 .monthly-table thead th {
   border-top: 0;
   background: #f8fafb;
   color: var(--muted);
   font-size: 8px;
-}
-
-.monthly-table thead th:first-child {
-  z-index: 3;
-  background: #f8fafb;
 }
 
 .monthly-table th strong {
@@ -3656,23 +3640,18 @@ label>textarea {
   font-size: 9px;
 }
 
-.monthly-table tbody td:first-child strong {
+.monthly-table tbody .report-member-column strong {
   display: block;
   font-size: 10px;
 }
 
-.monthly-table tbody td:first-child small {
+.monthly-table tbody .report-member-column small {
   margin-top: 3px;
 }
 
 .monthly-table tfoot td {
   background: var(--forest-50);
   font-size: 9px;
-}
-
-.monthly-table tfoot td:first-child {
-  background: var(--forest-50);
-  z-index: 2;
 }
 
 .monthly-type-icon {
@@ -4761,7 +4740,7 @@ label {
 }
 
 .data-table td>strong,
-.monthly-table tbody td:first-child strong {
+.monthly-table tbody .report-member-column strong {
   font-size: 13px;
 }
 
@@ -5108,6 +5087,11 @@ label {
   font-size: 13px;
 }
 
+.member-form-score {
+  color: var(--brand-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 .member-list-identity {
   display: flex;
   align-items: center;
@@ -5264,8 +5248,57 @@ label {
 
 .report-rank-column,
 .report-rank-cell {
-  width: 58px;
+  width: 44px;
+  min-width: 44px !important;
+  max-width: 44px;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
   text-align: center !important;
+}
+
+.report-member-column {
+  min-width: 180px !important;
+  text-align: left !important;
+}
+
+.report-sticky-table .report-rank-column,
+.report-sticky-table .report-rank-cell,
+.report-sticky-table .report-member-column {
+  position: sticky;
+  background: white;
+}
+
+.report-sticky-table .report-rank-column,
+.report-sticky-table .report-rank-cell {
+  left: 0;
+  z-index: 2;
+}
+
+.report-sticky-table .report-member-column {
+  left: 0;
+  z-index: 1;
+  border-left: 0;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+.report-sticky-table.has-rank-column .report-member-column {
+  left: 44px;
+}
+
+.report-sticky-table thead .report-rank-column {
+  z-index: 4;
+  background: #f8fafb;
+}
+
+.report-sticky-table thead .report-member-column {
+  z-index: 3;
+  background: #f8fafb;
+}
+
+.monthly-table tfoot .report-rank-cell,
+.monthly-table tfoot .report-member-column {
+  z-index: 2;
+  background: var(--forest-50);
 }
 
 .report-rank-cell {

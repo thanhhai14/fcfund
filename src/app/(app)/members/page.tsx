@@ -12,13 +12,17 @@ import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MembersCollection } from "@/components/members-collection";
+import { getMatchFormStats } from "@/lib/match-form-stats";
 
 export const metadata = { title: "Thành viên" };
 
 export default async function MembersPage() {
   const currentUser = await requireUser();
   if (!(await can(PERMISSIONS.MEMBERS_VIEW))) redirect("/dashboard");
-  const canManage = await can(PERMISSIONS.MEMBERS_MANAGE);
+  const [canManage, canViewForm] = await Promise.all([
+    can(PERMISSIONS.MEMBERS_MANAGE),
+    can(PERMISSIONS.MATCH_FORM_REPORT_VIEW),
+  ]);
 
   const rows = await db
     .select({
@@ -59,6 +63,14 @@ export default async function MembersPage() {
     .groupBy(fundTransactions.memberId);
   const chargeMap = new Map(charges.map((row) => [row.memberId, Number(row.amount)]));
   const paymentMap = new Map(payments.map((row) => [row.memberId, Number(row.amount)]));
+  const formStats = canViewForm
+    ? await getMatchFormStats({
+      clubId: currentUser.clubId,
+      playedOn: "9999-12-31",
+      memberIds: rows.map((row) => row.id),
+      lookbackMatches: 10,
+    })
+    : new Map();
   const activeRows = rows.filter((row) => row.status === "ACTIVE");
   const activeCount = activeRows.length;
 
@@ -90,7 +102,7 @@ export default async function MembersPage() {
         <span><strong>{activeRows.filter((row) => (paymentMap.get(row.id) ?? 0) - (chargeMap.get(row.id) ?? 0) < 0).length}</strong> còn nợ</span>
       </div>
 
-      <MembersCollection rows={rows.map((member) => ({
+      <MembersCollection showForm={canViewForm} rows={rows.map((member) => ({
         id: member.id,
         code: member.code,
         name: member.name,
@@ -99,6 +111,7 @@ export default async function MembersPage() {
         hasAccount: member.hasAccount,
         accountLabel: member.hasAccount ? ROLE_LABELS[member.role!] : "Chưa tạo",
         balance: (paymentMap.get(member.id) ?? 0) - (chargeMap.get(member.id) ?? 0),
+        formScore: formStats.get(member.id)?.formScore ?? 5000,
         avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
       }))} />
     </>
