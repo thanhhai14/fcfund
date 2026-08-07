@@ -57,7 +57,8 @@ export default async function MembersPage() {
     .groupBy(fundTransactions.memberId);
   const chargeMap = new Map(charges.map((row) => [row.memberId, Number(row.amount)]));
   const paymentMap = new Map(payments.map((row) => [row.memberId, Number(row.amount)]));
-  const activeCount = rows.filter((row) => row.status === "ACTIVE").length;
+  const activeRows = rows.filter((row) => row.status === "ACTIVE");
+  const activeCount = activeRows.length;
 
   return (
     <>
@@ -82,9 +83,9 @@ export default async function MembersPage() {
       />
 
       <div className="summary-line">
-        <span><strong>{rows.length}</strong> hồ sơ</span>
-        <span><strong>{rows.filter((row) => row.hasAccount).length}</strong> tài khoản</span>
-        <span><strong>{rows.filter((row) => (paymentMap.get(row.id) ?? 0) - (chargeMap.get(row.id) ?? 0) < 0).length}</strong> còn nợ</span>
+        <span><strong>{activeCount}</strong> đang hoạt động</span>
+        <span><strong>{activeRows.filter((row) => row.hasAccount).length}</strong> tài khoản</span>
+        <span><strong>{activeRows.filter((row) => (paymentMap.get(row.id) ?? 0) - (chargeMap.get(row.id) ?? 0) < 0).length}</strong> còn nợ</span>
       </div>
 
       <MembersCollection rows={rows.map((member) => ({

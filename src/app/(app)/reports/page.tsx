@@ -49,7 +49,10 @@ export default async function ReportsPage({
     code: members.code,
     name: members.fullName,
     status: members.status,
-  }).from(members).where(eq(members.clubId, user.clubId)).orderBy(members.fullName);
+  }).from(members).where(and(
+    eq(members.clubId, user.clubId),
+    eq(members.status, "ACTIVE"),
+  )).orderBy(members.fullName);
   const visibleMembers = memberRows.filter((member) => viewAll || member.id === user.memberId);
   const visibleMemberIds = new Set(visibleMembers.map((member) => member.id));
 
@@ -92,13 +95,13 @@ export default async function ReportsPage({
     isNull(memberCharges.deletedAt),
   ));
 
-  const monthlyTypeIds = new Set(monthlyRows.map((row) => row.chargeTypeId));
+  const visibleMonthlyRows = monthlyRows.filter((row) => visibleMemberIds.has(row.memberId));
+  const monthlyTypeIds = new Set(visibleMonthlyRows.map((row) => row.chargeTypeId));
   const monthlyTypes = typeRows.filter((type) => type.isActive || monthlyTypeIds.has(type.id));
   const monthlyCells = new Map<string, { quantity: number; total: number }>();
   const memberMonthTotals = new Map<string, number>();
   const typeMonthTotals = new Map<string, number>();
-  monthlyRows.forEach((row) => {
-    if (!visibleMemberIds.has(row.memberId)) return;
+  visibleMonthlyRows.forEach((row) => {
     const key = `${row.memberId}|${row.chargeTypeId}`;
     const current = monthlyCells.get(key) ?? { quantity: 0, total: 0 };
     monthlyCells.set(key, {

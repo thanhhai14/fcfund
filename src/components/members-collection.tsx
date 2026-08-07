@@ -18,7 +18,7 @@ export type MemberCollectionRow = {
 
 export function MembersCollection({ rows }: { rows: MemberCollectionRow[] }) {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("ALL");
+  const [status, setStatus] = useState("ACTIVE");
   const [account, setAccount] = useState("ALL");
   const [balance, setBalance] = useState("ALL");
   const [sort, setSort] = useState("NAME_ASC");
