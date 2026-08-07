@@ -36,8 +36,8 @@ const SEED_LABELS = {
   GOALKEEPER: "Thủ môn",
 } as const;
 
-function percent(value: number | null) {
-  return value === null ? "Chưa có dữ liệu" : `${Math.round(value / 100)}%`;
+function formScore(value: number) {
+  return `${Math.round(value / 100)} điểm`;
 }
 
 export default async function MatchTeamsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -136,7 +136,10 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
                 matchCount: stat?.matchCount ?? 0,
                 winCount: stat?.winCount ?? 0,
                 lossCount: stat?.lossCount ?? 0,
-                lossRate: stat?.lossRate ?? null,
+                formScore: stat?.formScore ?? 5000,
+                formConfidence: stat?.formConfidence ?? 0,
+                inferredMatchCount: stat?.inferredMatchCount ?? 0,
+                lowForm: stat?.lowForm ?? false,
               };
             })} />
             <div className="form-actions"><SubmitButton><Icon name="shield" /> Lưu và khóa Seed</SubmitButton></div>
@@ -230,7 +233,7 @@ function TeamCard({
   showSeed?: boolean;
   showForm?: boolean;
 }) {
-  const averageLoss = team.memberCount ? Math.round(team.recentLossScore / team.memberCount / 100) : 0;
+  const averageFormScore = team.memberCount ? Math.round(team.formScoreTotal / team.memberCount) : 5000;
   return (
     <article className="team-card" style={{ borderTopColor: team.color ?? undefined }}>
       <header>
@@ -240,13 +243,13 @@ function TeamCard({
       <div className="team-metrics">
         <span><small>Thủ môn</small><b>{team.goalkeeperCount}</b></span>
         <span><small>Điểm Seed</small><b>{team.outfieldSkillScore}</b></span>
-        <span><small>Thua gần đây</small><b>{showForm ? `${averageLoss}%` : "Ẩn"}</b></span>
+        <span><small>Điểm phong độ</small><b>{showForm ? formScore(averageFormScore) : "Ẩn"}</b></span>
       </div>
       <div className="team-member-cards">
         {rows.map((row) => (
           <div key={row.id}>
             {showSeed ? <span className={`seed-chip ${row.seedTierSnapshot.toLowerCase()}`}>{SEED_LABELS[row.seedTierSnapshot]}</span> : <span className="seed-chip hidden-seed">Seed ẩn</span>}
-            <span><strong>{row.displayNameSnapshot}</strong>{showForm && <small>{row.recentMatchCountSnapshot} trận · {row.recentLossCountSnapshot} thua · {percent(row.recentLossRateSnapshot)}</small>}</span>
+            <span><strong>{row.displayNameSnapshot}</strong>{showForm && <small>{row.recentMatchCountSnapshot} trận · {row.recentMatchCountSnapshot - row.recentLossCountSnapshot} hạng nhất · {formScore(row.formScoreSnapshot)}{row.inferredMatchCountSnapshot ? ` · ${row.inferredMatchCountSnapshot} suy luận` : ""}</small>}</span>
             {editable && <span className="team-member-controls">
               <select name={`team_${row.id}`} defaultValue={row.teamId} aria-label={`Đội của ${row.displayNameSnapshot}`}>
                 {allTeams.map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}

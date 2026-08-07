@@ -54,7 +54,7 @@ export const PERMISSION_DEFINITIONS: Array<{
   { key: PERMISSIONS.MATCH_SEED_MANAGE, name: "Quản lý seed theo trận", description: "Đánh giá và khóa seed trước khi chia đội" },
   { key: PERMISSIONS.MATCH_TEAMS_VIEW, name: "Xem đội hình", description: "Xem đội hình đã xác nhận của trận" },
   { key: PERMISSIONS.MATCH_TEAMS_MANAGE, name: "Quản lý chia đội", description: "Tạo, chỉnh và xác nhận phiên bản đội hình" },
-  { key: PERMISSIONS.MATCH_FORM_REPORT_VIEW, name: "Xem phong độ suy luận", description: "Xem thống kê thắng thua suy luận từ khoản phạt" },
+  { key: PERMISSIONS.MATCH_FORM_REPORT_VIEW, name: "Xem điểm phong độ", description: "Xem kết quả gần đây, điểm phong độ và dữ liệu lịch sử suy luận" },
   { key: PERMISSIONS.CLUB_BALANCE_VIEW, name: "Xem số dư quỹ", description: "Xem số tiền quỹ hiện tại" },
   { key: PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW, name: "Xem công nợ người khác", description: "Xem số dư của thành viên khác" },
   { key: PERMISSIONS.SETTINGS_MANAGE, name: "Quản lý cài đặt", description: "Cấu hình club, loại thu và QR" },

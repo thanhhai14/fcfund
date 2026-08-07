@@ -14,11 +14,14 @@ type SeedRow = {
   matchCount: number;
   winCount: number;
   lossCount: number;
-  lossRate: number | null;
+  formScore: number;
+  formConfidence: number;
+  inferredMatchCount: number;
+  lowForm: boolean;
 };
 
 const SEED_ORDER: Record<string, number> = { TIER_1: 1, TIER_2: 2, TIER_3: 3, TIER_4: 4, GOALKEEPER: 5 };
-const SEED_COLUMNS: CollectionColumn[] = [{ id: "member", label: "Thành viên", required: true }, { id: "seed", label: "Seed trận này", required: true }, { id: "matches", label: "Trận gần đây" }, { id: "wins", label: "Thắng suy luận" }, { id: "losses", label: "Thua suy luận" }, { id: "lossRate", label: "Tỷ lệ thua" }];
+const SEED_COLUMNS: CollectionColumn[] = [{ id: "member", label: "Thành viên", required: true }, { id: "seed", label: "Seed trận này", required: true }, { id: "matches", label: "Trận gần đây" }, { id: "wins", label: "Hạng nhất" }, { id: "losses", label: "Không hạng nhất" }, { id: "formScore", label: "Điểm phong độ" }, { id: "confidence", label: "Độ tin cậy" }];
 
 export function SeedEvaluationTable({ rows }: { rows: SeedRow[] }) {
   const [query, setQuery] = useState("");
@@ -29,7 +32,8 @@ export function SeedEvaluationTable({ rows }: { rows: SeedRow[] }) {
   const ordered = useMemo(() => [...rows].sort((a, b) => {
     if (sort === "SEED") return (SEED_ORDER[seeds[a.id]] ?? 99) - (SEED_ORDER[seeds[b.id]] ?? 99) || a.name.localeCompare(b.name, "vi");
     if (sort === "MATCHES") return b.matchCount - a.matchCount || a.name.localeCompare(b.name, "vi");
-    if (sort === "LOSS_RATE") return (b.lossRate ?? -1) - (a.lossRate ?? -1) || a.name.localeCompare(b.name, "vi");
+    if (sort === "FORM_ASC") return a.formScore - b.formScore || a.name.localeCompare(b.name, "vi");
+    if (sort === "FORM_DESC") return b.formScore - a.formScore || a.name.localeCompare(b.name, "vi");
     return a.name.localeCompare(b.name, "vi");
   }), [rows, seeds, sort]);
   const search = normalizeSearch(query);
@@ -38,12 +42,12 @@ export function SeedEvaluationTable({ rows }: { rows: SeedRow[] }) {
   return <>
     <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên..." count={visibleCount}>
       <select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">Mọi Seed</option><option value="MISSING">Chưa có Seed</option><option value="TIER_1">Tier 1</option><option value="TIER_2">Tier 2</option><option value="TIER_3">Tier 3</option><option value="TIER_4">Tier 4</option><option value="GOALKEEPER">Thủ môn</option></select>
-      <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="NAME">Tên A–Z</option><option value="SEED">Theo Seed</option><option value="MATCHES">Nhiều trận trước</option><option value="LOSS_RATE">Tỷ lệ thua cao</option></select>
+      <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="NAME">Tên A–Z</option><option value="SEED">Theo Seed</option><option value="MATCHES">Nhiều trận trước</option><option value="FORM_ASC">Phong độ thấp trước</option><option value="FORM_DESC">Phong độ cao trước</option></select>
       <ColumnVisibilityMenu columns={SEED_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />
     </CollectionToolbar>
-    <div className="seed-table-wrap"><table className="seed-table"><thead><tr><th>Thành viên</th><th>Seed trận này</th>{columns.isVisible("matches") && <th>Trận gần đây</th>}{columns.isVisible("wins") && <th>Thắng suy luận</th>}{columns.isVisible("losses") && <th>Thua suy luận</th>}{columns.isVisible("lossRate") && <th>Tỷ lệ thua</th>}</tr></thead><tbody>{ordered.map((row) => {
+    <div className="seed-table-wrap"><table className="seed-table"><thead><tr><th>Thành viên</th><th>Seed trận này</th>{columns.isVisible("matches") && <th>Trận gần đây</th>}{columns.isVisible("wins") && <th>Hạng nhất</th>}{columns.isVisible("losses") && <th>Không hạng nhất</th>}{columns.isVisible("formScore") && <th>Điểm phong độ</th>}{columns.isVisible("confidence") && <th>Độ tin cậy</th>}</tr></thead><tbody>{ordered.map((row) => {
       const visible = (!search || normalizeSearch(row.name).includes(search)) && (filter === "ALL" || (filter === "MISSING" ? !seeds[row.id] : seeds[row.id] === filter));
-      return <tr className={`${!seeds[row.id] ? "missing-seed" : ""} ${visible ? "" : "filtered-out"}`} key={row.id}><td><MemberIdentity memberId={row.memberId} name={row.name} avatarVersion={row.avatarVersion} secondary={row.isGuest ? "Khách" : null} compact /></td><td><select name={`seed_${row.id}`} value={seeds[row.id]} onChange={(event) => setSeeds((current) => ({ ...current, [row.id]: event.target.value }))} required><option value="" disabled>Chọn Seed</option><option value="TIER_1">Tier 1</option><option value="TIER_2">Tier 2</option><option value="TIER_3">Tier 3</option><option value="TIER_4">Tier 4</option><option value="GOALKEEPER">Thủ môn</option></select></td>{columns.isVisible("matches") && <td>{row.matchCount}</td>}{columns.isVisible("wins") && <td>{row.winCount}</td>}{columns.isVisible("losses") && <td>{row.lossCount}</td>}{columns.isVisible("lossRate") && <td>{row.lossRate === null ? "Chưa có dữ liệu" : `${Math.round(row.lossRate / 100)}%`}</td>}</tr>;
+      return <tr className={`${!seeds[row.id] ? "missing-seed" : ""} ${row.lowForm ? "low-form" : ""} ${visible ? "" : "filtered-out"}`} key={row.id}><td><MemberIdentity memberId={row.memberId} name={row.name} avatarVersion={row.avatarVersion} secondary={row.isGuest ? "Khách" : row.inferredMatchCount ? `${row.inferredMatchCount} trận suy luận` : null} compact /></td><td><select name={`seed_${row.id}`} value={seeds[row.id]} onChange={(event) => setSeeds((current) => ({ ...current, [row.id]: event.target.value }))} required><option value="" disabled>Chọn Seed</option><option value="TIER_1">Tier 1</option><option value="TIER_2">Tier 2</option><option value="TIER_3">Tier 3</option><option value="TIER_4">Tier 4</option><option value="GOALKEEPER">Thủ môn</option></select></td>{columns.isVisible("matches") && <td>{row.matchCount}</td>}{columns.isVisible("wins") && <td>{row.winCount}</td>}{columns.isVisible("losses") && <td>{row.lossCount}</td>}{columns.isVisible("formScore") && <td><strong className={`form-score ${row.lowForm ? "low" : ""}`}>{Math.round(row.formScore / 100)}</strong></td>}{columns.isVisible("confidence") && <td>{Math.round(row.formConfidence / 100)}%</td>}</tr>;
     })}</tbody></table></div>
   </>;
 }

@@ -1,21 +1,20 @@
 import "server-only";
 
-import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { db } from "@/db";
-import {
-  matches,
-  matchParticipants,
-  matchTeamMembers,
-  matchTeams,
-  matchTeamVersions,
-  memberCharges,
-} from "@/db/schema";
+import { matches, matchParticipants, memberCharges, memberMatchStats } from "@/db/schema";
+import { calculateAdjustedFormScore, FORM_SCORE_NEUTRAL, isLowForm } from "@/lib/form-score";
+export { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE } from "@/lib/form-score";
 
 export type MatchFormStat = {
   matchCount: number;
   lossCount: number;
   winCount: number;
   lossRate: number | null;
+  formScore: number;
+  formConfidence: number;
+  inferredMatchCount: number;
+  lowForm: boolean;
 };
 
 export type MemberCareerStats = {
@@ -25,50 +24,63 @@ export type MemberCareerStats = {
   winRate: number | null;
 };
 
-function metricsRecord(metrics: unknown): Record<string, unknown> {
-  if (typeof metrics === "string") {
-    try {
-      return metricsRecord(JSON.parse(metrics));
-    } catch {
-      return {};
-    }
-  }
-  return metrics && typeof metrics === "object" && !Array.isArray(metrics)
-    ? metrics as Record<string, unknown>
-    : {};
+type FormEvent = {
+  matchId: string;
+  playedOn: string;
+  createdAt: Date;
+  score: number;
+  result: "WIN" | "LOSS";
+  inferred: boolean;
+};
+
+function emptyFormStat(): MatchFormStat {
+  return {
+    matchCount: 0,
+    lossCount: 0,
+    winCount: 0,
+    lossRate: null,
+    formScore: FORM_SCORE_NEUTRAL,
+    formConfidence: 0,
+    inferredMatchCount: 0,
+    lowForm: false,
+  };
+}
+
+function calculateFormStat(events: FormEvent[], lookbackMatches: number): MatchFormStat {
+  const selected = [...events]
+    .sort((first, second) => second.playedOn.localeCompare(first.playedOn)
+      || second.createdAt.getTime() - first.createdAt.getTime()
+      || second.matchId.localeCompare(first.matchId))
+    .slice(0, lookbackMatches);
+  if (!selected.length) return emptyFormStat();
+
+  const winCount = selected.filter((event) => event.result === "WIN").length;
+  const lossCount = selected.length - winCount;
+  const { formScore, formConfidence } = calculateAdjustedFormScore(selected.map((event) => event.score));
+
+  return {
+    matchCount: selected.length,
+    lossCount,
+    winCount,
+    lossRate: Math.round((lossCount / selected.length) * 10_000),
+    formScore,
+    formConfidence,
+    inferredMatchCount: selected.filter((event) => event.inferred).length,
+    lowForm: isLowForm(selected.length, formScore),
+  };
 }
 
 export async function getMemberCareerStats(input: { clubId: string; memberId: string }): Promise<MemberCareerStats> {
-  const rows = await db.select({
-    matchId: matches.id,
-    teamName: matchTeams.name,
-    metrics: matchTeamVersions.metrics,
-  })
-    .from(matchTeamMembers)
-    .innerJoin(matchTeams, eq(matchTeamMembers.teamId, matchTeams.id))
-    .innerJoin(matchTeamVersions, eq(matchTeamMembers.versionId, matchTeamVersions.id))
-    .innerJoin(matches, eq(matchTeamVersions.matchId, matches.id))
+  const rows = await db.select({ result: memberMatchStats.result })
+    .from(memberMatchStats)
+    .innerJoin(matches, eq(memberMatchStats.matchId, matches.id))
     .where(and(
-      eq(matchTeamMembers.memberId, input.memberId),
-      eq(matches.clubId, input.clubId),
+      eq(memberMatchStats.clubId, input.clubId),
+      eq(memberMatchStats.memberId, input.memberId),
       isNull(matches.deletedAt),
-      eq(matchTeamVersions.status, "CONFIRMED"),
-      sql`${matchTeamVersions.metrics} ? 'placements'`,
     ));
-
-  let winCount = 0;
-  let lossCount = 0;
-  const countedMatches = new Set<string>();
-  for (const row of rows) {
-    if (countedMatches.has(row.matchId)) continue;
-    const placements = metricsRecord(metricsRecord(row.metrics).placements);
-    const place = Number(placements[row.teamName]);
-    if (!Number.isInteger(place) || place < 1) continue;
-    countedMatches.add(row.matchId);
-    if (place === 1) winCount += 1;
-    else lossCount += 1;
-  }
-
+  const winCount = rows.filter((row) => row.result === "WIN").length;
+  const lossCount = rows.filter((row) => row.result === "LOSS").length;
   const matchCount = winCount + lossCount;
   return {
     matchCount,
@@ -85,84 +97,106 @@ export async function getMatchFormStats(input: {
   lookbackMatches: number;
 }) {
   const result = new Map<string, MatchFormStat>();
-  for (const memberId of input.memberIds) {
-    result.set(memberId, { matchCount: 0, lossCount: 0, winCount: 0, lossRate: null });
-  }
+  for (const memberId of input.memberIds) result.set(memberId, emptyFormStat());
   if (!input.memberIds.length) return result;
 
-  const [penaltyMatchRows, resultMatchRows] = await Promise.all([
-    db.selectDistinct({ matchId: memberCharges.matchId })
-      .from(memberCharges)
-      .where(and(
-        eq(memberCharges.clubId, input.clubId),
-        eq(memberCharges.isLossPenaltySnapshot, true),
-        isNull(memberCharges.deletedAt),
-        isNotNull(memberCharges.matchId),
-      )),
-    db.select({ matchId: matchTeamVersions.matchId })
-      .from(matchTeamVersions)
-      .innerJoin(matches, eq(matchTeamVersions.matchId, matches.id))
-      .where(and(
-        eq(matches.clubId, input.clubId),
-        isNull(matches.deletedAt),
-        eq(matchTeamVersions.status, "CONFIRMED"),
-        sql`${matchTeamVersions.metrics} ? 'placements'`,
-      )),
-  ]);
-  const completedMatchIds = [...new Set([
-    ...penaltyMatchRows.flatMap((row) => row.matchId ? [row.matchId] : []),
-    ...resultMatchRows.map((row) => row.matchId),
-  ])];
-  if (!completedMatchIds.length) return result;
-
-  const history = await db.select({
-    memberId: matchParticipants.memberId,
-    matchId: matches.id,
-    playedOn: matches.playedOn,
+  const recordedRows = await db.select({
+    memberId: memberMatchStats.memberId,
+    matchId: memberMatchStats.matchId,
+    playedOn: memberMatchStats.playedOn,
+    score: memberMatchStats.placementScore,
+    result: memberMatchStats.result,
+    source: memberMatchStats.source,
+    createdAt: matches.createdAt,
   })
-    .from(matchParticipants)
-    .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+    .from(memberMatchStats)
+    .innerJoin(matches, eq(memberMatchStats.matchId, matches.id))
     .where(and(
-      eq(matches.clubId, input.clubId),
+      eq(memberMatchStats.clubId, input.clubId),
+      inArray(memberMatchStats.memberId, input.memberIds),
+      lt(memberMatchStats.playedOn, input.playedOn),
       isNull(matches.deletedAt),
-      lt(matches.playedOn, input.playedOn),
-      inArray(matches.id, completedMatchIds),
-      inArray(matchParticipants.memberId, input.memberIds),
     ))
-    .orderBy(desc(matches.playedOn), desc(matches.createdAt));
+    .orderBy(desc(memberMatchStats.playedOn), desc(matches.createdAt));
 
-  const recentByMember = new Map<string, string[]>();
-  for (const row of history) {
-    if (!row.memberId) continue;
-    const rows = recentByMember.get(row.memberId) ?? [];
-    if (!rows.includes(row.matchId) && rows.length < input.lookbackMatches) rows.push(row.matchId);
-    recentByMember.set(row.memberId, rows);
+  const eventsByMember = new Map<string, FormEvent[]>();
+  const recordedKeys = new Set<string>();
+  for (const row of recordedRows) {
+    if (row.result === "UNRANKED") continue;
+    const key = `${row.memberId}|${row.matchId}`;
+    recordedKeys.add(key);
+    const events = eventsByMember.get(row.memberId) ?? [];
+    events.push({
+      matchId: row.matchId,
+      playedOn: row.playedOn,
+      createdAt: row.createdAt,
+      score: row.score,
+      result: row.result,
+      inferred: row.source === "PENALTY_INFERRED",
+    });
+    eventsByMember.set(row.memberId, events);
   }
 
-  const relevantMatchIds = [...new Set([...recentByMember.values()].flat())];
-  const penaltyRows = relevantMatchIds.length ? await db.select({
-    memberId: memberCharges.memberId,
-    matchId: memberCharges.matchId,
-  })
+  // Legacy fallback: only matches without a recorded stat use the old penalty inference.
+  const penaltyMatchRows = await db.selectDistinct({ matchId: memberCharges.matchId })
     .from(memberCharges)
+    .innerJoin(matches, eq(memberCharges.matchId, matches.id))
     .where(and(
       eq(memberCharges.clubId, input.clubId),
       eq(memberCharges.isLossPenaltySnapshot, true),
       isNull(memberCharges.deletedAt),
-      inArray(memberCharges.memberId, input.memberIds),
-      inArray(memberCharges.matchId, relevantMatchIds),
-    )) : [];
-  const lossKeys = new Set(penaltyRows.flatMap((row) => row.matchId ? [`${row.memberId}|${row.matchId}`] : []));
+      isNotNull(memberCharges.matchId),
+      isNull(matches.deletedAt),
+      lt(matches.playedOn, input.playedOn),
+    ));
+  const penaltyMatchIds = penaltyMatchRows.flatMap((row) => row.matchId ? [row.matchId] : []);
+  if (penaltyMatchIds.length) {
+    const [history, penaltyRows] = await Promise.all([
+      db.select({
+        memberId: matchParticipants.memberId,
+        matchId: matches.id,
+        playedOn: matches.playedOn,
+        createdAt: matches.createdAt,
+      })
+        .from(matchParticipants)
+        .innerJoin(matches, eq(matchParticipants.matchId, matches.id))
+        .where(and(
+          eq(matches.clubId, input.clubId),
+          isNull(matches.deletedAt),
+          inArray(matches.id, penaltyMatchIds),
+          inArray(matchParticipants.memberId, input.memberIds),
+        )),
+      db.select({ memberId: memberCharges.memberId, matchId: memberCharges.matchId })
+        .from(memberCharges)
+        .where(and(
+          eq(memberCharges.clubId, input.clubId),
+          eq(memberCharges.isLossPenaltySnapshot, true),
+          isNull(memberCharges.deletedAt),
+          inArray(memberCharges.memberId, input.memberIds),
+          inArray(memberCharges.matchId, penaltyMatchIds),
+        )),
+    ]);
+    const lossKeys = new Set(penaltyRows.flatMap((row) => row.matchId ? [`${row.memberId}|${row.matchId}`] : []));
+    for (const row of history) {
+      if (!row.memberId) continue;
+      const key = `${row.memberId}|${row.matchId}`;
+      if (recordedKeys.has(key)) continue;
+      const lost = lossKeys.has(key);
+      const events = eventsByMember.get(row.memberId) ?? [];
+      events.push({
+        matchId: row.matchId,
+        playedOn: row.playedOn,
+        createdAt: row.createdAt,
+        score: lost ? 0 : 10_000,
+        result: lost ? "LOSS" : "WIN",
+        inferred: true,
+      });
+      eventsByMember.set(row.memberId, events);
+    }
+  }
 
   for (const memberId of input.memberIds) {
-    const matchIds = recentByMember.get(memberId) ?? [];
-    const lossCount = matchIds.filter((matchId) => lossKeys.has(`${memberId}|${matchId}`)).length;
-    result.set(memberId, {
-      matchCount: matchIds.length,
-      lossCount,
-      winCount: matchIds.length - lossCount,
-      lossRate: matchIds.length ? Math.round((lossCount / matchIds.length) * 10_000) : null,
-    });
+    result.set(memberId, calculateFormStat(eventsByMember.get(memberId) ?? [], input.lookbackMatches));
   }
   return result;
 }

@@ -8,6 +8,10 @@ export type BalanceParticipant = {
   recentMatchCount: number;
   recentLossCount: number;
   recentLossRate: number | null;
+  formScore: number;
+  formConfidence: number;
+  inferredMatchCount: number;
+  lowForm: boolean;
   lockedTeamIndex?: number;
 };
 
@@ -18,6 +22,8 @@ export type BalancedTeam = {
   goalkeeperCount: number;
   skillScore: number;
   recentLossScore: number;
+  formScoreTotal: number;
+  lowFormCount: number;
   tierCounts: Record<"TIER_1" | "TIER_2" | "TIER_3" | "TIER_4", number>;
 };
 
@@ -63,11 +69,15 @@ function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
   let goalkeeperCount = 0;
   let skillScore = 0;
   let recentLossScore = 0;
+  let formScoreTotal = 0;
+  let lowFormCount = 0;
   for (const member of members) {
     if (member.seedTier === "GOALKEEPER") goalkeeperCount += 1;
     else tierCounts[member.seedTier] += 1;
     skillScore += TIER_WEIGHT[member.seedTier];
-    recentLossScore += member.recentLossRate ?? 5000;
+    recentLossScore += 10_000 - member.formScore;
+    formScoreTotal += member.formScore;
+    if (member.lowForm) lowFormCount += 1;
   }
   return {
     index,
@@ -76,6 +86,8 @@ function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
     goalkeeperCount,
     skillScore,
     recentLossScore,
+    formScoreTotal,
+    lowFormCount,
     tierCounts,
   };
 }
@@ -89,12 +101,18 @@ export function balanceCost(teams: BalanceParticipant[][]) {
   const sizeGap = spread(summaries.map((team) => team.memberCount));
   const goalkeeperGap = spread(summaries.map((team) => team.goalkeeperCount));
   const skillGap = spread(summaries.map((team) => team.skillScore));
-  const lossAverageGap = spread(summaries.map((team) => team.memberCount
-    ? Math.round(team.recentLossScore / team.memberCount)
+  const formAverageGap = spread(summaries.map((team) => team.memberCount
+    ? Math.round(team.formScoreTotal / team.memberCount)
     : 0));
+  const lowFormGap = spread(summaries.map((team) => team.lowFormCount));
   const tierGap = (["TIER_1", "TIER_2", "TIER_3", "TIER_4"] as const)
     .reduce((sum, tier) => sum + spread(summaries.map((team) => team.tierCounts[tier])), 0);
-  return sizeGap * 1_000_000 + goalkeeperGap * 500_000 + skillGap * 10_000 + tierGap * 3_000 + lossAverageGap;
+  return sizeGap * 1_000_000_000
+    + goalkeeperGap * 100_000_000
+    + skillGap * 1_000_000
+    + tierGap * 100_000
+    + lowFormGap * 20_000
+    + formAverageGap;
 }
 
 export function generateBalancedTeams(

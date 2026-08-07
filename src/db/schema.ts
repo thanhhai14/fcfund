@@ -56,6 +56,8 @@ export const matchTeamVersionStatus = pgEnum("match_team_version_status", [
   "CONFIRMED",
   "SUPERSEDED",
 ]);
+export const matchStatResult = pgEnum("match_stat_result", ["WIN", "LOSS", "UNRANKED"]);
+export const matchStatSource = pgEnum("match_stat_source", ["RECORDED", "PENALTY_INFERRED"]);
 
 export const clubs = pgTable("clubs", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -291,11 +293,13 @@ export const matchTeams = pgTable(
     goalkeeperCount: integer("goalkeeper_count").default(0).notNull(),
     outfieldSkillScore: integer("outfield_skill_score").default(0).notNull(),
     recentLossScore: integer("recent_loss_score").default(0).notNull(),
+    formScoreTotal: integer("form_score_total").default(0).notNull(),
+    lowFormCount: integer("low_form_count").default(0).notNull(),
   },
   (table) => [
     unique("match_team_index_unique").on(table.versionId, table.teamIndex),
     check("match_team_index_positive", sql`${table.teamIndex} > 0`),
-    check("match_team_counts_nonnegative", sql`${table.memberCount} >= 0 AND ${table.goalkeeperCount} >= 0`),
+    check("match_team_counts_nonnegative", sql`${table.memberCount} >= 0 AND ${table.goalkeeperCount} >= 0 AND ${table.formScoreTotal} >= 0 AND ${table.lowFormCount} >= 0`),
   ],
 );
 
@@ -312,6 +316,9 @@ export const matchTeamMembers = pgTable(
     recentMatchCountSnapshot: integer("recent_match_count_snapshot").default(0).notNull(),
     recentLossCountSnapshot: integer("recent_loss_count_snapshot").default(0).notNull(),
     recentLossRateSnapshot: integer("recent_loss_rate_snapshot"),
+    formScoreSnapshot: integer("form_score_snapshot").default(5000).notNull(),
+    formConfidenceSnapshot: integer("form_confidence_snapshot").default(0).notNull(),
+    inferredMatchCountSnapshot: integer("inferred_match_count_snapshot").default(0).notNull(),
     isLocked: boolean("is_locked").default(false).notNull(),
     displayOrder: integer("display_order").default(0).notNull(),
   },
@@ -320,8 +327,41 @@ export const matchTeamMembers = pgTable(
       .on(table.versionId, table.participantId)
       .where(sql`${table.participantId} IS NOT NULL`),
     index("match_team_members_team_idx").on(table.teamId),
-    check("match_team_member_history_nonnegative", sql`${table.recentMatchCountSnapshot} >= 0 AND ${table.recentLossCountSnapshot} >= 0`),
+    check("match_team_member_history_nonnegative", sql`${table.recentMatchCountSnapshot} >= 0 AND ${table.recentLossCountSnapshot} >= 0 AND ${table.inferredMatchCountSnapshot} >= 0`),
     check("match_team_member_loss_rate_range", sql`${table.recentLossRateSnapshot} IS NULL OR (${table.recentLossRateSnapshot} >= 0 AND ${table.recentLossRateSnapshot} <= 10000)`),
+    check("match_team_member_form_score_range", sql`${table.formScoreSnapshot} >= 0 AND ${table.formScoreSnapshot} <= 10000`),
+    check("match_team_member_form_confidence_range", sql`${table.formConfidenceSnapshot} >= 0 AND ${table.formConfidenceSnapshot} <= 10000`),
+  ],
+);
+
+export const memberMatchStats = pgTable(
+  "member_match_stats",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
+    memberId: uuid("member_id").references(() => members.id, { onDelete: "cascade" }).notNull(),
+    matchId: uuid("match_id").references(() => matches.id, { onDelete: "cascade" }).notNull(),
+    teamVersionId: uuid("team_version_id").references(() => matchTeamVersions.id, { onDelete: "set null" }),
+    teamId: uuid("team_id").references(() => matchTeams.id, { onDelete: "set null" }),
+    playedOn: date("played_on").notNull(),
+    teamCount: integer("team_count"),
+    placement: integer("placement"),
+    isTied: boolean("is_tied").default(false).notNull(),
+    result: matchStatResult("result").notNull(),
+    source: matchStatSource("source").notNull(),
+    placementScore: integer("placement_score").notNull(),
+    formulaVersion: integer("formula_version").default(1).notNull(),
+    calculatedAt: timestamp("calculated_at", { withTimezone: true }).defaultNow().notNull(),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("member_match_stats_member_match_unique").on(table.memberId, table.matchId),
+    index("member_match_stats_member_date_idx").on(table.memberId, table.playedOn),
+    index("member_match_stats_club_match_idx").on(table.clubId, table.matchId),
+    check("member_match_stats_team_placement_valid", sql`(${table.teamCount} IS NULL AND ${table.placement} IS NULL) OR (${table.teamCount} IS NOT NULL AND ${table.placement} IS NOT NULL AND ${table.teamCount} >= 2 AND ${table.placement} >= 1 AND ${table.placement} <= ${table.teamCount})`),
+    check("member_match_stats_score_range", sql`${table.placementScore} >= 0 AND ${table.placementScore} <= 10000`),
+    check("member_match_stats_formula_positive", sql`${table.formulaVersion} > 0`),
   ],
 );
 

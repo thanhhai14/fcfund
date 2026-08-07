@@ -1,6 +1,6 @@
 # Chia đội random, seed và phong độ thành viên
 
-**Trạng thái:** Nghiệp vụ nền đã xác nhận ngày 06/08/2026  
+**Trạng thái:** Cập nhật Điểm phong độ ngày 07/08/2026
 **Phạm vi:** Mở rộng module Trận đấu; tài liệu thiết kế trước khi triển khai
 
 ## 1. Mục tiêu
@@ -66,6 +66,28 @@ Một trận chỉ được xem là đã hoàn tất cho thống kê khi đã l�
 
 Nếu quy tắc phạt không được nhập đầy đủ, “không có khoản phạt” chỉ có nghĩa là **không bị ghi nhận phạt**, chưa chắc là thắng. UI và báo cáo phải ghi rõ đây là dữ liệu suy luận.
 
+### 2.5. Điểm phong độ
+
+Từ ngày 07/08/2026, dữ liệu chính để tính phong độ là thứ hạng đã ghi nhận của đội. Khoản phạt thua chỉ là nguồn dự phòng cho trận lịch sử chưa có kết quả chính thức.
+
+Điểm của một trận được lưu theo thang `0–10000`:
+
+```text
+Điểm trận = (Số đội - Thứ hạng) / (Số đội - 1) × 10000
+```
+
+Các đội đồng hạng nhận cùng điểm. Ví dụ trận bốn đội: hạng 1 nhận 10000, hạng 2 nhận 6667, hạng 3 nhận 3333 và hạng 4 nhận 0.
+
+Điểm phong độ dùng tối đa 10 kết quả gần nhất trước ngày của trận đang chia. Trận mới nhất có trọng số `1`, mỗi trận cũ hơn nhân tiếp `0,9`. Dữ liệu nền tương đương ba trận ở mức trung lập 5000:
+
+```text
+Điểm phong độ =
+[Tổng(Điểm trận × Trọng số) + 3 × 5000]
+÷ [Tổng trọng số + 3]
+```
+
+Người chưa có dữ liệu nhận 5000. Chỉ đánh dấu phong độ thấp khi đã có tối thiểu 3 trận và điểm dưới 4000. Seed vẫn là yếu tố năng lực chính; Điểm phong độ chỉ dùng sau Seed để phân bổ đều người đang có kết quả thấp và cân bằng điểm trung bình giữa các đội.
+
 ## 3. Điều kiện trước khi chia đội
 
 Hệ thống chỉ cho bấm **Tạo đội** khi đồng thời thỏa mãn:
@@ -98,7 +120,7 @@ Xem | Sửa | Xóa | Tạo đội
 
 Trang tạo đội tải toàn bộ người đã được check tham gia trận và hiển thị:
 
-| Thành viên | Seed | Trận gần đây | Thua suy luận | Thắng suy luận | Tỷ lệ thua |
+| Thành viên | Seed | Trận gần đây | Hạng nhất | Không hạng nhất | Điểm phong độ | Độ tin cậy |
 |---|---|---:|---:|---:|---:|
 
 - Seed có thể nhập nhanh ngay trong bảng.
@@ -140,7 +162,7 @@ Mỗi đội hiển thị:
 - số thủ môn;
 - tổng điểm cầu thủ sân;
 - số lượng từng Tier 1–4;
-- tổng hoặc trung bình tỷ lệ thua gần đây.
+- điểm phong độ trung bình và số người phong độ thấp.
 
 Admin được kéo/thả người giữa các đội. Sau mỗi thay đổi, hệ thống tính lại các chỉ số và cảnh báo nếu vi phạm quân số hoặc phân bổ thủ môn. Có thể khóa một người tại đội hiện tại trước khi bấm chia lại.
 
@@ -176,7 +198,8 @@ Trong các phương án hợp lệ, hệ thống tối thiểu hóa hàm chi ph�
 ```text
 cost = W_skill × chênh_lệch_điểm_kỹ_năng
      + W_tier  × chênh_lệch_phân_bổ_từng_tier
-     + W_loss  × chênh_lệch_gánh_nặng_thua_gần_đây
+     + W_low   × chênh_lệch_số_người_phong_độ_thấp
+     + W_form  × chênh_lệch_điểm_phong_độ_trung_bình
 ```
 
 Không cố xếp tất cả người từng thua nhiều vào cùng đội. Chỉ số thua nên dùng tỷ lệ trong **10 trận tham gia gần nhất** thay vì tổng thua trọn đời, tránh bất lợi cho người đã tham gia club lâu hơn.
@@ -188,7 +211,7 @@ Trọng số `W_skill`, `W_tier`, `W_loss` là cấu hình kỹ thuật ban đ�
 1. Sinh `random_key` và xáo người trong các nhóm tương đương.
 2. Phân bổ thủ môn vòng tròn vào các đội có ít thủ môn nhất.
 3. Nhóm cầu thủ sân theo Tier 1–4 và xáo trong từng tier.
-4. Phân bổ kiểu snake draft, ưu tiên đội đang có điểm kỹ năng và gánh nặng thua thấp hơn.
+4. Phân bổ kiểu snake draft, ưu tiên cân bằng điểm kỹ năng trước rồi đến Điểm phong độ.
 5. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
 6. Chỉ nhận phép đổi làm giảm `cost` và không phá ràng buộc cứng.
 7. Dừng khi không còn cải thiện hoặc đạt giới hạn vòng lặp.
@@ -199,31 +222,24 @@ Trọng số `W_skill`, `W_tier`, `W_loss` là cấu hình kỹ thuật ban đ�
 
 ### 6.1. Phạm vi dữ liệu
 
-Mặc định lấy 10 trận gần nhất mà thành viên có tham gia và trận đã qua ngày thi đấu. Không tính trận tương lai, trận bị xóa hoặc người đã bị bỏ khỏi danh sách tham gia.
-
-Một khoản phạt thua chỉ được tính khi:
-
-- `MemberCharge.match_id` trỏ đến trận;
-- loại thu có `is_loss_penalty = true`;
-- khoản phải thu không bị xóa hoặc hủy.
+Mặc định lấy 10 trận có kết quả gần nhất trước ngày của trận đang chia. Không tính trận tương lai, trận bị xóa hoặc trận chưa có kết quả hợp lệ. Ưu tiên dữ liệu `RECORDED` từ thứ hạng; chỉ dùng khoản phạt thua hợp lệ khi chưa có kết quả chính thức.
 
 ### 6.2. Chỉ số
 
-- Tổng số trận tham gia trong kỳ nhìn lại.
-- Số trận thua suy luận.
-- Số trận thắng suy luận hoặc số trận không bị phạt.
-- Tỷ lệ thua suy luận.
-- Tổng số lần phạt và tổng tiền phạt để tham khảo, không dùng trực tiếp làm điểm chia đội.
+- Tổng số trận có kết quả trong cửa sổ nhìn lại.
+- Số lần hạng nhất và không hạng nhất.
+- Điểm phong độ đã điều chỉnh theo độ mới và dữ liệu nền.
+- Độ tin cậy và số trận lấy từ nguồn suy luận.
 
 ### 6.3. Quy tắc dữ liệu thiếu
 
-- Người chưa có trận lịch sử: tỷ lệ thua trung tính, không xem là thắng hoặc thua.
+- Người chưa có trận lịch sử: Điểm phong độ trung lập 50, không xem là thắng hoặc thua.
 - Trận có khoản phạt nhưng không gắn `match_id`: không dùng suy luận kết quả.
 - Loại thu được bật cờ phạt sau này: cần quyết định có áp dụng hồi tố hay chỉ các khoản phát sinh mới. Khuyến nghị dùng snapshot cờ trên `MemberCharge` để lịch sử không đổi.
 
 ### 6.4. Giới hạn cần hiển thị
 
-Báo cáo phải ghi nhãn **Phong độ suy luận từ khoản phạt thua**. Để bảo đảm khoản phạt được nhập đồng bộ, Admin có thể nhập thứ hạng cho từng đội trên phiên bản đội hình đã xác nhận. Nhiều đội được phép đồng hạng khi không tranh hạng; các đội đồng hạng nhận cùng mức phạt. Hệ thống tự tạo `hạng - 1` lần phạt cho mỗi thành viên của các đội không đứng hạng 1; không cần nhập tỷ số.
+Báo cáo phân biệt rõ kết quả chính thức và số trận còn phải suy luận từ khoản phạt. Admin nhập thứ hạng cho từng đội trên phiên bản đội hình đã xác nhận. Nhiều đội được phép đồng hạng khi không tranh hạng; các đội đồng hạng nhận cùng Điểm phong độ của thứ hạng đó. Hệ thống vẫn tự tạo `hạng - 1` lần phạt cho mỗi thành viên của các đội không đứng hạng 1; không cần nhập tỷ số.
 
 ## 7. Mô hình dữ liệu đề xuất
 
@@ -277,7 +293,8 @@ Mỗi trận có tối đa một `DRAFT` và một `CONFIRMED` hiện hành. Cá
 | member_count | smallint | snapshot quân số |
 | goalkeeper_count | smallint | snapshot số thủ môn |
 | outfield_skill_score | integer | snapshot điểm cầu thủ sân |
-| recent_loss_score | numeric | snapshot gánh nặng thua |
+| form_score_total | integer | tổng Điểm phong độ của đội theo thang 0–10000 |
+| low_form_count | integer | số người phong độ thấp đã phân bổ vào đội |
 
 ### 7.5. `match_team_members`
 
@@ -291,8 +308,35 @@ Mỗi trận có tối đa một `DRAFT` và một `CONFIRMED` hiện hành. Cá
 | recent_match_count_snapshot | smallint | số trận trong cửa sổ |
 | recent_loss_count_snapshot | smallint | số trận thua suy luận |
 | recent_loss_rate_snapshot | numeric | tỷ lệ thua suy luận |
+| form_score_snapshot | integer | Điểm phong độ tại thời điểm chia đội |
+| form_confidence_snapshot | integer | độ tin cậy của dữ liệu theo thang 0–10000 |
+| inferred_match_count_snapshot | integer | số trận trong cửa sổ lấy từ khoản phạt |
 | is_locked | boolean | khóa đội khi chia lại |
 | display_order | integer | thứ tự hiển thị |
+
+### 7.6. `member_match_stats`
+
+Mỗi dòng là kết quả của một thành viên trong một trận. Bảng này là nguồn dữ liệu riêng cho Điểm phong độ và không phụ thuộc vào việc khoản phạt còn tồn tại sau khi đã ghi nhận kết quả chính thức.
+
+| Cột | Kiểu | Ý nghĩa |
+|---|---|---|
+| id | uuid | PK |
+| club_id | uuid | FK clubs |
+| member_id | uuid | FK members |
+| match_id | uuid | FK matches |
+| team_version_id | uuid | phiên bản đội hình tạo kết quả |
+| team_id | uuid | đội của thành viên |
+| played_on | date | ngày thi đấu phục vụ truy vấn lịch sử |
+| team_count | integer | số đội khi ghi nhận kết quả |
+| placement | integer | thứ hạng của đội |
+| is_tied | boolean | kết quả có đồng hạng hay không |
+| result | enum | WIN, LOSS hoặc UNRANKED |
+| source | enum | RECORDED hoặc PENALTY_INFERRED |
+| placement_score | integer | điểm riêng của trận, 0–10000 |
+| formula_version | integer | phiên bản công thức |
+| calculated_at | timestamptz | thời điểm đồng bộ thống kê |
+
+`(member_id, match_id)` là duy nhất. Khi nhập hoặc sửa kết quả, các dòng của trận được tạo lại trong cùng transaction với thứ hạng và khoản phạt. Kết quả chính thức thay thế dữ liệu `PENALTY_INFERRED`.
 
 ## 8. Ràng buộc dữ liệu
 

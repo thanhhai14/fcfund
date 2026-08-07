@@ -1,4 +1,15 @@
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "../src/lib/team-balancer";
+import { calculateAdjustedFormScore, placementFormScore } from "../src/lib/form-score";
+
+if (placementFormScore(4, 1) !== 10_000) throw new Error("Hạng nhất phải nhận 100 điểm phong độ.");
+if (placementFormScore(4, 2) !== 6_667) throw new Error("Hạng nhì trong bốn đội phải nhận 66,67 điểm.");
+if (placementFormScore(4, 4) !== 0) throw new Error("Hạng chót phải nhận 0 điểm phong độ.");
+if (calculateAdjustedFormScore([]).formScore !== 5_000) throw new Error("Người chưa có dữ liệu phải ở mức trung lập.");
+if (calculateAdjustedFormScore([10_000]).formScore !== 6_250) throw new Error("Một trận thắng phải được làm mượt về 62,5 điểm.");
+if (calculateAdjustedFormScore([0]).formScore !== 3_750) throw new Error("Một trận thua phải được làm mượt về 37,5 điểm.");
+if (calculateAdjustedFormScore([10_000, 0]).formScore <= calculateAdjustedFormScore([0, 10_000]).formScore) {
+  throw new Error("Kết quả mới hơn phải có trọng số lớn hơn.");
+}
 
 function participants(count: number): BalanceParticipant[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -11,6 +22,10 @@ function participants(count: number): BalanceParticipant[] {
     recentMatchCount: 10,
     recentLossCount: index % 5,
     recentLossRate: (index % 5) * 1_500,
+    formScore: 7_000 - (index % 5) * 900,
+    formConfidence: 7_000,
+    inferredMatchCount: 0,
+    lowForm: index % 7 === 0,
   }));
 }
 
@@ -21,9 +36,11 @@ for (const [memberCount, teamCount] of [[10, 2], [16, 3], [20, 2], [30, 5]] as c
   if (JSON.stringify(first) !== JSON.stringify(repeated)) throw new Error("Random key không tái hiện kết quả.");
   const sizes = first.teams.map((team) => team.memberCount);
   const goalkeepers = first.teams.map((team) => team.goalkeeperCount);
+  const lowFormCounts = first.teams.map((team) => team.lowFormCount);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
   if (Math.min(...sizes) < 5 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
   if (Math.max(...goalkeepers) - Math.min(...goalkeepers) > 1) throw new Error("Thủ môn không được chia đều.");
+  if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
 }
 
 console.log("Team balancer tests passed.");

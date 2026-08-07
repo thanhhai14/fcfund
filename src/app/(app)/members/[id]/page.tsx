@@ -32,7 +32,7 @@ import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { Icon } from "@/components/icon";
 import { MemberAvatar } from "@/components/member-identity";
-import { getMemberCareerStats } from "@/lib/match-form-stats";
+import { getMatchFormStats, getMemberCareerStats } from "@/lib/match-form-stats";
 
 export default async function MemberDetailPage({
   params,
@@ -100,7 +100,11 @@ export default async function MemberDetailPage({
     role: users.role,
   }).from(users).where(and(eq(users.clubId, currentUser.clubId), isNull(users.memberId))).orderBy(users.displayName) : [];
   const hasTemporaryPhone = /^0{7,}/.test(member.phone);
-  const careerStats = canViewMatchForm ? await getMemberCareerStats({ clubId: currentUser.clubId, memberId: id }) : null;
+  const [careerStats, currentFormStats] = canViewMatchForm ? await Promise.all([
+    getMemberCareerStats({ clubId: currentUser.clubId, memberId: id }),
+    getMatchFormStats({ clubId: currentUser.clubId, playedOn: "9999-12-31", memberIds: [id], lookbackMatches: 10 }),
+  ]) : [null, null];
+  const currentForm = currentFormStats?.get(id);
   const ledger = [
     ...(mayViewCharges ? charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note, iconName: row.iconName, color: row.color })) : []),
     ...(mayViewPayments ? payments.map((row) => ({ id: `p-${row.id}`, date: row.transactionDate, label: "Đã nộp tiền", amount: row.amount, note: row.note, iconName: "money-bill-transfer", color: "#287a55" })) : []),
@@ -153,6 +157,7 @@ export default async function MemberDetailPage({
           <span><i><Icon name="trophy" /></i><span><small>Thắng</small><strong>{careerStats.winCount}</strong></span></span>
           <span><i><Icon name="flag" /></i><span><small>Thua</small><strong>{careerStats.lossCount}</strong></span></span>
           <span><i><Icon name="chart" /></i><span><small>Tỷ lệ thắng</small><strong>{careerStats.winRate === null ? "—" : `${careerStats.winRate.toLocaleString("vi-VN")} %`}</strong></span></span>
+          <span><i><Icon name="bolt" /></i><span><small>Điểm phong độ</small><strong>{currentForm ? Math.round(currentForm.formScore / 100) : 50}</strong></span></span>
         </div>}
       </section>
 

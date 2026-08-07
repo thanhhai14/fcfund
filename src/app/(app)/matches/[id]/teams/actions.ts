@@ -14,7 +14,7 @@ import {
   members,
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
-import { getMatchFormStats } from "@/lib/match-form-stats";
+import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "@/lib/team-balancer";
 
@@ -199,6 +199,10 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
       recentMatchCount: stat?.matchCount ?? 0,
       recentLossCount: stat?.lossCount ?? 0,
       recentLossRate: stat?.lossRate ?? null,
+      formScore: stat?.formScore ?? 5000,
+      formConfidence: stat?.formConfidence ?? 0,
+      inferredMatchCount: stat?.inferredMatchCount ?? 0,
+      lowForm: stat?.lowForm ?? false,
       lockedTeamIndex: lockedMap.get(row.id),
     };
   });
@@ -223,6 +227,8 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
         goalkeeperCount: team.goalkeeperCount,
         outfieldSkillScore: team.skillScore,
         recentLossScore: team.recentLossScore,
+        formScoreTotal: team.formScoreTotal,
+        lowFormCount: team.lowFormCount,
       }).returning();
       await tx.insert(matchTeamMembers).values(team.members.map((member, displayOrder) => ({
         versionId: draft.id,
@@ -234,6 +240,9 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
         recentMatchCountSnapshot: member.recentMatchCount,
         recentLossCountSnapshot: member.recentLossCount,
         recentLossRateSnapshot: member.recentLossRate,
+        formScoreSnapshot: member.formScore,
+        formConfidenceSnapshot: member.formConfidence,
+        inferredMatchCountSnapshot: member.inferredMatchCount,
         isLocked: Boolean(member.lockedTeamIndex),
         displayOrder,
       })));
@@ -295,7 +304,9 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
         memberCount: teamRows.length,
         goalkeeperCount: teamRows.filter((row) => row.seedTierSnapshot === "GOALKEEPER").length,
         outfieldSkillScore: teamRows.reduce((sum, row) => sum + ({ TIER_1: 4, TIER_2: 3, TIER_3: 2, TIER_4: 1, GOALKEEPER: 0 }[row.seedTierSnapshot]), 0),
-        recentLossScore: teamRows.reduce((sum, row) => sum + (row.recentLossRateSnapshot ?? 5000), 0),
+        recentLossScore: teamRows.reduce((sum, row) => sum + (10_000 - row.formScoreSnapshot), 0),
+        formScoreTotal: teamRows.reduce((sum, row) => sum + row.formScoreSnapshot, 0),
+        lowFormCount: teamRows.filter((row) => row.recentMatchCountSnapshot >= FORM_SCORE_MIN_SAMPLE && row.formScoreSnapshot < FORM_SCORE_LOW_THRESHOLD).length,
       }).where(eq(matchTeams.id, team.id));
     }
     await tx.insert(activityLogs).values({

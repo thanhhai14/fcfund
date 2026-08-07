@@ -84,7 +84,7 @@ export function ChargeTypeFields({
         <input name="isLossPenalty" type="checkbox" defaultChecked={isLossPenalty} />
         <span>
           <strong>Tính là phạt thua khi chia đội</strong>
-          <small>Khoản phát sinh theo trận sẽ được dùng để suy luận phong độ thua.</small>
+          <small>Chỉ dùng làm dữ liệu phong độ dự phòng cho trận lịch sử chưa nhập kết quả.</small>
         </span>
       </label>
       {includeStatus && (

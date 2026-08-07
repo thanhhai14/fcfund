@@ -1600,7 +1600,7 @@ label>textarea {
   z-index: 1;
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   background: white;
   border-top: 1px solid var(--line);
 }
@@ -3210,6 +3210,28 @@ label>textarea {
 
 .seed-table tr.missing-seed {
   background: #fff7f8;
+}
+
+.seed-table tr.low-form:not(.missing-seed) {
+  background: #fffaf1;
+}
+
+.seed-table .form-score {
+  display: inline-grid;
+  min-width: 38px;
+  min-height: 28px;
+  place-items: center;
+  color: var(--brand-decoration);
+  background: var(--forest-50);
+  border-bottom: 3px solid var(--brand-decoration);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.seed-table .form-score.low {
+  color: var(--warning);
+  background: #fff3df;
+  border-bottom-color: var(--warning);
 }
 
 .seed-lock-bar {
@@ -5581,6 +5603,11 @@ label {
 
   .member-match-stats>span:nth-child(n+3) {
     border-top: 1px solid var(--line);
+  }
+
+  .member-match-stats>span:last-child {
+    grid-column: 1 / -1;
+    border-right: 0;
   }
 
   .member-match-stats>span>i {

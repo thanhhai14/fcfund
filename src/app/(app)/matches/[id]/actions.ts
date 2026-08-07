@@ -11,8 +11,10 @@ import {
   matchTeams,
   matchTeamVersions,
   memberCharges,
+  memberMatchStats,
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
+import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
 import { requirePermission } from "@/lib/permissions";
 
 type MutationResult = { ok: boolean; message: string };
@@ -92,6 +94,7 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
     : chargeTypeId;
   const replacedTypeIds = [...new Set([previousChargeTypeId, chargeTypeId])];
   const placementByName = Object.fromEntries(teams.map((team) => [team.name, placements.get(team.id)]));
+  const placementCounts = [...placements.values()].reduce((counts, place) => counts.set(place, (counts.get(place) ?? 0) + 1), new Map<number, number>());
   const now = new Date();
   const newMetrics = {
     ...oldMetrics,
@@ -119,6 +122,28 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       createdBy: actor.id,
     }];
   });
+  const statRows = teamMembers.flatMap((row) => {
+    const place = placements.get(row.teamId);
+    if (!row.memberId || !place) return [];
+    return [{
+      clubId: actor.clubId,
+      memberId: row.memberId,
+      matchId,
+      teamVersionId: version.id,
+      teamId: row.teamId,
+      playedOn: match.playedOn,
+      teamCount: teams.length,
+      placement: place,
+      isTied: (placementCounts.get(place) ?? 0) > 1,
+      result: place === 1 ? "WIN" as const : "LOSS" as const,
+      source: "RECORDED" as const,
+      placementScore: placementFormScore(teams.length, place),
+      formulaVersion: FORMULA_VERSION,
+      calculatedAt: now,
+      createdBy: actor.id,
+      updatedAt: now,
+    }];
+  });
 
   await db.transaction(async (tx) => {
     if (memberIds.length) {
@@ -135,6 +160,8 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       ));
     }
     if (penaltyRows.length) await tx.insert(memberCharges).values(penaltyRows);
+    await tx.delete(memberMatchStats).where(eq(memberMatchStats.matchId, matchId));
+    if (statRows.length) await tx.insert(memberMatchStats).values(statRows);
     await tx.update(matchTeamVersions).set({ metrics: newMetrics, updatedAt: now })
       .where(eq(matchTeamVersions.id, version.id));
     await tx.insert(activityLogs).values({
@@ -144,7 +171,7 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       action: "UPDATE",
       actorId: actor.id,
       beforeData: { placements: oldMetrics.placements, resultChargeTypeId: oldMetrics.resultChargeTypeId },
-      afterData: { placements: placementByName, resultChargeTypeId: chargeTypeId, penaltyCount: penaltyRows.length },
+      afterData: { placements: placementByName, resultChargeTypeId: chargeTypeId, penaltyCount: penaltyRows.length, statCount: statRows.length },
       message: `Ghi nhận kết quả trận: ${teams.map((team) => `${team.name} hạng ${placements.get(team.id)}`).join(", ")}`,
     });
   });
@@ -155,5 +182,6 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   revalidatePath("/charges");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
+  for (const memberId of memberIds) revalidatePath(`/members/${memberId}`);
   return { ok: true, message: `Đã ghi nhận kết quả và tạo ${penaltyRows.length} khoản phạt.` };
 }
