@@ -45,12 +45,22 @@ export default async function MemberDetailPage({
     .where(and(eq(members.id, id), eq(members.clubId, currentUser.clubId))).limit(1);
   if (!member) notFound();
 
-  const [account] = await db.select().from(users).where(eq(users.memberId, id)).limit(1);
+  const isOwnProfile = currentUser.memberId === id;
+  const [canManage, canManageUsers, canManageCharges, canAudit, canViewOtherBalances, canViewAllCharges, canViewOwnCharges, canViewAllPayments, canViewOwnPayments] = await Promise.all([
+    can(PERMISSIONS.MEMBERS_MANAGE), can(PERMISSIONS.USERS_MANAGE), can(PERMISSIONS.CHARGES_MANAGE), can(PERMISSIONS.AUDIT_VIEW),
+    can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW), can(PERMISSIONS.CHARGES_VIEW_ALL), can(PERMISSIONS.CHARGES_VIEW_OWN),
+    can(PERMISSIONS.PAYMENTS_VIEW_ALL), can(PERMISSIONS.PAYMENTS_VIEW_OWN),
+  ]);
+  const mayViewCharges = canViewAllCharges || (isOwnProfile && canViewOwnCharges);
+  const mayViewPayments = canViewAllPayments || (isOwnProfile && canViewOwnPayments);
+  const mayViewBalance = canViewOtherBalances || (isOwnProfile && mayViewCharges && mayViewPayments);
+  const mayViewPhone = canManage || isOwnProfile;
+  const [account] = canManageUsers ? await db.select().from(users).where(eq(users.memberId, id)).limit(1) : [];
   const [[profile], [avatar]] = await Promise.all([
     db.select().from(memberProfiles).where(eq(memberProfiles.memberId, id)).limit(1),
     db.select().from(avatars).where(eq(avatars.memberId, id)).limit(1),
   ]);
-  const assignments = await db
+  const assignments = mayViewCharges ? await db
     .select({
       id: memberChargeAssignments.id,
       name: chargeTypes.name,
@@ -62,10 +72,10 @@ export default async function MemberDetailPage({
     })
     .from(memberChargeAssignments)
     .innerJoin(chargeTypes, eq(memberChargeAssignments.chargeTypeId, chargeTypes.id))
-    .where(eq(memberChargeAssignments.memberId, id));
-  const availableTypes = await db.select().from(chargeTypes)
-    .where(and(eq(chargeTypes.clubId, currentUser.clubId), eq(chargeTypes.isActive, true)));
-  const charges = await db
+    .where(eq(memberChargeAssignments.memberId, id)) : [];
+  const availableTypes = canManageCharges ? await db.select().from(chargeTypes)
+    .where(and(eq(chargeTypes.clubId, currentUser.clubId), eq(chargeTypes.isActive, true))) : [];
+  const charges = (mayViewCharges || mayViewBalance) ? await db
     .select({
       id: memberCharges.id, date: memberCharges.chargeDate, amount: memberCharges.totalAmount,
       quantity: memberCharges.quantity, name: chargeTypes.name, note: memberCharges.note,
@@ -74,17 +84,14 @@ export default async function MemberDetailPage({
     .from(memberCharges)
     .innerJoin(chargeTypes, eq(memberCharges.chargeTypeId, chargeTypes.id))
     .where(and(eq(memberCharges.memberId, id), isNull(memberCharges.deletedAt)))
-    .orderBy(desc(memberCharges.chargeDate));
-  const payments = await db.select().from(fundTransactions)
+    .orderBy(desc(memberCharges.chargeDate)) : [];
+  const payments = (mayViewPayments || mayViewBalance) ? await db.select().from(fundTransactions)
     .where(and(eq(fundTransactions.memberId, id), eq(fundTransactions.kind, "MEMBER_PAYMENT"), isNull(fundTransactions.deletedAt)))
-    .orderBy(desc(fundTransactions.transactionDate));
+    .orderBy(desc(fundTransactions.transactionDate)) : [];
   const totalCharged = charges.reduce((sum, row) => sum + row.amount, 0);
   const totalPaid = payments.reduce((sum, row) => sum + row.amount, 0);
   const balance = totalPaid - totalCharged;
-  const canManage = await can(PERMISSIONS.MEMBERS_MANAGE);
   const canEditProfile = canManage || (currentUser.memberId === id && await can(PERMISSIONS.MEMBER_PROFILE_EDIT_OWN));
-  const canManageUsers = await can(PERMISSIONS.USERS_MANAGE);
-  const canManageCharges = await can(PERMISSIONS.CHARGES_MANAGE);
   const unlinkedAccounts = canManageUsers && !account ? await db.select({
     id: users.id,
     displayName: users.displayName,
@@ -93,8 +100,8 @@ export default async function MemberDetailPage({
   }).from(users).where(and(eq(users.clubId, currentUser.clubId), isNull(users.memberId))).orderBy(users.displayName) : [];
   const hasTemporaryPhone = /^0{7,}/.test(member.phone);
   const ledger = [
-    ...charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note, iconName: row.iconName, color: row.color })),
-    ...payments.map((row) => ({ id: `p-${row.id}`, date: row.transactionDate, label: "Đã nộp tiền", amount: row.amount, note: row.note, iconName: "money-bill-transfer", color: "#287a55" })),
+    ...(mayViewCharges ? charges.map((row) => ({ id: `c-${row.id}`, date: row.date, label: row.name, amount: -row.amount, note: row.note, iconName: row.iconName, color: row.color })) : []),
+    ...(mayViewPayments ? payments.map((row) => ({ id: `p-${row.id}`, date: row.transactionDate, label: "Đã nộp tiền", amount: row.amount, note: row.note, iconName: "money-bill-transfer", color: "#287a55" })) : []),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
@@ -102,18 +109,25 @@ export default async function MemberDetailPage({
       <PageHeader
         eyebrow={`Thành viên · ${member.code}`}
         title={member.fullName}
-        description={`${member.phone} · ${member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}`}
+        description={`${mayViewPhone ? `${member.phone} · ` : ""}${member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}`}
         action={<Link href="/members" className="button secondary">← Danh sách</Link>}
       />
-      <section className="profile-hero">
+      <section className="profile-hero member-profile-hero">
         <MemberAvatar memberId={member.id} name={member.fullName} avatarVersion={avatar?.updatedAt} className="large" />
-        <div><small>Số dư thành viên</small><strong className={balance < 0 ? "money-out" : "money-in"}>{balance < 0 ? "-" : "+"}{formatMoney(Math.abs(balance))}</strong><p>{balance < 0 ? `Còn nợ ${formatMoney(-balance)}` : balance > 0 ? `Đóng dư ${formatMoney(balance)}` : "Đã thanh toán đủ"}</p></div>
-        <div className="profile-totals"><span><small>Phải đóng</small><b>{formatMoney(totalCharged)}</b></span><span><small>Đã nộp</small><b>{formatMoney(totalPaid)}</b></span></div>
+        <article className="panel member-cv-panel">
+          <div className="panel-heading"><div><span className="eyebrow">Cầu thủ</span><h2>Giới thiệu bản thân</h2></div>{canEditProfile && <Disclosure label={<><Icon name="edit" /> Chỉnh sửa CV</>} className="inline-disclosure member-cv-disclosure"><MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form"><input type="hidden" name="memberId" value={member.id} /><label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>{avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}<label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label><div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Tiền đạo, hậu vệ..." /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div><label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label><label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label><SubmitButton>Lưu CV và avatar</SubmitButton></MutationForm></Disclosure>}</div>
+          <div className="member-cv-view"><p>{profile?.bio || "Thành viên chưa cập nhật giới thiệu."}</p><div>{profile?.nickname && <span><small>Biệt danh</small><strong>{profile.nickname}</strong></span>}{profile?.preferredPosition && <span><small>Vị trí</small><strong>{profile.preferredPosition}</strong></span>}{profile?.preferredFoot && <span><small>Chân thuận</small><strong>{profile.preferredFoot === "LEFT" ? "Chân trái" : profile.preferredFoot === "BOTH" ? "Hai chân" : "Chân phải"}</strong></span>}{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined && <span><small>Số áo</small><strong>#{profile.shirtNumber}</strong></span>}</div></div>
+        </article>
       </section>
 
       <section className="detail-columns">
         <div className="stack">
-          <article className="panel">
+          {mayViewBalance && <article className="panel member-finance-summary">
+            <div className="panel-heading"><div><span className="eyebrow">Công nợ</span><h2>Tình trạng số dư</h2></div></div>
+            <div className="member-finance-grid"><span><small>Số dư thành viên</small><strong className={balance < 0 ? "money-out" : "money-in"}>{balance < 0 ? "-" : balance > 0 ? "+" : ""}{formatMoney(Math.abs(balance))}</strong><em>{balance < 0 ? `Còn nợ ${formatMoney(-balance)}` : balance > 0 ? `Đóng dư ${formatMoney(balance)}` : "Đã thanh toán đủ"}</em></span><span><small>Phải đóng</small><strong>{formatMoney(totalCharged)}</strong></span><span><small>Đã nộp</small><strong>{formatMoney(totalPaid)}</strong></span></div>
+          </article>}
+
+          {mayViewCharges && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Cấu hình</span><h2>Khoản thu đang áp dụng</h2></div>
               {canManageCharges && <Disclosure label="+ Gán khoản thu" className="inline-disclosure">
                 <MutationForm action={createAssignmentAction} className="form-stack">
@@ -131,31 +145,18 @@ export default async function MemberDetailPage({
               {assignments.map((item) => <div key={item.id}><span><strong>{item.name}</strong><small>{formatDate(item.validFrom)} → {item.validUntil ? formatDate(item.validUntil) : "Vĩnh viễn"}</small></span><b>{formatMoney(item.customAmount ?? item.defaultAmount)}</b></div>)}
               {!assignments.length && <p className="muted">Chưa gán khoản thu nào.</p>}
             </div>
-          </article>
+          </article>}
 
-          <article className="panel">
+          {(mayViewCharges || mayViewPayments) && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Công nợ cá nhân</span><h2>Lịch sử số dư</h2></div></div>
             <div className="ledger">
               {ledger.map((item) => <div key={item.id}><span className="ledger-icon" style={{ color: item.color ?? undefined }}><Icon name={item.iconName} /></span><span><strong>{item.label}</strong><small>{formatDate(item.date)}{item.note ? ` · ${item.note}` : ""}</small></span><b className={item.amount >= 0 ? "money-in" : "money-out"}>{item.amount >= 0 ? "+" : "-"}{formatMoney(Math.abs(item.amount))}</b></div>)}
               {!ledger.length && <p className="muted">Chưa có phát sinh.</p>}
             </div>
-          </article>
+          </article>}
         </div>
 
         <div className="stack">
-          <article className="panel member-cv-panel">
-            <div className="panel-heading"><div><span className="eyebrow">Cầu thủ</span><h2>Giới thiệu bản thân</h2></div></div>
-            {canEditProfile ? <MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form">
-              <input type="hidden" name="memberId" value={member.id} />
-              <label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
-              {avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}
-              <label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label>
-              <div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Tiền đạo, hậu vệ..." /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div>
-              <label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label>
-              <label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label>
-              <SubmitButton>Lưu CV và avatar</SubmitButton>
-            </MutationForm> : <div className="member-cv-view"><p>{profile?.bio || "Thành viên chưa cập nhật giới thiệu."}</p><div>{profile?.nickname && <span><small>Biệt danh</small><strong>{profile.nickname}</strong></span>}{profile?.preferredPosition && <span><small>Vị trí</small><strong>{profile.preferredPosition}</strong></span>}{profile?.preferredFoot && <span><small>Chân thuận</small><strong>{profile.preferredFoot === "LEFT" ? "Chân trái" : profile.preferredFoot === "BOTH" ? "Hai chân" : "Chân phải"}</strong></span>}{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined && <span><small>Số áo</small><strong>#{profile.shirtNumber}</strong></span>}</div></div>}
-          </article>
           {canManage && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Hồ sơ</span><h2>Thông tin thành viên</h2></div></div>
             <MutationForm action={updateMemberAction} className="form-stack">
@@ -207,9 +208,9 @@ export default async function MemberDetailPage({
               <div className="account-link-box"><MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><p>Tháo liên kết không xóa tài khoản hoặc dữ liệu thành viên.</p><SubmitButton variant="secondary">Tháo liên kết tài khoản</SubmitButton></MutationForm></div>
             </>}
           </article>}
-          <article className="panel">
+          {canAudit && <article className="panel">
             <Chatter clubId={currentUser.clubId} entityType="member" entityId={member.id} path={`/members/${member.id}`} />
-          </article>
+          </article>}
         </div>
       </section>
     </>
