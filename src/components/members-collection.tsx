@@ -27,6 +27,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
   const [sort, setSort] = useState("NAME_ASC");
   const [view, setView] = useResponsiveView("fcfund:members:view");
   const columnDefinitions = useMemo<CollectionColumn[]>(() => [
+    { id: "rank", label: "Hạng" },
     { id: "member", label: "Thành viên", required: true },
     { id: "phone", label: "Điện thoại" },
     { id: "status", label: "Trạng thái" },
@@ -35,7 +36,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
     { id: "balance", label: "Công nợ" },
   ], [showForm]);
   const columns = useColumnVisibility("fcfund:members:columns", columnDefinitions);
-  const gridTemplateColumns = columnDefinitions.filter((column) => columns.isVisible(column.id)).map((column) => column.id === "member" ? "2fr" : column.id === "phone" ? "1.2fr" : column.id === "form" ? ".75fr" : "1fr").join(" ");
+  const gridTemplateColumns = columnDefinitions.filter((column) => columns.isVisible(column.id)).map((column) => column.id === "rank" ? "52px" : column.id === "member" ? "2fr" : column.id === "phone" ? "1.2fr" : column.id === "form" ? ".75fr" : "1fr").join(" ");
 
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
@@ -73,13 +74,14 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
 
       {view === "list" ? (
         <div className="member-list-view">
-          <div className="member-list-head" style={{ gridTemplateColumns }}>{columns.isVisible("member") && <span>Thành viên</span>}{columns.isVisible("phone") && <span>Điện thoại</span>}{columns.isVisible("status") && <span>Trạng thái</span>}{columns.isVisible("account") && <span>Tài khoản</span>}{showForm && columns.isVisible("form") && <span>Phong độ</span>}{columns.isVisible("balance") && <span>Công nợ</span>}</div>
-          {visible.map((member) => <Link href={`/members/${member.id}`} className="member-list-row" style={{ gridTemplateColumns }} key={member.id}>
+          <div className="member-list-head" style={{ gridTemplateColumns }}>{columns.isVisible("rank") && <span className="member-rank-column">Hạng</span>}{columns.isVisible("member") && <span>Thành viên</span>}{columns.isVisible("phone") && <span>Điện thoại</span>}{columns.isVisible("status") && <span>Trạng thái</span>}{columns.isVisible("account") && <span>Tài khoản</span>}{showForm && columns.isVisible("form") && <span className="member-form-column">Phong độ</span>}{columns.isVisible("balance") && <span>Công nợ</span>}</div>
+          {visible.map((member, index) => <Link href={`/members/${member.id}`} className="member-list-row" style={{ gridTemplateColumns }} key={member.id}>
+            {columns.isVisible("rank") && <strong className="member-rank-column">#{index + 1}</strong>}
             <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} />
             {columns.isVisible("phone") && <span>{member.phone}</span>}
             {columns.isVisible("status") && <span><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>}
             {columns.isVisible("account") && <span>{member.accountLabel}</span>}
-            {showForm && columns.isVisible("form") && <strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong>}
+            {showForm && columns.isVisible("form") && <strong className="member-form-score member-form-column">{Math.round(member.formScore / 100)} điểm</strong>}
             {columns.isVisible("balance") && <strong className={member.balance < 0 ? "money-out" : "money-in"}>{member.balance > 0 ? "+" : ""}{formatMoney(member.balance)}</strong>}
           </Link>)}
         </div>

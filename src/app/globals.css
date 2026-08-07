@@ -5092,6 +5092,17 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.member-list-view .member-rank-column,
+.member-list-view .member-form-column {
+  text-align: center;
+}
+
+.member-list-view .member-rank-column {
+  color: var(--brand-primary);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
 .member-list-identity {
   display: flex;
   align-items: center;
