@@ -109,18 +109,15 @@ export default async function MemberDetailPage({
   return (
     <>
       <PageHeader
-        eyebrow={`Thành viên · ${member.code}`}
+        eyebrow="Thành viên"
         title="Hồ sơ cầu thủ"
         description="Thông tin cá nhân và hoạt động quỹ của thành viên"
         action={<Link href="/members" className="button secondary">← Danh sách</Link>}
       />
       <section className="member-profile-passport">
-        <div className="member-profile-portrait" data-code={member.code}>
+        <div className="member-profile-portrait" data-watermark={profile?.shirtNumber !== null && profile?.shirtNumber !== undefined ? String(profile.shirtNumber) : member.code}>
           <div className="member-profile-avatar-frame">
             <MemberAvatar memberId={member.id} name={member.fullName} avatarVersion={avatar?.updatedAt} className="profile-avatar" />
-            <span className={`member-profile-status ${member.status === "ACTIVE" ? "active" : "inactive"}`}>
-              <i aria-hidden="true" /> {member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}
-            </span>
             {profile?.shirtNumber !== null && profile?.shirtNumber !== undefined && <span className="member-profile-shirt-number">#{profile.shirtNumber}</span>}
           </div>
         </div>
@@ -128,7 +125,7 @@ export default async function MemberDetailPage({
         <article className="member-cv-panel">
           <div className="member-profile-heading">
             <div>
-              <span className="eyebrow">Cầu thủ · {member.code}</span>
+              <span className="eyebrow">Cầu thủ</span>
               <h2>{member.fullName}</h2>
               <div className="member-profile-subline">
                 <span>{profile?.nickname ? `Biệt danh: ${profile.nickname}` : "Chưa cập nhật biệt danh"}</span>

@@ -1403,7 +1403,7 @@ label>textarea {
 }
 
 .member-profile-portrait::before {
-  content: attr(data-code);
+  content: attr(data-watermark);
   position: absolute;
   right: -5px;
   bottom: -22px;
@@ -1433,43 +1433,6 @@ label>textarea {
 
 .member-profile-avatar-frame>.member-identity-avatar.profile-avatar img {
   object-position: center;
-}
-
-.member-profile-status {
-  position: absolute;
-  top: 15px;
-  left: 15px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: calc(100% - 30px);
-  padding: 6px 8px;
-  color: white;
-  background: rgba(4, 47, 82, .86);
-  border-left: 3px solid var(--success);
-  font-size: 8px;
-  font-style: normal;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.member-profile-status.inactive {
-  border-left-color: var(--muted);
-}
-
-.member-profile-status i {
-  width: 5px;
-  height: 5px;
-  flex: 0 0 5px;
-  background: var(--success);
-  border-radius: 50%;
-}
-
-.member-profile-status.inactive i {
-  background: var(--muted);
 }
 
 .member-profile-shirt-number {
