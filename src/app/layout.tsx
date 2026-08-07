@@ -4,6 +4,7 @@ import "@fortawesome/fontawesome-svg-core/styles.css";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { APP_NAME } from "@/lib/constants";
+import { Analytics } from "@vercel/analytics/next";
 
 config.autoAddCss = false;
 
@@ -43,6 +44,7 @@ export default function RootLayout({
       <body>
         {children}
         <PwaRegister />
+        <Analytics />
       </body>
     </html>
   );

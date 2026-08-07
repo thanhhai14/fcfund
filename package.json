@@ -17,6 +17,7 @@
     "@fortawesome/fontawesome-svg-core": "latest",
     "@fortawesome/free-solid-svg-icons": "latest",
     "@fortawesome/react-fontawesome": "latest",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "latest",
     "bcryptjs": "latest",
     "drizzle-orm": "latest",
