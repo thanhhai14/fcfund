@@ -168,7 +168,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
         {hasRecordedResult && <span className="validation-badge valid"><Icon name="check" /> Đã có kết quả</span>}
       </div>
-      <p className="panel-note">Xếp mỗi đội một hạng khác nhau. Hạng 1 thắng và không bị phạt; các hạng sau tự nhận số lần phạt bằng hạng trừ 1.</p>
+      <p className="panel-note">Chọn thứ hạng cho từng đội; có thể chọn đồng hạng khi không tranh hạng. Hạng 1 không bị phạt, các hạng sau nhận số lần phạt bằng hạng trừ 1.</p>
       {penaltyTypes.length ? (
         <MutationForm action={recordMatchResultAction} className="match-result-form">
           <input type="hidden" name="matchId" value={match.id} />
@@ -184,7 +184,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
                 <span><Icon name="people-group" /><b>{team.name}</b><small>{team.memberCount} người</small></span>
                 <select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
                   <option value="" disabled>Chọn hạng</option>
-                  {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Thắng" : ` · Phạt ${index} lần`}</option>)}
+                  {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Không phạt" : ` · Phạt ${index} lần`}</option>)}
                 </select>
               </label>
             ))}

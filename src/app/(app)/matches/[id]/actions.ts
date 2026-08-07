@@ -68,8 +68,8 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
     }
     placements.set(team.id, place);
   }
-  if (new Set(placements.values()).size !== teams.length) {
-    return { ok: false, message: "Mỗi đội phải có một thứ hạng khác nhau." };
+  if (![...placements.values()].includes(1)) {
+    return { ok: false, message: "Kết quả phải có ít nhất một đội hạng 1." };
   }
 
   const [penaltyType] = await db.select().from(chargeTypes).where(and(

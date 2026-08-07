@@ -223,7 +223,7 @@ Một khoản phạt thua chỉ được tính khi:
 
 ### 6.4. Giới hạn cần hiển thị
 
-Báo cáo phải ghi nhãn **Phong độ suy luận từ khoản phạt thua**. Để bảo đảm khoản phạt được nhập đồng bộ, Admin có thể nhập thứ hạng cho từng đội trên phiên bản đội hình đã xác nhận. Hệ thống tự tạo `hạng - 1` lần phạt cho mỗi thành viên của các đội không đứng hạng 1; không cần nhập tỷ số.
+Báo cáo phải ghi nhãn **Phong độ suy luận từ khoản phạt thua**. Để bảo đảm khoản phạt được nhập đồng bộ, Admin có thể nhập thứ hạng cho từng đội trên phiên bản đội hình đã xác nhận. Nhiều đội được phép đồng hạng khi không tranh hạng; các đội đồng hạng nhận cùng mức phạt. Hệ thống tự tạo `hạng - 1` lần phạt cho mỗi thành viên của các đội không đứng hạng 1; không cần nhập tỷ số.
 
 ## 7. Mô hình dữ liệu đề xuất
 

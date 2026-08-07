@@ -260,8 +260,9 @@ Hệ thống có ba vai trò:
 ## BR-41 — Nhập kết quả trận
 
 - Chỉ nhập kết quả trên phiên bản đội hình đã xác nhận.
-- Mỗi đội phải nhận đúng một thứ hạng từ 1 đến số đội và không được trùng hạng.
-- Hạng 1 được ghi nhận thắng và không phát sinh khoản phạt kết quả.
+- Mỗi đội phải nhận một thứ hạng từ 1 đến số đội; nhiều đội được phép đồng hạng khi trận kết thúc mà không tranh hạng.
+- Kết quả phải có ít nhất một đội hạng 1. Nhiều đội có thể đồng hạng 1 và đều không phát sinh khoản phạt kết quả.
 - Đội hạng `N > 1` được ghi nhận thua; mỗi thành viên có tài khoản thành viên phát sinh `N - 1` lần của loại thu phạt được chọn.
+- Các đội đồng hạng nhận cùng số lần phạt. Ví dụ hai đội cùng hạng 3 thì thành viên của cả hai đội đều nhận 2 lần phạt.
 - Ghi lại kết quả thay thế các khoản phạt do kết quả trước sinh ra, nhưng không thay đổi loại khoản thu khác của trận.
 - Kết quả, loại thu phạt, thời điểm và người thao tác được lưu cùng phiên bản đội hình; thao tác phải có activity log.
