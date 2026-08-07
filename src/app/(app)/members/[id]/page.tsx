@@ -40,13 +40,14 @@ export default async function MemberDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const currentUser = await requireUser();
-  if (!(await can(PERMISSIONS.MEMBERS_VIEW))) redirect("/dashboard");
   const { id } = await params;
+  const isOwnProfile = currentUser.memberId === id;
+  const canViewMembers = await can(PERMISSIONS.MEMBERS_VIEW);
+  if (!isOwnProfile && !canViewMembers) redirect("/dashboard");
   const [member] = await db.select().from(members)
     .where(and(eq(members.id, id), eq(members.clubId, currentUser.clubId))).limit(1);
   if (!member) notFound();
 
-  const isOwnProfile = currentUser.memberId === id;
   const [canManage, canManageUsers, canManageCharges, canAudit, canViewOtherBalances, canViewAllCharges, canViewOwnCharges, canViewAllPayments, canViewOwnPayments, canViewMatchForm] = await Promise.all([
     can(PERMISSIONS.MEMBERS_MANAGE), can(PERMISSIONS.USERS_MANAGE), can(PERMISSIONS.CHARGES_MANAGE), can(PERMISSIONS.AUDIT_VIEW),
     can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW), can(PERMISSIONS.CHARGES_VIEW_ALL), can(PERMISSIONS.CHARGES_VIEW_OWN),
@@ -116,7 +117,7 @@ export default async function MemberDetailPage({
         eyebrow="Thành viên"
         title="Hồ sơ cầu thủ"
         description="Thông tin cá nhân và hoạt động quỹ của thành viên"
-        action={<Link href="/members" className="button secondary">← Danh sách</Link>}
+        action={<Link href={canViewMembers ? "/members" : "/dashboard"} className="button secondary">{canViewMembers ? "← Danh sách" : "← Tổng quan"}</Link>}
       />
       <section className="member-profile-passport">
         <div className="member-profile-portrait" data-watermark={profile?.shirtNumber !== null && profile?.shirtNumber !== undefined ? String(profile.shirtNumber) : member.code}>

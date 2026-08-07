@@ -505,9 +505,22 @@ label>textarea {
   gap: 10px;
 }
 
-.sidebar-user>span:nth-child(2) {
+.sidebar-user>span:nth-child(2),
+.sidebar-profile-link {
   min-width: 0;
   flex: 1;
+}
+
+.sidebar-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+}
+
+.sidebar-profile-link:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .sidebar-user strong {

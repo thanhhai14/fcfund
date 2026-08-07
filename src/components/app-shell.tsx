@@ -67,8 +67,13 @@ export function AppShell({
           })}
         </nav>
         <div className="sidebar-user">
-          <MemberAvatar memberId={userMemberId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
-          <span><strong>{userName}</strong><small>{roleLabel}</small></span>
+          {userMemberId ? <Link href={`/members/${userMemberId}`} className="sidebar-profile-link" onClick={() => setOpen(false)} title="Mở hồ sơ cá nhân">
+            <MemberAvatar memberId={userMemberId} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
+            <span><strong>{userName}</strong><small>{roleLabel}</small></span>
+          </Link> : <>
+            <MemberAvatar memberId={null} name={userName} avatarVersion={userAvatarVersion} className="shell-avatar" />
+            <span><strong>{userName}</strong><small>{roleLabel}</small></span>
+          </>}
           <form action={logoutAction}>
             <button title="Đăng xuất"><Icon name="logout" /></button>
           </form>
