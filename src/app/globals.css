@@ -1567,8 +1567,6 @@ label>textarea {
   overflow: hidden;
   color: white;
   background: var(--brand-primary-strong);
-  border: 2px solid white;
-  box-shadow: 2px 2px 0 var(--brand-decoration);
   font-size: 11px;
   font-weight: 900;
 }
