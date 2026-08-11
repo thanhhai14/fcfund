@@ -13,13 +13,46 @@ import {
   memberProfiles,
 } from "@/db/schema";
 import { formatDate, initials } from "@/lib/format";
+import { APP_NAME } from "@/lib/constants";
+import { getPublicLineupOverview } from "@/lib/public-lineup";
+import { getRequestOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Đội hình thi đấu",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const overview = await getPublicLineupOverview(token);
+  if (!overview) return { title: "Đội hình không khả dụng", robots: { index: false, follow: false } };
+
+  const title = `Đội hình ngày ${formatDate(overview.match.playedOn)} · ${overview.match.clubName}`;
+  const description = `${overview.teams.length} đội · ${overview.memberCount} cầu thủ · Xem đội hình thi đấu chính thức.`;
+  const origin = await getRequestOrigin();
+  const publicUrl = `${origin}/lineup/${encodeURIComponent(token)}`;
+  const imageUrl = `${publicUrl}/opengraph-image`;
+
+  return {
+    title,
+    description,
+    applicationName: APP_NAME,
+    alternates: { canonical: publicUrl },
+    robots: { index: false, follow: false },
+    openGraph: {
+      type: "website",
+      locale: "vi_VN",
+      siteName: APP_NAME,
+      url: publicUrl,
+      title,
+      description,
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+  };
+}
 
 export default async function PublicLineupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

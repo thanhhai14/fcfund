@@ -188,6 +188,7 @@ Quy ước này đáp ứng đồng thời:
 - Trang công khai chỉ hiển thị tên đội bóng, logo, ngày thi đấu, tên đội, tên/avatar/số áo cầu thủ thuộc phiên bản đã xác nhận gần nhất.
 - Không công khai Seed, Điểm phong độ, khoản thu, công nợ, số điện thoại hoặc thao tác quản trị.
 - Avatar và logo công khai chỉ được trả về khi token còn hiệu lực và thành viên thuộc đội hình xác nhận của chính trận đó.
+- Trang công khai cung cấp Open Graph và Twitter Card động. Ảnh preview 1200×630 sử dụng logo, tên đội bóng, ngày thi đấu, tên/màu các đội và tổng quân số; token đã tắt không được tạo metadata hoặc ảnh preview hợp lệ.
 
 ## 5. Thuật toán chia đội
 
