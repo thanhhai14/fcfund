@@ -87,19 +87,21 @@ export function CollectionToolbar({
   onViewChange?: (view: CollectionView) => void;
 }) {
   return (
-    <div className="collection-toolbar">
-      <label className="collection-search">
-        <Icon name="search" />
-        <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={placeholder} />
-      </label>
-      <div className="collection-filters">{children}</div>
-      <span className="collection-count">{countLabel ?? `${count} kết quả`}</span>
-      {view && onViewChange && (
-        <div className="view-toggle" aria-label="Kiểu hiển thị">
-          <button type="button" className={view === "list" ? "active" : ""} onClick={() => onViewChange("list")} title="Danh sách"><Icon name="list" /><span>List</span></button>
-          <button type="button" className={view === "card" ? "active" : ""} onClick={() => onViewChange("card")} title="Thẻ"><Icon name="grid" /><span>Card</span></button>
-        </div>
-      )}
+    <div className="collection-toolbar-shell">
+      <div className="collection-toolbar">
+        <label className="collection-search">
+          <Icon name="search" />
+          <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder={placeholder} />
+        </label>
+        <div className="collection-filters">{children}</div>
+        <span className="collection-count">{countLabel ?? `${count} kết quả`}</span>
+        {view && onViewChange && (
+          <div className="view-toggle" aria-label="Kiểu hiển thị">
+            <button type="button" className={view === "list" ? "active" : ""} onClick={() => onViewChange("list")} title="Danh sách"><Icon name="list" /><span>List</span></button>
+            <button type="button" className={view === "card" ? "active" : ""} onClick={() => onViewChange("card")} title="Thẻ"><Icon name="grid" /><span>Card</span></button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

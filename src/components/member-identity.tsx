@@ -14,7 +14,7 @@ export function MemberAvatar({ memberId, userId, name, avatarVersion, avatarUrl,
   const avatarSrc = avatarUrl ?? (userId ? userAvatarSrc(userId, avatarVersion) : memberId ? memberAvatarSrc(memberId, avatarVersion) : null);
   return <span className={`member-identity-avatar ${className}`}>
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    {avatarSrc && (avatarUrl || avatarVersion) ? <img src={avatarSrc} alt={`Avatar ${name}`} /> : initials(name)}
+    {avatarSrc && (avatarUrl || avatarVersion) ? <img src={avatarSrc} alt={`Avatar ${name}`} width="96" height="96" /> : initials(name)}
   </span>;
 }
 
