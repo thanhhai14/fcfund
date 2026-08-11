@@ -121,7 +121,8 @@ export function generateBalancedTeams(
   randomKey: string,
 ) {
   if (!Number.isInteger(teamCount) || teamCount < 2) throw new Error("Số đội phải từ 2 trở lên.");
-  if (participants.length < teamCount * 5) throw new Error("Mỗi đội cần ít nhất 5 người.");
+  if (participants.length < 10) throw new Error("Cần ít nhất 10 người tham gia để tạo đội.");
+  if (teamCount > participants.length) throw new Error("Số đội không được vượt quá số người tham gia.");
   if (participants.some((participant) => !participant.seedTier)) throw new Error("Tất cả người tham gia phải có seed.");
 
   const random = seededRandom(randomKey);

@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MatchDetailView, type MatchParticipantView, type MatchTeamView } from "@/components/match-detail-view";
+import { CopyPublicLinkButton } from "@/components/copy-public-link-button";
 import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
@@ -21,7 +22,7 @@ import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { recordMatchResultAction } from "./actions";
+import { managePublicLineupAction, recordMatchResultAction } from "./actions";
 
 export const metadata = { title: "Chi tiết trận đấu" };
 
@@ -229,6 +230,32 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <article><small>Khoản thu</small><strong>{formatMoney(totalAmount)}</strong><span>{chargeRows.reduce((sum, charge) => sum + charge.quantity, 0)} lần phát sinh</span></article>
         <article><small>Trạng thái</small><strong className="match-status-label">{confirmedVersion ? "Đã xác nhận" : "Chưa xác nhận"}</strong><span>đội hình trận đấu</span></article>
       </section>
+
+      {canManageTeams && (
+        <section className="panel public-lineup-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Chia sẻ đội hình</span><h2>Trang xem công khai</h2></div>
+            <span className={`validation-badge ${match.publicLineupEnabled ? "valid" : "warning"}`}>{match.publicLineupEnabled ? "Đang công khai" : "Đang tắt"}</span>
+          </div>
+          <p className="panel-note">Chỉ công khai ngày thi đấu, tên đội, avatar, tên và số áo trong đội hình cuối đã xác nhận.</p>
+          <div className="public-lineup-actions">
+            {match.publicLineupEnabled && match.publicLineupToken && <>
+              <Link href={`/lineup/${match.publicLineupToken}`} target="_blank" className="button">Xem trang công khai</Link>
+              <CopyPublicLinkButton path={`/lineup/${match.publicLineupToken}`} />
+            </>}
+            <MutationForm action={managePublicLineupAction}>
+              <input type="hidden" name="matchId" value={match.id} />
+              <input type="hidden" name="mode" value={match.publicLineupEnabled ? "disable" : "publish"} />
+              <SubmitButton variant={match.publicLineupEnabled ? "danger" : "primary"}>{match.publicLineupEnabled ? "Tắt công khai" : "Công khai đội hình"}</SubmitButton>
+            </MutationForm>
+            {match.publicLineupEnabled && <MutationForm action={managePublicLineupAction}>
+              <input type="hidden" name="matchId" value={match.id} />
+              <input type="hidden" name="mode" value="rotate" />
+              <SubmitButton variant="secondary">Tạo lại liên kết</SubmitButton>
+            </MutationForm>}
+          </div>
+        </section>
+      )}
 
       <MatchDetailView participants={participants} teams={teams} canViewSeed={canViewSeed} canViewTeams={canViewTeams} resultContent={resultContent} />
 

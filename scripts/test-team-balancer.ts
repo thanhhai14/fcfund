@@ -29,7 +29,7 @@ function participants(count: number): BalanceParticipant[] {
   }));
 }
 
-for (const [memberCount, teamCount] of [[10, 2], [16, 3], [20, 2], [30, 5]] as const) {
+for (const [memberCount, teamCount] of [[10, 2], [11, 3], [18, 4], [19, 4], [20, 2], [30, 5]] as const) {
   const input = participants(memberCount);
   const first = generateBalancedTeams(input, teamCount, `test-${memberCount}-${teamCount}`);
   const repeated = generateBalancedTeams(input, teamCount, `test-${memberCount}-${teamCount}`);
@@ -38,9 +38,16 @@ for (const [memberCount, teamCount] of [[10, 2], [16, 3], [20, 2], [30, 5]] as c
   const goalkeepers = first.teams.map((team) => team.goalkeeperCount);
   const lowFormCounts = first.teams.map((team) => team.lowFormCount);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
-  if (Math.min(...sizes) < 5 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
+  if (Math.min(...sizes) < 1 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
   if (Math.max(...goalkeepers) - Math.min(...goalkeepers) > 1) throw new Error("Thủ môn không được chia đều.");
   if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
+}
+
+try {
+  generateBalancedTeams(participants(9), 2, "too-few");
+  throw new Error("Phải từ chối trận có ít hơn 10 người.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("ít nhất 10")) throw error;
 }
 
 console.log("Team balancer tests passed.");

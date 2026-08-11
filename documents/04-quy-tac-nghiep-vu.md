@@ -199,8 +199,9 @@ Hệ thống có ba vai trò:
 ## BR-32 — Điều kiện số đội
 
 - Admin nhập tay số đội và số đội luôn lớn hơn hoặc bằng 2.
-- Mỗi đội phải có ít nhất 5 thành viên.
-- Số người tham gia phải lớn hơn hoặc bằng `số đội × 5`.
+- Phải có ít nhất 10 người tham gia mới được tạo hoặc xác nhận đội hình.
+- Số đội không được vượt quá số người tham gia và không được có đội rỗng.
+- Đội dưới 5 người chỉ hiển thị cảnh báo, không chặn thao tác.
 - Quân số giữa các đội chênh nhau không quá 1.
 
 ## BR-33 — Cân bằng thủ môn

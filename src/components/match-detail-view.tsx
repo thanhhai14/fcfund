@@ -199,11 +199,15 @@ export function MatchDetailView({
             {teams.map((team) => <button type="button" role="tab" aria-selected={(activeTeamId || teams[0]?.id) === team.id} className={(activeTeamId || teams[0]?.id) === team.id ? "active" : ""} key={team.id} onClick={() => setActiveTeamId(team.id)}>{team.name}</button>)}
           </div>}
           <div className="match-team-view-grid">
-          {teams.filter((team) => team.id === (activeTeamId || teams[0]?.id)).map((team) => {
+          {teams.map((team) => {
             const members = participants.filter((participant) => participant.teamId === team.id);
             const teamTotals = chargeSummary(members.flatMap((member) => member.charges));
             return (
-              <article className="match-team-view-card" style={{ borderTopColor: team.color ?? undefined }} key={team.id}>
+              <article
+                className={`match-team-view-card ${(activeTeamId || teams[0]?.id) === team.id ? "active" : "inactive"}`}
+                style={{ borderTopColor: team.color ?? undefined }}
+                key={team.id}
+              >
                 <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người</span></div><Icon name="people-group" /></header>
                 <div className="match-team-view-members">
                   {members.map((member) => (

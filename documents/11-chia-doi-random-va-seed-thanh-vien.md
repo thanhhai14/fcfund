@@ -7,7 +7,8 @@
 
 - Đánh giá lại seed của từng người tham gia theo Tier 1–4 hoặc Thủ môn ở mỗi trận.
 - Chia từ 2 đội trở lên từ danh sách người tham gia trận.
-- Mỗi đội có ít nhất 5 người, quân số và thủ môn được phân bổ đều.
+- Cho phép chia đội khi có ít nhất 10 người; đội thiếu người được cảnh báo nhưng không bị chặn.
+- Quân số và thủ môn được phân bổ đều, chênh lệch giữa các đội không quá 1.
 - Cân bằng đồng thời trình độ và phong độ gần đây nhưng vẫn giữ tính ngẫu nhiên.
 - Cho Admin chỉnh đội hình nháp rồi xác nhận bản cuối.
 - Lưu phiên bản đã xác nhận để có lịch sử và tracking khi đội hình thay đổi.
@@ -94,13 +95,15 @@ Hệ thống chỉ cho bấm **Tạo đội** khi đồng thời thỏa mãn:
 
 1. Trận đã được tạo và có danh sách người tham gia.
 2. Số đội do người thao tác nhập là số nguyên và lớn hơn hoặc bằng 2.
-3. `số người tham gia >= số đội × 5`.
+3. Có ít nhất 10 người tham gia và số đội không vượt quá số người.
 4. Tất cả người tham gia đều đã có seed.
 5. Tier đã được lưu và khóa cho phiên bản đội hình đang chuẩn bị.
 
 Nếu thiếu seed, hệ thống không tự gán Tier 3. UI hiển thị danh sách cụ thể những người còn thiếu và đưa con trỏ đến ô seed đầu tiên cần nhập.
 
 Quân số các đội phải chênh nhau không quá 1. Số thủ môn giữa hai đội bất kỳ cũng phải chênh nhau không quá 1.
+
+Hệ thống không còn chặn theo chuẩn 5 người mỗi đội. Nếu có đội dưới 5 người, UI hiển thị phân bổ dự kiến và cảnh báo để người tổ chức cân nhắc, nhưng vẫn cho phép tạo và xác nhận đội hình.
 
 Nếu số thủ môn ít hơn số đội, hệ thống vẫn có thể chia đều theo nghĩa chênh lệch không quá 1, nhưng phải cảnh báo rằng có đội không có thủ môn. Nếu nghiệp vụ thực tế yêu cầu mỗi đội bắt buộc có một thủ môn thì quy tắc này cần được nâng thành điều kiện chặn.
 
@@ -177,13 +180,23 @@ Quy ước này đáp ứng đồng thời:
 - “chỉ lưu bản cuối”: không lưu các lần random nháp;
 - “thay đổi tạo phiên bản mới”: giữ các bản đã từng được xác nhận.
 
+### 4.8. Xem và chia sẻ đội hình
+
+- Ở chi tiết trận, chế độ **Theo đội** hiển thị đồng thời toàn bộ card đội trên PC. Trên mobile dùng tab từng đội để tránh trang quá dài.
+- Admin hoặc Người tổ chức có thể bật trang đội hình công khai sau khi đã xác nhận đội hình.
+- Liên kết công khai dùng token ngẫu nhiên, có thể tắt hoặc tạo lại để vô hiệu hóa liên kết cũ.
+- Trang công khai chỉ hiển thị tên đội bóng, logo, ngày thi đấu, tên đội, tên/avatar/số áo cầu thủ thuộc phiên bản đã xác nhận gần nhất.
+- Không công khai Seed, Điểm phong độ, khoản thu, công nợ, số điện thoại hoặc thao tác quản trị.
+- Avatar và logo công khai chỉ được trả về khi token còn hiệu lực và thành viên thuộc đội hình xác nhận của chính trận đó.
+
 ## 5. Thuật toán chia đội
 
 ### 5.1. Ràng buộc cứng
 
 - Mọi người tham gia có seed.
+- Có ít nhất 10 người tham gia.
 - Số đội từ 2 trở lên.
-- Mỗi đội có ít nhất 5 người.
+- Số đội không vượt quá số người và không có đội rỗng.
 - Chênh lệch quân số tối đa 1.
 - Chênh lệch số thủ môn tối đa 1.
 - Một người chỉ thuộc một đội trong một phiên bản.

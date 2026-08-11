@@ -225,12 +225,20 @@ export const matches = pgTable(
     clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
     playedOn: date("played_on").notNull(),
     note: text("note"),
+    publicLineupEnabled: boolean("public_lineup_enabled").default(false).notNull(),
+    publicLineupToken: varchar("public_lineup_token", { length: 64 }),
+    publicLineupPublishedAt: timestamp("public_lineup_published_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     ...auditColumns,
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by").references(() => users.id, { onDelete: "set null" }),
   },
-  (table) => [index("matches_club_date_idx").on(table.clubId, table.playedOn)],
+  (table) => [
+    index("matches_club_date_idx").on(table.clubId, table.playedOn),
+    uniqueIndex("matches_public_lineup_token_unique")
+      .on(table.publicLineupToken)
+      .where(sql`${table.publicLineupToken} IS NOT NULL`),
+  ],
 );
 
 export const matchParticipants = pgTable(

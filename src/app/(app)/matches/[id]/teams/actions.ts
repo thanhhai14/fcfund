@@ -170,9 +170,8 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
   const lookbackMatches = Math.min(30, Math.max(1, Number(str(formData, "lookbackMatches") || 10)));
   const participants = await currentParticipants(matchId);
   if (!Number.isInteger(teamCount) || teamCount < 2) return { ok: false, message: "Số đội phải là số nguyên từ 2 trở lên." };
-  if (participants.length < teamCount * 5) {
-    return { ok: false, message: `${participants.length} người không đủ chia ${teamCount} đội, tối thiểu cần ${teamCount * 5}.` };
-  }
+  if (participants.length < 10) return { ok: false, message: "Cần ít nhất 10 người tham gia để tạo đội." };
+  if (teamCount > participants.length) return { ok: false, message: "Số đội không được vượt quá số người tham gia." };
   const missingSeed = participants.find((row) => !row.seedTier);
   if (missingSeed) return { ok: false, message: `Thiếu Seed của ${missingSeed.memberName ?? missingSeed.guestName ?? "thành viên"}.` };
 
@@ -337,8 +336,11 @@ export async function confirmMatchTeamsAction(formData: FormData): Promise<Mutat
   }
   const sizes = teams.map((team) => team.memberCount);
   const goalkeeperCounts = teams.map((team) => team.goalkeeperCount);
-  if (sizes.some((size) => size < 5) || Math.max(...sizes) - Math.min(...sizes) > 1) {
-    return { ok: false, message: "Mỗi đội phải có ít nhất 5 người và quân số chênh tối đa 1." };
+  if (participants.length < 10) {
+    return { ok: false, message: "Cần ít nhất 10 người tham gia để xác nhận đội hình." };
+  }
+  if (sizes.some((size) => size < 1) || Math.max(...sizes) - Math.min(...sizes) > 1) {
+    return { ok: false, message: "Mỗi đội phải có người và quân số chênh tối đa 1." };
   }
   if (Math.max(...goalkeeperCounts) - Math.min(...goalkeeperCounts) > 1) {
     return { ok: false, message: "Số thủ môn giữa các đội không được chênh quá 1." };

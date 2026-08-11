@@ -40,9 +40,11 @@ export function MutationForm({
 export function SubmitButton({
   children,
   variant = "primary",
+  disabled = false,
 }: {
   children: React.ReactNode;
   variant?: "primary" | "secondary" | "danger";
+  disabled?: boolean;
 }) {
-  return <button className={`button ${variant}`} type="submit">{children}</button>;
+  return <button className={`button ${variant}`} type="submit" disabled={disabled}>{children}</button>;
 }

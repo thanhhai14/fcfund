@@ -50,6 +50,13 @@
       "when": 1786095371820,
       "tag": "0006_slow_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786421460497,
+      "tag": "0007_watery_ultragirl",
+      "breakpoints": true
     }
   ]
 }

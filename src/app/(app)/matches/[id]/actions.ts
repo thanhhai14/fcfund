@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
@@ -35,6 +36,59 @@ function metricsRecord(metrics: unknown): Record<string, unknown> {
   return metrics && typeof metrics === "object" && !Array.isArray(metrics)
     ? { ...(metrics as Record<string, unknown>) }
     : {};
+}
+
+export async function managePublicLineupAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  const matchId = str(formData, "matchId");
+  const mode = str(formData, "mode");
+  if (!new Set(["publish", "disable", "rotate"]).has(mode)) {
+    return { ok: false, message: "Thao tác công khai không hợp lệ." };
+  }
+
+  const [match] = await db.select().from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+    isNull(matches.deletedAt),
+  )).limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  if (mode !== "disable") {
+    const [confirmed] = await db.select({ id: matchTeamVersions.id }).from(matchTeamVersions).where(and(
+      eq(matchTeamVersions.matchId, matchId),
+      eq(matchTeamVersions.status, "CONFIRMED"),
+    )).limit(1);
+    if (!confirmed) return { ok: false, message: "Hãy xác nhận đội hình trước khi công khai." };
+  }
+
+  const now = new Date();
+  const nextToken = mode === "rotate" || !match.publicLineupToken
+    ? randomBytes(24).toString("base64url")
+    : match.publicLineupToken;
+  const enabled = mode !== "disable";
+  await db.transaction(async (tx) => {
+    await tx.update(matches).set({
+      publicLineupEnabled: enabled,
+      publicLineupToken: nextToken,
+      publicLineupPublishedAt: enabled ? now : match.publicLineupPublishedAt,
+      updatedAt: now,
+    }).where(eq(matches.id, matchId));
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: { publicLineupEnabled: match.publicLineupEnabled },
+      afterData: { publicLineupEnabled: enabled, linkRotated: mode === "rotate" },
+      message: mode === "disable" ? "Tắt công khai đội hình" : mode === "rotate" ? "Tạo lại liên kết đội hình công khai" : "Công khai đội hình",
+    });
+  });
+
+  revalidatePath(`/matches/${matchId}`);
+  if (match.publicLineupToken) revalidatePath(`/lineup/${match.publicLineupToken}`);
+  if (enabled && nextToken) revalidatePath(`/lineup/${nextToken}`);
+  return { ok: true, message: mode === "disable" ? "Đã tắt đội hình công khai." : mode === "rotate" ? "Đã tạo liên kết công khai mới." : "Đã công khai đội hình." };
 }
 
 export async function recordMatchResultAction(formData: FormData): Promise<MutationResult> {

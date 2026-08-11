@@ -15,6 +15,7 @@ import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
+import { TeamCountField } from "@/components/team-count-field";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -119,7 +120,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     ?? (participant.memberId ? previousSeeds.get(participant.memberId) : undefined);
   const missingSeeds = participants.filter((participant) => !effectiveSeed(participant));
   const goalkeeperCount = participants.filter((participant) => effectiveSeed(participant) === "GOALKEEPER").length;
-  const maxTeamCount = Math.floor(participants.length / 5);
+  const maxTeamCount = participants.length;
   const isDraftLocked = Boolean(draft?.tierLockedAt);
 
   return (
@@ -132,7 +133,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       />
 
       <section className="team-builder-summary">
-        <article><small>Người tham gia</small><strong>{participants.length}</strong><span>Tối đa {maxTeamCount} đội đủ 5 người</span></article>
+        <article><small>Người tham gia</small><strong>{participants.length}</strong><span>{participants.length >= 10 ? "Đủ điều kiện tạo đội" : `Cần thêm ${10 - participants.length} người`}</span></article>
         <article><small>Thủ môn</small><strong>{goalkeeperCount}</strong><span>Được phân bổ đều giữa các đội</span></article>
         <article><small>Phiên bản hiển thị</small><strong>{displayedVersion ? `v${displayedVersion.version}` : "—"}</strong><span>{displayedVersion?.status === "DRAFT" ? "Bản nháp" : displayedVersion?.status === "CONFIRMED" ? "Đã xác nhận" : "Chưa tạo đội"}</span></article>
       </section>
@@ -183,12 +184,13 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       {canManageTeams && draft?.tierLockedAt && (
         <section className="panel team-config-panel">
           <div className="panel-heading"><div><span className="eyebrow">Bước 2</span><h2>Cấu hình và tạo đội</h2></div></div>
+          {participants.length < 10 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 10 người tham gia để tạo đội.</p>}
           {goalkeeperCount < (draft.teamCount ?? 2) && <p className="team-warning"><Icon name="triangle-exclamation" /> Có thể có đội không có thủ môn nếu số thủ môn ít hơn số đội.</p>}
           <MutationForm action={generateMatchTeamsAction} className="team-config-form">
             <input type="hidden" name="matchId" value={match.id} />
-            <label>Số đội<input name="teamCount" type="number" min="2" max={Math.max(2, maxTeamCount)} defaultValue={draft.teamCount} required /></label>
+            <TeamCountField memberCount={participants.length} defaultValue={Math.min(draft.teamCount, Math.max(2, maxTeamCount))} />
             <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={draft.lookbackMatches} required /></label>
-            <SubmitButton>{teamRows.length ? "Chia lại đội" : "Tạo đội cân bằng"}</SubmitButton>
+            <SubmitButton disabled={participants.length < 10}>{teamRows.length ? "Chia lại đội" : "Tạo đội cân bằng"}</SubmitButton>
           </MutationForm>
         </section>
       )}
