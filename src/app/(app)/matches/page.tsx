@@ -14,6 +14,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MatchFields } from "@/components/match-fields";
+import { MemberIdentity } from "@/components/member-identity";
 
 export const metadata = { title: "Trận đấu" };
 
@@ -33,9 +34,11 @@ export default async function MatchesPage() {
       memberId: matchParticipants.memberId,
       memberName: members.fullName,
       guestName: matchParticipants.guestName,
+      avatarUpdatedAt: avatars.updatedAt,
     })
     .from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
+    .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
     .where(inArray(matchParticipants.matchId, ids)) : [];
   const charges = ids.length ? await db
     .select({
@@ -54,11 +57,11 @@ export default async function MatchesPage() {
     .innerJoin(chargeTypes, eq(memberCharges.chargeTypeId, chargeTypes.id))
     .where(and(inArray(memberCharges.matchId, ids), isNull(memberCharges.deletedAt))) : [];
 
-  const participantMap = new Map<string, string[]>();
+  const participantMap = new Map<string, Array<{ memberId: string | null; name: string; avatarUpdatedAt: Date | null }>>();
   const participantIdMap = new Map<string, Set<string>>();
   participants.forEach((row) => {
     const name = row.memberName ?? row.guestName ?? "Khách";
-    participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), name]);
+    participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), { memberId: row.memberId, name, avatarUpdatedAt: row.avatarUpdatedAt }]);
     if (row.memberId) {
       const set = participantIdMap.get(row.matchId) ?? new Set<string>();
       set.add(row.memberId);
@@ -110,7 +113,7 @@ export default async function MatchesPage() {
 
       <section className="match-grid">
         {matchRows.map((match) => {
-          const names = participantMap.get(match.id) ?? [];
+          const participantPreviews = participantMap.get(match.id) ?? [];
           return (
             <article className="match-card" key={match.id}>
               <div className="match-date">
@@ -121,7 +124,11 @@ export default async function MatchesPage() {
               <div className="match-info">
                 <span className="category-pill"><Icon name="futbol" /> Trận giao hữu</span>
                 <h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2>
-                <p>{names.length} người tham gia{names.length ? ` · ${names.slice(0, 4).join(", ")}${names.length > 4 ? "..." : ""}` : ""}</p>
+                <p>{participantPreviews.length} người tham gia</p>
+                {!!participantPreviews.length && <div className="match-participant-preview">
+                  {participantPreviews.slice(0, 4).map((participant, index) => <MemberIdentity memberId={participant.memberId} name={participant.name} avatarVersion={participant.avatarUpdatedAt} compact key={participant.memberId ?? `${participant.name}-${index}`} />)}
+                  {participantPreviews.length > 4 && <span className="match-participant-more">+{participantPreviews.length - 4}</span>}
+                </div>}
               </div>
               <div className="match-card-side">
                 <div className="match-charge">

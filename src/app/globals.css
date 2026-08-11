@@ -2389,6 +2389,38 @@ label>textarea {
   font-size: 9px;
 }
 
+.match-participant-preview {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 8px;
+}
+
+.match-participant-preview .member-identity-avatar {
+  width: 25px;
+  height: 25px;
+  flex-basis: 25px;
+  font-size: 8px;
+}
+
+.match-participant-preview .member-identity strong {
+  max-width: 105px;
+  font-size: 10px;
+}
+
+.match-participant-more {
+  display: inline-grid;
+  min-width: 28px;
+  height: 25px;
+  padding: 0 6px;
+  place-items: center;
+  color: white;
+  background: var(--brand-decoration);
+  font-size: 9px;
+  font-weight: 900;
+}
+
 .match-charge {
   text-align: right;
 }
@@ -3132,7 +3164,9 @@ label>textarea {
   font-size: 11px;
 }
 
-.public-lineup-panel { margin-bottom: 16px; }
+.public-lineup-panel {
+  margin-bottom: 16px;
+}
 
 .public-lineup-actions {
   display: flex;
@@ -3141,7 +3175,9 @@ label>textarea {
   gap: 8px;
 }
 
-.public-lineup-actions form > div[aria-live="polite"]:empty { display: none; }
+.public-lineup-actions form>div[aria-live="polite"]:empty {
+  display: none;
+}
 
 .public-lineup-page {
   width: min(1180px, calc(100% - 32px));
@@ -3196,8 +3232,11 @@ label>textarea {
   overflow: hidden;
 }
 
-.public-lineup-logo img,
-.public-player-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.public-lineup-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .public-lineup-club div,
 .public-lineup-date {
@@ -3215,10 +3254,24 @@ label>textarea {
   text-transform: uppercase;
 }
 
-.public-lineup-club strong { margin-top: 4px; font-size: clamp(21px, 3vw, 32px); }
-.public-lineup-date { align-items: flex-end; }
-.public-lineup-date strong { margin: 3px 0; font-size: 22px; }
-.public-lineup-date span { color: rgba(255, 255, 255, .72); font-size: 10px; }
+.public-lineup-club strong {
+  margin-top: 4px;
+  font-size: clamp(21px, 3vw, 32px);
+}
+
+.public-lineup-date {
+  align-items: flex-end;
+}
+
+.public-lineup-date strong {
+  margin: 3px 0;
+  font-size: 22px;
+}
+
+.public-lineup-date span {
+  color: rgba(255, 255, 255, .72);
+  font-size: 10px;
+}
 
 .public-lineup-summary {
   display: flex;
@@ -3236,7 +3289,11 @@ label>textarea {
   font-size: 11px;
 }
 
-.public-lineup-summary b { margin-right: 5px; color: var(--brand-primary); font-size: 18px; }
+.public-lineup-summary b {
+  margin-right: 5px;
+  color: var(--brand-primary);
+  font-size: 18px;
+}
 
 .public-lineup-teams {
   display: grid;
@@ -3252,7 +3309,7 @@ label>textarea {
   box-shadow: 5px 5px 0 rgba(4, 47, 82, .07);
 }
 
-.public-lineup-team > header {
+.public-lineup-team>header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -3260,44 +3317,52 @@ label>textarea {
   border-bottom: 1px solid var(--line);
 }
 
-.public-lineup-team h2 { margin: 0 0 2px; color: var(--ink); font-size: 18px; }
-.public-lineup-team header small { color: var(--muted); font-size: 9px; }
-.public-lineup-team ol { margin: 0; padding: 6px 16px 12px; list-style: none; }
+.public-lineup-team h2 {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.public-lineup-team header small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.public-lineup-team ol {
+  margin: 0;
+  padding: 6px 16px 12px;
+  list-style: none;
+}
 
 .public-lineup-team li {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
   min-height: 54px;
   border-bottom: 1px solid #edf0f2;
 }
 
-.public-lineup-team li:last-child { border-bottom: 0; }
+.public-lineup-team li:last-child {
+  border-bottom: 0;
+}
 
-.public-player-avatar {
-  display: grid;
+.public-lineup-team .member-identity-avatar {
   width: 34px;
   height: 34px;
-  place-items: center;
-  color: white;
-  background: var(--brand-primary);
+  flex-basis: 34px;
   border: 2px solid white;
   box-shadow: 2px 2px 0 var(--brand-decoration);
-  font-size: 10px;
-  font-weight: 900;
-  overflow: hidden;
 }
 
-.public-lineup-team li > strong {
-  overflow: hidden;
-  color: var(--ink);
+.public-lineup-team .member-identity strong {
   font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.public-shirt-number { color: var(--brand-decoration); font-size: 15px; }
+.public-shirt-number {
+  color: var(--brand-decoration);
+  font-size: 15px;
+}
 
 .public-lineup-footer {
   display: flex;
@@ -3311,7 +3376,9 @@ label>textarea {
   font-size: 9px;
 }
 
-.public-lineup-footer strong { color: var(--brand-primary); }
+.public-lineup-footer strong {
+  color: var(--brand-primary);
+}
 
 .match-team-empty {
   grid-column: 1 / -1;
@@ -3332,8 +3399,14 @@ label>textarea {
   margin-bottom: 16px;
 }
 
-.team-count-field { min-width: 0; }
-.team-count-field > label { display: grid; }
+.team-count-field {
+  min-width: 0;
+}
+
+.team-count-field>label {
+  display: grid;
+}
+
 .team-distribution {
   display: flex;
   align-items: center;
@@ -3344,7 +3417,9 @@ label>textarea {
   font-weight: 750;
 }
 
-.team-distribution.warning { color: var(--warning); }
+.team-distribution.warning {
+  color: var(--warning);
+}
 
 .team-builder-summary article {
   padding: 17px;
@@ -4300,7 +4375,9 @@ label>textarea {
     padding-top: 20px;
   }
 
-  .public-lineup-teams { grid-template-columns: 1fr; }
+  .public-lineup-teams {
+    grid-template-columns: 1fr;
+  }
 
   .disclosure-backdrop {
     display: block;
@@ -4682,7 +4759,10 @@ label>textarea {
 }
 
 @media (max-width: 560px) {
-  .public-lineup-page { width: calc(100% - 18px); padding-top: 9px; }
+  .public-lineup-page {
+    width: calc(100% - 18px);
+    padding-top: 9px;
+  }
 
   .public-lineup-hero {
     align-items: flex-start;
@@ -4690,10 +4770,23 @@ label>textarea {
     padding: 19px;
   }
 
-  .public-lineup-date { align-items: flex-start; padding-left: 82px; }
-  .public-lineup-summary span { padding: 11px; }
-  .public-lineup-team > header { padding: 14px; }
-  .public-lineup-team ol { padding-right: 12px; padding-left: 12px; }
+  .public-lineup-date {
+    align-items: flex-start;
+    padding-left: 82px;
+  }
+
+  .public-lineup-summary span {
+    padding: 11px;
+  }
+
+  .public-lineup-team>header {
+    padding: 14px;
+  }
+
+  .public-lineup-team ol {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
 
   .public-lineup-footer {
     align-items: flex-start;

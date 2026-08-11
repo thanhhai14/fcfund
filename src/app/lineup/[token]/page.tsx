@@ -13,6 +13,7 @@ import {
   memberProfiles,
 } from "@/db/schema";
 import { formatDate, initials } from "@/lib/format";
+import { MemberIdentity } from "@/components/member-identity";
 import { APP_NAME } from "@/lib/constants";
 import { getPublicLineupOverview } from "@/lib/public-lineup";
 import { getRequestOrigin } from "@/lib/request-origin";
@@ -118,12 +119,12 @@ export default async function PublicLineupPage({ params }: { params: Promise<{ t
           <header><span className="team-color" style={{ background: team.color ?? undefined }} /><div><h2>{team.name}</h2><small>{teamMembers.length} cầu thủ</small></div></header>
           <ol>
             {teamMembers.map((member) => <li key={member.id}>
-              <span className="public-player-avatar">
-                {member.memberId && member.avatarUpdatedAt
-                  ? <img src={`/api/public-lineups/${token}/members/${member.memberId}/avatar?v=${member.avatarUpdatedAt.getTime()}`} alt={`Avatar ${member.name}`} />
-                  : initials(member.name)}
-              </span>
-              <strong>{member.name}</strong>
+              <MemberIdentity
+                memberId={member.memberId}
+                name={member.name}
+                avatarVersion={member.avatarUpdatedAt}
+                avatarUrl={member.memberId && member.avatarUpdatedAt ? `/api/public-lineups/${token}/members/${member.memberId}/avatar?v=${member.avatarUpdatedAt.getTime()}` : null}
+              />
               {member.shirtNumber !== null && <b className="public-shirt-number">#{member.shirtNumber}</b>}
             </li>)}
           </ol>

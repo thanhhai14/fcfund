@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db";
@@ -16,6 +16,7 @@ import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
 import { TeamCountField } from "@/components/team-count-field";
+import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
@@ -113,7 +114,11 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const teamRows = displayedVersion ? await db.select().from(matchTeams)
     .where(eq(matchTeams.versionId, displayedVersion.id))
     .orderBy(matchTeams.teamIndex) : [];
-  const teamMemberRows = displayedVersion ? await db.select().from(matchTeamMembers)
+  const teamMemberRows = displayedVersion ? await db.select({
+    ...getTableColumns(matchTeamMembers),
+    avatarUpdatedAt: avatars.updatedAt,
+  }).from(matchTeamMembers)
+    .leftJoin(avatars, eq(matchTeamMembers.memberId, avatars.memberId))
     .where(eq(matchTeamMembers.versionId, displayedVersion.id))
     .orderBy(matchTeamMembers.displayOrder) : [];
   const effectiveSeed = (participant: (typeof participants)[number]) => participant.seedTier
@@ -252,7 +257,7 @@ function TeamCard({
   showForm = true,
 }: {
   team: typeof matchTeams.$inferSelect;
-  rows: Array<typeof matchTeamMembers.$inferSelect>;
+  rows: Array<typeof matchTeamMembers.$inferSelect & { avatarUpdatedAt: Date | null }>;
   allTeams: Array<typeof matchTeams.$inferSelect>;
   editable?: boolean;
   showSeed?: boolean;
@@ -274,7 +279,7 @@ function TeamCard({
         {rows.map((row) => (
           <div key={row.id}>
             {showSeed ? <span className={`seed-chip ${row.seedTierSnapshot.toLowerCase()}`}>{SEED_LABELS[row.seedTierSnapshot]}</span> : <span className="seed-chip hidden-seed">Seed ẩn</span>}
-            <span><strong>{row.displayNameSnapshot}</strong>{showForm && <small>{row.recentMatchCountSnapshot} trận · {row.recentMatchCountSnapshot - row.recentLossCountSnapshot} hạng nhất · {formScore(row.formScoreSnapshot)}{row.inferredMatchCountSnapshot ? ` · ${row.inferredMatchCountSnapshot} suy luận` : ""}</small>}</span>
+            <MemberIdentity memberId={row.memberId} name={row.displayNameSnapshot} avatarVersion={row.avatarUpdatedAt} secondary={showForm ? `${row.recentMatchCountSnapshot} trận · ${row.recentMatchCountSnapshot - row.recentLossCountSnapshot} hạng nhất · ${formScore(row.formScoreSnapshot)}${row.inferredMatchCountSnapshot ? ` · ${row.inferredMatchCountSnapshot} suy luận` : ""}` : null} compact />
             {editable && <span className="team-member-controls">
               <select name={`team_${row.id}`} defaultValue={row.teamId} aria-label={`Đội của ${row.displayNameSnapshot}`}>
                 {allTeams.map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}

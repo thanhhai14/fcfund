@@ -39,6 +39,7 @@ import {
 import { formatMoney } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MemberAvatar, MemberIdentity } from "@/components/member-identity";
+import { SearchableMemberSelect } from "@/components/searchable-member-select";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -61,8 +62,8 @@ export default async function SettingsPage() {
     .from(users).leftJoin(members, eq(users.memberId, members.id))
     .leftJoin(avatars, or(eq(users.id, avatars.userId), eq(users.memberId, avatars.memberId)))
     .where(eq(users.clubId, currentUser.clubId)).orderBy(users.role, users.displayName) : [];
-  const availableMembers = manageUsers ? await db.select({ id: members.id, name: members.fullName, code: members.code })
-    .from(members).leftJoin(users, eq(members.id, users.memberId))
+  const availableMembers = manageUsers ? await db.select({ id: members.id, name: members.fullName, code: members.code, avatarUpdatedAt: avatars.updatedAt })
+    .from(members).leftJoin(users, eq(members.id, users.memberId)).leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, currentUser.clubId), isNull(users.id))).orderBy(members.fullName) : [];
   const overrides = manageUsers ? await db.select().from(userPermissionOverrides) : [];
   const rolePolicies = manageUsers ? await db.select().from(rolePermissions) : [];
@@ -186,7 +187,7 @@ export default async function SettingsPage() {
                     <SubmitButton>Lưu tài khoản</SubmitButton>
                   </MutationForm>
                   <div className="account-link-box">
-                    {account.memberId ? <MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><p>Đang liên kết: <strong>{account.memberName}</strong></p><SubmitButton variant="secondary">Tháo liên kết thành viên</SubmitButton></MutationForm> : availableMembers.length ? <MutationForm action={linkUserToMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><label>Gắn với thành viên<select name="memberId" required><option value="">Chọn thành viên</option>{availableMembers.map((member) => <option value={member.id} key={member.id}>{member.name} · {member.code}</option>)}</select></label><SubmitButton variant="secondary">Gắn thành viên</SubmitButton></MutationForm> : <p>Không còn thành viên chưa liên kết.</p>}
+                    {account.memberId ? <MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><div><small>Đang liên kết</small><MemberIdentity memberId={account.memberId} name={account.memberName ?? account.displayName} avatarVersion={account.avatarUpdatedAt} compact /></div><SubmitButton variant="secondary">Tháo liên kết thành viên</SubmitButton></MutationForm> : availableMembers.length ? <MutationForm action={linkUserToMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><SearchableMemberSelect name="memberId" label="Gắn với thành viên" options={availableMembers.map((member) => ({ id: member.id, name: member.name, code: member.code, avatarVersion: member.avatarUpdatedAt }))} required /><SubmitButton variant="secondary">Gắn thành viên</SubmitButton></MutationForm> : <p>Không còn thành viên chưa liên kết.</p>}
                   </div>
                   <form action={saveUserPoliciesAction} className="policy-form">
                     <input type="hidden" name="userId" value={account.id} /><input type="hidden" name="mode" value="custom" />
