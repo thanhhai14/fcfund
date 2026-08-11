@@ -553,7 +553,7 @@ label>textarea {
   width: 37px;
   height: 37px;
   flex: 0 0 auto;
-  border-radius: 2px;
+  border-radius: 0;
   display: grid;
   place-items: center;
   background: var(--burgundy);
@@ -1302,8 +1302,9 @@ label>textarea {
 .member-avatar {
   width: 46px;
   height: 46px;
-  border-radius: 2px;
-  border-bottom: 3px solid var(--pink);
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
   display: grid;
   place-items: center;
   background: var(--forest-100);
@@ -1315,7 +1316,7 @@ label>textarea {
 .member-avatar.large {
   width: 67px;
   height: 67px;
-  border-radius: 2px;
+  border-radius: 0;
   font-size: 17px;
 }
 
@@ -1433,8 +1434,8 @@ label>textarea {
   width: 174px;
   height: 214px;
   background: var(--forest-100);
-  border: 4px solid white;
-  box-shadow: 8px 8px 0 var(--brand-primary);
+  border: 0;
+  box-shadow: none;
 }
 
 .member-profile-avatar-frame>.member-identity-avatar.profile-avatar {
@@ -1458,8 +1459,7 @@ label>textarea {
   height: 45px;
   color: white;
   background: var(--brand-primary);
-  border-top: 3px solid white;
-  border-right: 3px solid white;
+  border: 0;
   font-size: 17px;
   font-weight: 950;
 }
@@ -1944,6 +1944,8 @@ label>textarea {
   background: var(--brand-primary-strong);
   font-size: 11px;
   font-weight: 900;
+  border: 0;
+  box-shadow: none;
 }
 
 .member-identity.compact .member-identity-avatar {
@@ -3351,8 +3353,8 @@ label>textarea {
   width: 34px;
   height: 34px;
   flex-basis: 34px;
-  border: 2px solid white;
-  box-shadow: 2px 2px 0 var(--brand-decoration);
+  border: 0;
+  box-shadow: none;
 }
 
 .public-lineup-team .member-identity strong {
@@ -5819,7 +5821,7 @@ label {
   overflow-x: auto;
   background: white;
   border: 1px solid var(--line);
-  border-left: 4px solid var(--brand-decoration);
+
 }
 
 .report-tabs button {
@@ -5976,7 +5978,7 @@ label {
   .member-profile-avatar-frame {
     width: 154px;
     height: 192px;
-    box-shadow: 6px 6px 0 var(--brand-primary);
+    box-shadow: none;
   }
 
   .member-profile-heading {
