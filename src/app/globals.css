@@ -1857,11 +1857,17 @@ label>textarea {
 
 .column-visibility-disclosure {
   position: relative;
+  height: var(--collection-control-height, 40px);
+  align-self: center;
 }
 
 .column-visibility-disclosure>summary {
+  display: flex;
+  width: 100%;
   height: var(--collection-control-height, 40px);
   min-height: var(--collection-control-height, 40px);
+  align-items: center;
+  gap: 6px;
   padding: 0 11px;
   color: var(--forest-800);
   background: white;
@@ -1897,7 +1903,14 @@ label>textarea {
 .column-visibility-menu input {
   width: 16px;
   height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  flex: 0 0 16px;
   margin: 0;
+  padding: 0;
+  accent-color: var(--brand-primary);
 }
 
 .column-visibility-menu small {
@@ -2457,6 +2470,7 @@ label>textarea {
 }
 
 .match-actions {
+  --match-action-height: 34px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -2465,31 +2479,55 @@ label>textarea {
 }
 
 .match-edit-disclosure>summary,
-.match-view-link {
-  min-height: 31px;
-  padding: 7px 10px;
-  display: flex;
+.match-view-link,
+.match-team-link,
+.match-actions>form>.button {
+  display: inline-flex;
+  height: var(--match-action-height);
+  min-height: var(--match-action-height);
+  padding: 0 10px;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  color: var(--forest-700);
-  background: var(--forest-50);
-  border: 1px solid var(--forest-100);
+  border: 1px solid color-mix(in srgb, currentColor 24%, white);
+  border-radius: 2px;
+  box-shadow: none;
   font-size: 9px;
   font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .match-team-link {
-  min-height: 31px;
-  padding: 7px 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: white;
-  background: var(--forest-900);
-  border: 1px solid var(--forest-900);
-  box-shadow: 2px 2px 0 var(--pink);
-  font-size: 9px;
-  font-weight: 800;
+  color: var(--brand-primary-strong);
+  background: color-mix(in srgb, var(--brand-primary) 10%, white);
+}
+
+.match-view-link {
+  color: var(--forest-700);
+  background: var(--forest-50);
+}
+
+.match-edit-disclosure>summary {
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 8%, white);
+}
+
+.match-actions>form>.button {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, white);
+}
+
+.match-actions>form,
+.match-edit-disclosure {
+  height: var(--match-action-height);
+  margin: 0;
+}
+
+.match-actions svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
 }
 
 .match-view-disclosure .disclosure-content {
@@ -4417,6 +4455,19 @@ label>textarea {
     overscroll-behavior: contain;
   }
 
+  .column-visibility-disclosure>.disclosure-content {
+    top: auto;
+    right: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 50%;
+    width: min(360px, calc(100dvw - 24px)) !important;
+    max-width: calc(100dvw - 24px);
+    max-inline-size: calc(100dvw - 24px);
+    max-height: min(82dvh, 520px);
+    padding: 16px;
+    transform: translateX(-50%);
+  }
+
   .member-cv-disclosure>.disclosure-content {
     inset: auto max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     width: auto !important;
@@ -4649,6 +4700,10 @@ label>textarea {
 
   .match-card {
     grid-template-columns: auto 1fr;
+  }
+
+  .match-participant-preview {
+    display: none;
   }
 
   .match-card-side {
@@ -5097,8 +5152,7 @@ label {
   font-size: 12px;
 }
 
-.action-disclosure>summary,
-.match-team-link {
+.action-disclosure>summary {
   background: var(--brand-primary);
   border-color: var(--brand-primary);
   box-shadow: 3px 3px 0 var(--brand-decoration);
@@ -5318,8 +5372,8 @@ label {
   min-width: 0;
 }
 
-.collection-filters select,
-.collection-filters input {
+.collection-filters>select,
+.collection-filters>input {
   width: auto;
   height: var(--collection-control-height);
   min-height: var(--collection-control-height);
@@ -5389,9 +5443,9 @@ label {
     align-items: start;
   }
 
-  .collection-filters select,
-  .collection-filters input,
-  .collection-filters .column-visibility-disclosure {
+  .collection-filters>select,
+  .collection-filters>input,
+  .collection-filters>.column-visibility-disclosure {
     width: 100%;
     min-width: 0;
   }
@@ -5957,8 +6011,8 @@ label {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .collection-filters select,
-  .collection-filters input {
+  .collection-filters>select,
+  .collection-filters>input {
     width: 100%;
     min-width: 0;
   }
