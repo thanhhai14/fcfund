@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   const description = `${overview.teams.length} đội · ${overview.memberCount} cầu thủ · Xem đội hình thi đấu chính thức.`;
   const origin = await getRequestOrigin();
   const publicUrl = `${origin}/lineup/${encodeURIComponent(token)}`;
-  const imageUrl = `${publicUrl}/opengraph-image`;
+  const imageUrl = `${publicUrl}/opengraph-image?v=${overview.confirmed.version}-${overview.match.clubUpdatedAt.getTime()}`;
 
   return {
     title,
