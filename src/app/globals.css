@@ -1383,11 +1383,24 @@ label>textarea {
   gap: 6px;
 }
 
-.preferred-foot-value svg {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 12px;
+.preferred-foot-icon {
+  display: inline-flex;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
   color: var(--brand-primary);
+}
+
+.preferred-foot-icon>svg {
+  width: 11px;
+  height: 18px;
+  flex: 0 0 11px;
+  fill: currentColor;
+}
+
+.preferred-foot-icon.both {
+  gap: 2px;
 }
 
 .member-card-meta .won {

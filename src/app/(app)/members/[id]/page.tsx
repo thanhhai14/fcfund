@@ -35,6 +35,7 @@ import { Icon } from "@/components/icon";
 import { MemberAvatar } from "@/components/member-identity";
 import { getMatchFormStats, getMemberCareerStats } from "@/lib/match-form-stats";
 import { preferredFootLabel } from "@/lib/member-profile";
+import { PreferredFootIcon } from "@/components/preferred-foot-icon";
 
 export default async function MemberDetailPage({
   params,
@@ -150,7 +151,7 @@ export default async function MemberDetailPage({
 
           <div className="member-profile-meta">
             <span><small>Vị trí sở trường</small><strong>{profile?.preferredPosition || "Chưa cập nhật"}</strong></span>
-            <span><small>Chân thuận</small><strong className="preferred-foot-value">{profile?.preferredFoot && <Icon name="shoe-prints" />}{preferredFootLabel(profile?.preferredFoot)}</strong></span>
+            <span><small>Chân thuận</small><strong className="preferred-foot-value"><PreferredFootIcon value={profile?.preferredFoot} />{preferredFootLabel(profile?.preferredFoot)}</strong></span>
             <span><small>Số áo</small><strong className="accent">{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined ? `#${profile.shirtNumber}` : "Chưa cập nhật"}</strong></span>
             <span><small>Trạng thái</small><strong>{member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}</strong></span>
           </div>

@@ -6,8 +6,8 @@ import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisi
 import { formatMoney } from "@/lib/format";
 import { MemberIdentity } from "./member-identity";
 import { InfoTooltip } from "./info-tooltip";
-import { Icon } from "./icon";
 import { preferredFootLabel } from "@/lib/member-profile";
+import { PreferredFootIcon } from "./preferred-foot-icon";
 
 export type MemberCollectionRow = {
   id: string;
@@ -117,7 +117,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
             {columns.isVisible("shirt") && <strong className="member-centered-column">{member.shirtNumber !== null ? `#${member.shirtNumber}` : "—"}</strong>}
             {columns.isVisible("nickname") && <span>{member.nickname || "—"}</span>}
             {columns.isVisible("position") && <span>{member.preferredPosition || "—"}</span>}
-            {columns.isVisible("foot") && <span className="preferred-foot-value">{member.preferredFoot ? <><Icon name="shoe-prints" />{preferredFootLabel(member.preferredFoot)}</> : "—"}</span>}
+            {columns.isVisible("foot") && <span className="preferred-foot-value">{member.preferredFoot ? <><PreferredFootIcon value={member.preferredFoot} />{preferredFootLabel(member.preferredFoot)}</> : "—"}</span>}
             {columns.isVisible("bio") && <span className="member-centered-column"><InfoTooltip content={member.bio} label={`Giới thiệu của ${member.name}`} /></span>}
             {showForm && columns.isVisible("matches") && <strong className="member-centered-column">{member.matchCount}</strong>}
             {showForm && columns.isVisible("record") && <span className="member-record member-centered-column"><b>{member.winCount} T</b><i>{member.lossCount} B</i></span>}
@@ -133,7 +133,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
         <section className="member-grid">
           {visible.map((member, index) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
             <div className="member-card-top"><span className="report-rank-badge member-card-rank">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={[member.nickname, member.preferredPosition].filter(Boolean).join(" · ") || null} /><InfoTooltip content={member.bio} label={`Giới thiệu của ${member.name}`} /></div>
-            <div className="member-card-cv">{member.shirtNumber !== null && <span>#{member.shirtNumber}</span>}{member.preferredFoot && <span className="preferred-foot-value"><Icon name="shoe-prints" />{preferredFootLabel(member.preferredFoot)}</span>}{member.shirtNumber === null && !member.preferredFoot && <span>Chưa cập nhật CV</span>}</div>
+            <div className="member-card-cv">{member.shirtNumber !== null && <span>#{member.shirtNumber}</span>}{member.preferredFoot && <span className="preferred-foot-value"><PreferredFootIcon value={member.preferredFoot} />{preferredFootLabel(member.preferredFoot)}</span>}{member.shirtNumber === null && !member.preferredFoot && <span>Chưa cập nhật CV</span>}</div>
             <div className="member-card-meta">{showForm && <><div><small>Số trận</small><strong>{member.matchCount}</strong></div><div><small>Thắng / Thua</small><strong><span className="won">{member.winCount}</span> / <span className="lost">{member.lossCount}</span></strong></div><div><small>Tỷ lệ thắng</small><strong>{member.winRate !== null ? `${member.winRate}%` : "—"}</strong></div><div><small>Phong độ</small><strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong></div></>}<div><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}
         </section>
