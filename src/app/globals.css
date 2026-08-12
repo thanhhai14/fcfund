@@ -3955,12 +3955,7 @@ label>textarea {
   z-index: 1;
   width: 1px;
   height: 1px;
-  transition: left .55s ease, opacity .35s ease;
-}
-
-.team-draw-stage.drawing .team-draw-machine {
-  left: 25%;
-  opacity: .82;
+  transition: opacity .35s ease;
 }
 
 .team-draw-loading {
@@ -4044,6 +4039,9 @@ label>textarea {
 }
 
 .team-draw-pool .member-identity-avatar {
+  position: absolute;
+  top: -14px;
+  left: -14px;
   width: 28px;
   height: 28px;
   flex-basis: 28px;
@@ -4071,43 +4069,64 @@ label>textarea {
 .team-draw-player {
   position: absolute;
   top: 50%;
-  left: 64%;
+  left: 50%;
   z-index: 5;
   translate: -50% -50%;
   width: min(280px, calc(100vw - 40px));
-  min-height: 138px;
-  padding: 16px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
   color: white;
-  background: linear-gradient(145deg, rgba(7, 73, 43, .94), rgba(3, 42, 27, .9));
-  border: 1px solid rgba(255, 255, 255, .24);
-  border-top: 5px solid var(--destination-color);
-  box-shadow: 8px 8px 0 rgba(0, 0, 0, .28);
-  backdrop-filter: blur(10px);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  opacity: 0;
+  overflow: visible;
   will-change: transform, opacity;
 }
 
 .team-draw-player>.member-identity-avatar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
+  translate: -50% -50%;
   width: 62px;
   height: 62px;
   flex-basis: 62px;
+  outline: 3px solid rgba(255, 255, 255, .72);
 }
 
-.team-draw-player>strong {
+.team-draw-player-meta {
+  position: absolute;
+  top: 39px;
+  left: 50%;
+  display: grid;
+  width: min(250px, calc(100vw - 40px));
+  padding: 9px 12px;
+  place-items: center;
+  translate: -50% 0;
+  background: linear-gradient(145deg, rgba(7, 73, 43, .84), rgba(3, 42, 27, .76));
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-top: 3px solid var(--destination-color);
+  backdrop-filter: blur(10px);
+}
+
+.team-draw-player-meta>strong {
   max-width: 100%;
-  margin-top: 8px;
   overflow: hidden;
   font-size: 17px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.team-draw-player>small {
+.team-draw-player-meta>small {
   margin-top: 3px;
   color: #c8decf;
   font-size: 10px;
 }
 
-.team-draw-player>b {
+.team-draw-player-meta>b {
   margin-top: 7px;
   color: var(--destination-color);
   font-size: 12px;
@@ -4351,6 +4370,8 @@ label>textarea {
   }
 
   .team-draw-pool .member-identity-avatar {
+    top: -11.5px;
+    left: -11.5px;
     width: 23px;
     height: 23px;
     flex-basis: 23px;
@@ -4369,14 +4390,7 @@ label>textarea {
   }
 
   .team-draw-player {
-    left: 69%;
     width: min(190px, calc(100vw - 32px));
-    min-height: 112px;
-    padding: 11px;
-  }
-
-  .team-draw-stage.drawing .team-draw-machine {
-    left: 21%;
   }
 
   .team-draw-player>.member-identity-avatar {
@@ -4385,8 +4399,13 @@ label>textarea {
     flex-basis: 48px;
   }
 
-  .team-draw-player>strong {
-    margin-top: 5px;
+  .team-draw-player-meta {
+    top: 31px;
+    width: min(190px, calc(100vw - 32px));
+    padding: 7px 9px;
+  }
+
+  .team-draw-player-meta>strong {
     font-size: 14px;
   }
 

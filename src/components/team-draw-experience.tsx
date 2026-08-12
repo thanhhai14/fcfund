@@ -88,6 +88,7 @@ export function TeamDrawExperience({
   const skipRequested = useRef(false);
   const dismissed = useRef(false);
   const flyingRef = useRef<HTMLDivElement>(null);
+  const poolSlotRefs = useRef(new Map<string, HTMLSpanElement>());
   const teamRefs = useRef(new Map<string, HTMLElement>());
   const participantMap = useMemo(() => new Map(participants.map((participant) => [participant.participantId, participant])), [participants]);
 
@@ -161,19 +162,25 @@ export function TeamDrawExperience({
       setActive(member);
       await nextPaint();
       const card = flyingRef.current;
+      const sourceAvatar = poolSlotRefs.current.get(member.participantId)?.querySelector<HTMLElement>(".member-identity-avatar");
+      const activeAvatar = card?.querySelector<HTMLElement>(".member-identity-avatar");
       const target = teamRefs.current.get(member.teamId);
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (card && target) {
         const from = card.getBoundingClientRect();
         const to = target.getBoundingClientRect();
+        const source = sourceAvatar?.getBoundingClientRect();
+        const avatar = activeAvatar?.getBoundingClientRect();
+        const startX = source && avatar ? source.left + source.width / 2 - (avatar.left + avatar.width / 2) : 0;
+        const startY = source && avatar ? source.top + source.height / 2 - (avatar.top + avatar.height / 2) : 0;
         const dx = to.left + to.width / 2 - (from.left + from.width / 2);
         const dy = to.top + Math.min(to.height - 18, 54) - (from.top + from.height / 2);
         const animation = card.animate(reducedMotion ? [
           { opacity: 0, transform: "scale(.96)" },
           { opacity: 1, transform: "scale(1)" },
         ] : [
-          { opacity: 0, transform: "translate3d(0, 18px, 0) scale(.94)" },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .08 },
+          { opacity: 1, transform: `translate3d(${startX}px, ${startY}px, 0) scale(.46)` },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .078 },
           { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .444 },
           { opacity: 1, transform: `translate3d(${dx * .48}px, ${dy * .3 - 36}px, 0) scale(.86)`, offset: .67 },
           { opacity: 1, transform: `translate3d(${dx}px, ${dy}px, 0) scale(.5)`, offset: .889 },
@@ -253,6 +260,10 @@ export function TeamDrawExperience({
             <span className="team-draw-ball"><Icon name="futbol" /></span>
             {poolRings.map((ring, ringIndex) => <div className={`team-draw-pool ring-${ringIndex + 1}`} key={ringIndex}>
               {ring.map((participant, index) => <span
+                ref={(node) => {
+                  if (node) poolSlotRefs.current.set(participant.participantId, node);
+                  else poolSlotRefs.current.delete(participant.participantId);
+                }}
                 className={poolExited.has(participant.participantId) ? "exited" : "waiting"}
                 style={{
                   "--pool-angle": `${(index * 360) / ring.length}deg`,
@@ -266,7 +277,9 @@ export function TeamDrawExperience({
           {phase === "countdown" && <strong className="team-draw-countdown" key={countdown}>{countdown}</strong>}
           {phase === "drawing" && active && <div ref={flyingRef} className="team-draw-player" style={{ "--destination-color": active.teamColor } as React.CSSProperties}>
             <MemberAvatar memberId={active.memberId} name={active.name} avatarVersion={active.avatarVersion} className="large" />
-            <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]} · {Math.round(active.formScore / 100)} điểm phong độ</small><b>{active.teamName}</b>
+            <span className="team-draw-player-meta">
+              <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]} · {Math.round(active.formScore / 100)} điểm phong độ</small><b>{active.teamName}</b>
+            </span>
           </div>}
           {phase === "complete" && <div className="team-draw-complete"><Icon name="trophy" /><strong>Đội hình đã hoàn tất</strong><small>{totalMembers} cầu thủ · {draw?.teams.length ?? 0} đội</small></div>}
           {phase === "error" && <div className="team-draw-error"><Icon name="triangle-exclamation" /><strong>Không thể chia đội</strong><small>{state?.message}</small></div>}
