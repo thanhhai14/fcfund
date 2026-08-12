@@ -16,8 +16,8 @@ function FootShape({ side }: { side: "LEFT" | "RIGHT" }) {
 
 export function PreferredFootIcon({ value }: { value: string | null | undefined }) {
   const normalized = value?.toUpperCase();
-  if (normalized === "LEFT") return <span className="preferred-foot-icon left"><FootShape side="LEFT" /></span>;
-  if (normalized === "RIGHT") return <span className="preferred-foot-icon right"><FootShape side="RIGHT" /></span>;
+  if (normalized === "LEFT") return <span className="preferred-foot-icon left"><FootShape side="RIGHT" /></span>;
+  if (normalized === "RIGHT") return <span className="preferred-foot-icon right"><FootShape side="LEFT" /></span>;
   if (normalized === "BOTH") return <span className="preferred-foot-icon both"><FootShape side="LEFT" /><FootShape side="RIGHT" /></span>;
   return null;
 }

@@ -1679,6 +1679,12 @@ label>textarea {
   font-size: 12px;
 }
 
+.member-profile-meta strong.preferred-foot-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
 .member-profile-meta strong.accent {
   color: var(--brand-primary-strong);
 }
