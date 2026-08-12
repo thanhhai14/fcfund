@@ -1377,6 +1377,19 @@ label>textarea {
   font-weight: 750;
 }
 
+.preferred-foot-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preferred-foot-value svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  color: var(--brand-primary);
+}
+
 .member-card-meta .won {
   color: var(--success);
 }
