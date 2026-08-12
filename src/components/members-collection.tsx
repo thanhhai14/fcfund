@@ -87,8 +87,8 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
         </div>
       ) : (
         <section className="member-grid">
-          {visible.map((member) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
-            <div className="member-card-top"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={member.phone} /><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
+          {visible.map((member, index) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
+            <div className="member-card-top"><span className="report-rank-badge member-card-rank">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={member.phone} /><span className={`status-dot ${member.status.toLowerCase()}`} /></div>
             <div className="member-card-meta"><div><small>Tài khoản</small><strong>{member.accountLabel}</strong></div>{showForm && <div className="align-right"><small>Phong độ</small><strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong></div>}<div className="align-right"><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}
         </section>

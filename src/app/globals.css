@@ -1294,9 +1294,13 @@ label>textarea {
 
 .member-card-top {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 11px;
   align-items: center;
+}
+
+.member-card-rank {
+  align-self: center;
 }
 
 .member-avatar {
