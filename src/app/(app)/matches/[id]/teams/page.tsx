@@ -15,7 +15,7 @@ import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
-import { TeamCountField } from "@/components/team-count-field";
+import { TeamDrawExperience, type TeamDrawData } from "@/components/team-draw-experience";
 import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
@@ -127,6 +127,22 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const goalkeeperCount = participants.filter((participant) => effectiveSeed(participant) === "GOALKEEPER").length;
   const maxTeamCount = participants.length;
   const isDraftLocked = Boolean(draft?.tierLockedAt);
+  const currentDraw: TeamDrawData | null = displayedVersion?.randomKey && teamRows.length ? {
+    runId: displayedVersion.randomKey,
+    teams: teamRows.map((team) => ({
+      id: team.id,
+      index: team.teamIndex,
+      name: team.name,
+      color: team.color ?? "#526170",
+      members: teamMemberRows.filter((member) => member.teamId === team.id && member.participantId).map((member) => ({
+        participantId: member.participantId!,
+        memberId: member.memberId,
+        name: member.displayNameSnapshot,
+        seedTier: member.seedTierSnapshot,
+        isLocked: member.isLocked,
+      })),
+    })),
+  } : null;
 
   return (
     <>
@@ -191,12 +207,23 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
           <div className="panel-heading"><div><span className="eyebrow">Bước 2</span><h2>Cấu hình và tạo đội</h2></div></div>
           {participants.length < 10 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 10 người tham gia để tạo đội.</p>}
           {goalkeeperCount < (draft.teamCount ?? 2) && <p className="team-warning"><Icon name="triangle-exclamation" /> Có thể có đội không có thủ môn nếu số thủ môn ít hơn số đội.</p>}
-          <MutationForm action={generateMatchTeamsAction} className="team-config-form">
-            <input type="hidden" name="matchId" value={match.id} />
-            <TeamCountField memberCount={participants.length} defaultValue={Math.min(draft.teamCount, Math.max(2, maxTeamCount))} />
-            <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={draft.lookbackMatches} required /></label>
-            <SubmitButton disabled={participants.length < 10}>{teamRows.length ? "Chia lại đội" : "Tạo đội cân bằng"}</SubmitButton>
-          </MutationForm>
+          <TeamDrawExperience
+            action={generateMatchTeamsAction}
+            matchId={match.id}
+            matchLabel={`Trận ngày ${formatDate(match.playedOn)}`}
+            participants={participants.map((participant) => ({
+              participantId: participant.id,
+              memberId: participant.memberId,
+              name: participant.name,
+              avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
+              seedTier: effectiveSeed(participant)!,
+            }))}
+            defaultTeamCount={Math.min(draft.teamCount, Math.max(2, maxTeamCount))}
+            defaultLookbackMatches={draft.lookbackMatches}
+            disabled={participants.length < 10}
+            hasTeams={teamRows.length > 0}
+            initialDraw={currentDraw}
+          />
         </section>
       )}
 

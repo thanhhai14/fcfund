@@ -19,6 +19,24 @@ import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "@/lib/team-balancer";
 
 type MutationResult = { ok: boolean; message: string };
+type TeamDrawResult = MutationResult & {
+  draw?: {
+    runId: string;
+    teams: Array<{
+      id: string;
+      index: number;
+      name: string;
+      color: string;
+      members: Array<{
+        participantId: string;
+        memberId: string | null;
+        name: string;
+        seedTier: SeedTier;
+        isLocked: boolean;
+      }>;
+    }>;
+  };
+};
 const SEED_TIERS = new Set<SeedTier>(["TIER_1", "TIER_2", "TIER_3", "TIER_4", "GOALKEEPER"]);
 
 function str(formData: FormData, key: string) {
@@ -158,7 +176,7 @@ export async function unlockMatchSeedsAction(formData: FormData): Promise<Mutati
   return { ok: true, message: "Đã mở khóa Seed. Đội hình nháp cũ đã được xóa." };
 }
 
-export async function generateMatchTeamsAction(formData: FormData): Promise<MutationResult> {
+export async function generateMatchTeamsAction(formData: FormData): Promise<TeamDrawResult> {
   const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
@@ -214,14 +232,16 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
     return { ok: false, message: error instanceof Error ? error.message : "Không thể tạo đội hình hợp lệ." };
   }
 
-  await db.transaction(async (tx) => {
+  const drawTeams = await db.transaction(async (tx) => {
     await tx.delete(matchTeams).where(eq(matchTeams.versionId, draft.id));
+    const payload: NonNullable<TeamDrawResult["draw"]>["teams"] = [];
     for (const team of result.teams) {
+      const color = ["#073b5c", "#c93f68", "#d68b2c", "#2e7d58"][team.index - 1] ?? "#526170";
       const [createdTeam] = await tx.insert(matchTeams).values({
         versionId: draft.id,
         teamIndex: team.index,
         name: `Đội ${String.fromCharCode(64 + team.index)}`,
-        color: ["#073b5c", "#c93f68", "#d68b2c", "#2e7d58"][team.index - 1] ?? "#526170",
+        color,
         memberCount: team.memberCount,
         goalkeeperCount: team.goalkeeperCount,
         outfieldSkillScore: team.skillScore,
@@ -245,6 +265,19 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
         isLocked: Boolean(member.lockedTeamIndex),
         displayOrder,
       })));
+      payload.push({
+        id: createdTeam.id,
+        index: team.index,
+        name: createdTeam.name,
+        color,
+        members: team.members.map((member) => ({
+          participantId: member.participantId,
+          memberId: member.memberId,
+          name: member.name,
+          seedTier: member.seedTier,
+          isLocked: Boolean(member.lockedTeamIndex),
+        })),
+      });
     }
     await tx.update(matchTeamVersions).set({
       randomKey,
@@ -262,10 +295,15 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Muta
       message: `Chia ${participants.length} người thành ${teamCount} đội`,
       afterData: { randomKey, cost: result.cost },
     });
+    return payload;
   });
 
   revalidatePath(`/matches/${matchId}/teams`);
-  return { ok: true, message: "Đã tạo đội hình cân bằng. Kiểm tra và xác nhận bản cuối." };
+  return {
+    ok: true,
+    message: "Đã tạo đội hình cân bằng. Kiểm tra và xác nhận bản cuối.",
+    draw: { runId: randomKey, teams: drawTeams },
+  };
 }
 
 export async function saveManualTeamsAction(formData: FormData): Promise<MutationResult> {
