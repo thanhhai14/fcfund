@@ -227,6 +227,11 @@ export function TeamDrawExperience({
 
   const draw = presentationDraw;
   const revealedSet = new Set(revealed);
+  const lockedSet = new Set(draw?.teams.flatMap((team) => team.members.filter((member) => member.isLocked).map((member) => member.participantId)) ?? []);
+  const poolExited = new Set([...revealed, ...lockedSet, ...(active ? [active.participantId] : [])]);
+  const poolRings = participants.length > 12
+    ? [participants.filter((_, index) => index % 2 === 0), participants.filter((_, index) => index % 2 === 1)]
+    : [participants];
   const totalMembers = draw?.teams.reduce((sum, team) => sum + team.members.length, 0) ?? participants.length;
   const maxTeamSize = draw ? Math.max(...draw.teams.map((team) => team.members.length)) : 0;
   const density = maxTeamSize >= 8 || (draw?.teams.length ?? 0) >= 5 ? "dense" : maxTeamSize >= 6 ? "compact" : "normal";
@@ -244,7 +249,20 @@ export function TeamDrawExperience({
 
       <div className="team-draw-arena">
         <div className="team-draw-focus" aria-live="polite">
-          {phase === "loading" && <div className="team-draw-loading"><span className="team-draw-ball"><Icon name="futbol" /></span><strong>{pending ? "Đang cân bằng đội hình" : "Chuẩn bị công bố"}</strong><small>Seed · Thủ môn · Điểm phong độ</small><div className="team-draw-pool">{participants.slice(0, 12).map((participant, index) => <span style={{ "--pool-index": index } as React.CSSProperties} key={participant.participantId}><MemberAvatar memberId={participant.memberId} name={participant.name} avatarVersion={participant.avatarVersion} /></span>)}</div></div>}
+          {(phase === "loading" || phase === "countdown" || phase === "drawing") && <div className="team-draw-machine" aria-hidden="true">
+            <span className="team-draw-ball"><Icon name="futbol" /></span>
+            {poolRings.map((ring, ringIndex) => <div className={`team-draw-pool ring-${ringIndex + 1}`} key={ringIndex}>
+              {ring.map((participant, index) => <span
+                className={poolExited.has(participant.participantId) ? "exited" : "waiting"}
+                style={{
+                  "--pool-angle": `${(index * 360) / ring.length}deg`,
+                  "--pool-angle-negative": `${(-index * 360) / ring.length}deg`,
+                } as React.CSSProperties}
+                key={participant.participantId}
+              ><MemberAvatar memberId={participant.memberId} name={participant.name} avatarVersion={participant.avatarVersion} /></span>)}
+            </div>)}
+          </div>}
+          {phase === "loading" && <div className="team-draw-loading"><strong>{pending ? "Đang cân bằng đội hình" : "Chuẩn bị công bố"}</strong><small>Seed · Thủ môn · Điểm phong độ</small></div>}
           {phase === "countdown" && <strong className="team-draw-countdown" key={countdown}>{countdown}</strong>}
           {phase === "drawing" && active && <div ref={flyingRef} className="team-draw-player" style={{ "--destination-color": active.teamColor } as React.CSSProperties}>
             <MemberAvatar memberId={active.memberId} name={active.name} avatarVersion={active.avatarVersion} className="large" />

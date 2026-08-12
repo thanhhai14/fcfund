@@ -3948,6 +3948,27 @@ label>textarea {
   text-align: center;
 }
 
+.team-draw-machine {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 1px;
+  height: 1px;
+  transition: left .55s ease, opacity .35s ease;
+}
+
+.team-draw-stage.drawing .team-draw-machine {
+  left: 25%;
+  opacity: .82;
+}
+
+.team-draw-loading {
+  position: absolute;
+  z-index: 4;
+  bottom: 0;
+}
+
 .team-draw-loading>strong,
 .team-draw-complete>strong,
 .team-draw-error>strong {
@@ -3975,6 +3996,13 @@ label>textarea {
   animation: team-draw-ball 3s linear infinite;
 }
 
+.team-draw-ball {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
+
 .team-draw-complete>svg,
 .team-draw-error>svg {
   animation: team-draw-pop .55s cubic-bezier(.18,.9,.28,1.35) both;
@@ -3986,16 +4014,33 @@ label>textarea {
 
 .team-draw-pool {
   position: absolute;
-  inset: 50% auto auto 50%;
+  inset: 0 auto auto 0;
   width: 1px;
   height: 1px;
-  animation: team-draw-orbit 12s linear infinite;
+  animation: team-draw-orbit 14s linear infinite;
+  will-change: transform;
+}
+
+.team-draw-pool.ring-2 {
+  animation-duration: 10s;
+  animation-direction: reverse;
 }
 
 .team-draw-pool>span {
   position: absolute;
   inset: 0 auto auto 0;
-  transform: rotate(calc(var(--pool-index) * 30deg)) translateX(clamp(76px, 11vw, 150px)) rotate(calc(var(--pool-index) * -30deg));
+  opacity: 1;
+  transform: rotate(var(--pool-angle)) translateX(clamp(100px, 11vw, 150px)) rotate(var(--pool-angle-negative));
+  transition: opacity .4s ease, filter .4s ease;
+}
+
+.team-draw-pool.ring-2>span {
+  transform: rotate(var(--pool-angle)) translateX(clamp(62px, 7vw, 92px)) rotate(var(--pool-angle-negative));
+}
+
+.team-draw-pool>span.exited {
+  opacity: 0;
+  filter: blur(3px);
 }
 
 .team-draw-pool .member-identity-avatar {
@@ -4005,7 +4050,17 @@ label>textarea {
   outline: 2px solid rgba(255, 255, 255, .35);
 }
 
+.team-draw-pool.ring-1>span>.member-identity-avatar {
+  animation: team-draw-avatar-upright 14s linear infinite reverse;
+}
+
+.team-draw-pool.ring-2>span>.member-identity-avatar {
+  animation: team-draw-avatar-upright 10s linear infinite;
+}
+
 .team-draw-countdown {
+  position: relative;
+  z-index: 5;
   color: white;
   font-size: clamp(76px, 14vw, 160px);
   line-height: 1;
@@ -4014,6 +4069,11 @@ label>textarea {
 }
 
 .team-draw-player {
+  position: absolute;
+  top: 50%;
+  left: 64%;
+  z-index: 5;
+  translate: -50% -50%;
   width: min(280px, calc(100vw - 40px));
   min-height: 138px;
   padding: 16px;
@@ -4227,10 +4287,15 @@ label>textarea {
 }
 
 @keyframes team-draw-ball {
-  to { transform: rotate(360deg); }
+  from { transform: translate(-50%, -50%) rotate(0); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 @keyframes team-draw-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes team-draw-avatar-upright {
   to { transform: rotate(360deg); }
 }
 
@@ -4278,7 +4343,11 @@ label>textarea {
   }
 
   .team-draw-pool>span {
-    transform: rotate(calc(var(--pool-index) * 30deg)) translateX(72px) rotate(calc(var(--pool-index) * -30deg));
+    transform: rotate(var(--pool-angle)) translateX(74px) rotate(var(--pool-angle-negative));
+  }
+
+  .team-draw-pool.ring-2>span {
+    transform: rotate(var(--pool-angle)) translateX(47px) rotate(var(--pool-angle-negative));
   }
 
   .team-draw-pool .member-identity-avatar {
@@ -4300,9 +4369,14 @@ label>textarea {
   }
 
   .team-draw-player {
-    width: min(220px, calc(100vw - 32px));
+    left: 69%;
+    width: min(190px, calc(100vw - 32px));
     min-height: 112px;
     padding: 11px;
+  }
+
+  .team-draw-stage.drawing .team-draw-machine {
+    left: 21%;
   }
 
   .team-draw-player>.member-identity-avatar {
@@ -4386,6 +4460,7 @@ label>textarea {
 @media (prefers-reduced-motion: reduce) {
   .team-draw-ball,
   .team-draw-pool,
+  .team-draw-pool .member-identity-avatar,
   .team-draw-countdown,
   .team-draw-destination li.revealed,
   .team-draw-complete>svg,
