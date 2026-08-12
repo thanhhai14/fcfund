@@ -90,6 +90,37 @@ export async function getMemberCareerStats(input: { clubId: string; memberId: st
   };
 }
 
+export async function getMembersCareerStats(input: { clubId: string; memberIds: string[] }) {
+  const result = new Map<string, MemberCareerStats>();
+  for (const memberId of input.memberIds) result.set(memberId, { matchCount: 0, winCount: 0, lossCount: 0, winRate: null });
+  if (!input.memberIds.length) return result;
+
+  const rows = await db.select({
+    memberId: memberMatchStats.memberId,
+    result: memberMatchStats.result,
+  }).from(memberMatchStats)
+    .innerJoin(matches, eq(memberMatchStats.matchId, matches.id))
+    .where(and(
+      eq(memberMatchStats.clubId, input.clubId),
+      inArray(memberMatchStats.memberId, input.memberIds),
+      isNull(matches.deletedAt),
+    ));
+
+  for (const memberId of input.memberIds) {
+    const memberRows = rows.filter((row) => row.memberId === memberId);
+    const winCount = memberRows.filter((row) => row.result === "WIN").length;
+    const lossCount = memberRows.filter((row) => row.result === "LOSS").length;
+    const matchCount = winCount + lossCount;
+    result.set(memberId, {
+      matchCount,
+      winCount,
+      lossCount,
+      winRate: matchCount ? Math.round((winCount / matchCount) * 1_000) / 10 : null,
+    });
+  }
+  return result;
+}
+
 export async function getMatchFormStats(input: {
   clubId: string;
   playedOn: string;

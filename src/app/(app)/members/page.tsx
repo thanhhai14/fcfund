@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { avatars, fundTransactions, memberCharges, members, users } from "@/db/schema";
+import { avatars, fundTransactions, memberCharges, memberProfiles, members, users } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -12,7 +12,7 @@ import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MembersCollection } from "@/components/members-collection";
-import { getMatchFormStats } from "@/lib/match-form-stats";
+import { getMatchFormStats, getMembersCareerStats } from "@/lib/match-form-stats";
 
 export const metadata = { title: "Thành viên" };
 
@@ -34,10 +34,16 @@ export default async function MembersPage() {
       role: users.role,
       hasAccount: sql<boolean>`${users.id} IS NOT NULL`,
       avatarUpdatedAt: avatars.updatedAt,
+      bio: memberProfiles.bio,
+      nickname: memberProfiles.nickname,
+      preferredPosition: memberProfiles.preferredPosition,
+      preferredFoot: memberProfiles.preferredFoot,
+      shirtNumber: memberProfiles.shirtNumber,
     })
     .from(members)
     .leftJoin(users, eq(members.id, users.memberId))
     .leftJoin(avatars, eq(members.id, avatars.memberId))
+    .leftJoin(memberProfiles, eq(members.id, memberProfiles.memberId))
     .where(eq(members.clubId, currentUser.clubId))
     .orderBy(members.status, members.fullName);
 
@@ -63,14 +69,14 @@ export default async function MembersPage() {
     .groupBy(fundTransactions.memberId);
   const chargeMap = new Map(charges.map((row) => [row.memberId, Number(row.amount)]));
   const paymentMap = new Map(payments.map((row) => [row.memberId, Number(row.amount)]));
-  const formStats = canViewForm
-    ? await getMatchFormStats({
+  const [formStats, careerStats] = canViewForm
+    ? await Promise.all([getMatchFormStats({
       clubId: currentUser.clubId,
       playedOn: "9999-12-31",
       memberIds: rows.map((row) => row.id),
       lookbackMatches: 10,
-    })
-    : new Map();
+    }), getMembersCareerStats({ clubId: currentUser.clubId, memberIds: rows.map((row) => row.id) })])
+    : [new Map(), new Map()];
   const activeRows = rows.filter((row) => row.status === "ACTIVE");
   const activeCount = activeRows.length;
 
@@ -113,6 +119,15 @@ export default async function MembersPage() {
         balance: (paymentMap.get(member.id) ?? 0) - (chargeMap.get(member.id) ?? 0),
         formScore: formStats.get(member.id)?.formScore ?? 5000,
         avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
+        bio: member.bio,
+        nickname: member.nickname,
+        preferredPosition: member.preferredPosition,
+        preferredFoot: member.preferredFoot,
+        shirtNumber: member.shirtNumber,
+        matchCount: careerStats.get(member.id)?.matchCount ?? 0,
+        winCount: careerStats.get(member.id)?.winCount ?? 0,
+        lossCount: careerStats.get(member.id)?.lossCount ?? 0,
+        winRate: careerStats.get(member.id)?.winRate ?? null,
       }))} />
     </>
   );
