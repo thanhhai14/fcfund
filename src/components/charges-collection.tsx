@@ -8,6 +8,7 @@ import { MutationForm, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateMemberChargeAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
+import { CompactDateRangeFilter } from "./compact-date-range-filter";
 
 export type ChargeCollectionRow = {
   id: string;
@@ -46,12 +47,12 @@ function ChargeActions({ row }: { row: ChargeCollectionRow }) {
   </Disclosure>;
 }
 
-export function ChargesCollection({ rows, canManage }: { rows: ChargeCollectionRow[]; canManage: boolean }) {
+export function ChargesCollection({ rows, canManage, defaultDateFrom, defaultDateTo }: { rows: ChargeCollectionRow[]; canManage: boolean; defaultDateFrom: string; defaultDateTo: string }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("ALL");
   const [source, setSource] = useState("ALL");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(defaultDateFrom);
+  const [dateTo, setDateTo] = useState(defaultDateTo);
   const [sort, setSort] = useState("DATE_DESC");
   const [view, setView] = useResponsiveView("fcfund:charges:view");
   const columns = useColumnVisibility("fcfund:charges:columns", CHARGE_COLUMNS);
@@ -81,8 +82,7 @@ export function ChargesCollection({ rows, canManage }: { rows: ChargeCollectionR
     <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc ghi chú..." count={visible.length} view={view} onViewChange={setView}>
       <select value={type} onChange={(event) => setType(event.target.value)}><option value="ALL">Mọi loại thu</option>{types.map((name) => <option key={name}>{name}</option>)}</select>
       <select value={source} onChange={(event) => setSource(event.target.value)}><option value="ALL">Mọi nguồn</option>{Object.entries(SOURCE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select>
-      <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Từ ngày" title="Từ ngày" />
-      <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="Đến ngày" title="Đến ngày" />
+      <CompactDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} today={defaultDateTo} onChange={(range) => { setDateFrom(range.dateFrom); setDateTo(range.dateTo); }} />
       <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="DATE_DESC">Mới nhất</option><option value="DATE_ASC">Cũ nhất</option><option value="NAME">Tên thành viên</option><option value="AMOUNT_DESC">Tiền cao nhất</option><option value="AMOUNT_ASC">Tiền thấp nhất</option><option value="QUANTITY">Số lần nhiều nhất</option></select>
       {view === "list" && <ColumnVisibilityMenu columns={CHARGE_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
     </CollectionToolbar>

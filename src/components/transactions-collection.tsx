@@ -7,6 +7,8 @@ import { MutationForm, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateFundTransactionAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
+import { CompactDateRangeFilter } from "./compact-date-range-filter";
+import { Icon } from "./icon";
 
 export type TransactionCollectionRow = {
   id: string;
@@ -32,20 +34,21 @@ function TransactionActions({ row }: { row: TransactionCollectionRow }) {
   return <Disclosure label="•••" className="row-disclosure"><MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} /><label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><button className="button danger wide small">Xóa giao dịch</button></form></Disclosure>;
 }
 
-export function TransactionsCollection({ rows, canManage }: { rows: TransactionCollectionRow[]; canManage: boolean }) {
+export function TransactionsCollection({ rows, canManage, defaultDateFrom, defaultDateTo }: { rows: TransactionCollectionRow[]; canManage: boolean; defaultDateFrom: string; defaultDateTo: string }) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState("ALL");
   const [kind, setKind] = useState("ALL");
   const [category, setCategory] = useState("ALL");
   const [member, setMember] = useState("ALL");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(defaultDateFrom);
+  const [dateTo, setDateTo] = useState(defaultDateTo);
   const [sort, setSort] = useState("DATE_DESC");
   const [view, setView] = useResponsiveView("fcfund:transactions:view");
   const columns = useColumnVisibility("fcfund:transactions:columns", TRANSACTION_COLUMNS);
   const categories = useMemo(() => [...new Set(rows.flatMap((row) => row.categoryName ? [row.categoryName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
   const kinds = useMemo(() => [...new Set(rows.map((row) => row.kind))], [rows]);
   const memberNames = useMemo(() => [...new Set(rows.flatMap((row) => row.memberName ? [row.memberName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
+  const advancedFilterCount = Number(category !== "ALL") + Number(member !== "ALL");
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
     const result = rows.filter((row) => {
@@ -72,10 +75,15 @@ export function TransactionsCollection({ rows, canManage }: { rows: TransactionC
     <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm nội dung, thành viên, danh mục..." count={visible.length} view={view} onViewChange={setView}>
       <select value={direction} onChange={(event) => setDirection(event.target.value)}><option value="ALL">Tất cả Thu/Chi</option><option value="IN">Khoản thu</option><option value="OUT">Khoản chi</option></select>
       <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="ALL">Mọi loại giao dịch</option>{kinds.map((value) => <option value={value} key={value}>{KIND_LABELS[value] ?? value}</option>)}</select>
-      <select value={category} onChange={(event) => setCategory(event.target.value)}><option value="ALL">Mọi danh mục</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
-      <select value={member} onChange={(event) => setMember(event.target.value)}><option value="ALL">Mọi thành viên</option>{memberNames.map((value) => <option key={value}>{value}</option>)}</select>
-      <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} aria-label="Từ ngày" title="Từ ngày" />
-      <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} aria-label="Đến ngày" title="Đến ngày" />
+      <CompactDateRangeFilter dateFrom={dateFrom} dateTo={dateTo} today={defaultDateTo} onChange={(range) => { setDateFrom(range.dateFrom); setDateTo(range.dateTo); }} />
+      <Disclosure label={<><Icon name="list" /> <span>Bộ lọc thêm</span>{advancedFilterCount > 0 && <b>{advancedFilterCount}</b>}</>} className="advanced-filters-disclosure">
+        <div className="advanced-filters-heading"><span className="eyebrow">Bộ lọc thêm</span><strong>Thu hẹp giao dịch</strong></div>
+        <div className="advanced-filters-fields">
+          <label>Danh mục<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="ALL">Mọi danh mục</option>{categories.map((value) => <option key={value}>{value}</option>)}</select></label>
+          <label>Thành viên<select value={member} onChange={(event) => setMember(event.target.value)}><option value="ALL">Mọi thành viên</option>{memberNames.map((value) => <option key={value}>{value}</option>)}</select></label>
+        </div>
+        <button type="button" className="button secondary wide" onClick={() => { setCategory("ALL"); setMember("ALL"); }}>Xóa bộ lọc thêm</button>
+      </Disclosure>
       <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="DATE_DESC">Mới nhất</option><option value="DATE_ASC">Cũ nhất</option><option value="AMOUNT_DESC">Tiền cao nhất</option><option value="AMOUNT_ASC">Tiền thấp nhất</option><option value="MEMBER">Tên thành viên</option></select>
       {view === "list" && <ColumnVisibilityMenu columns={TRANSACTION_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
     </CollectionToolbar>

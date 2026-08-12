@@ -11,7 +11,7 @@ import {
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
+import { formatDate, formatMoney, shiftDate, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
 import { TransactionsCollection } from "@/components/transactions-collection";
@@ -22,6 +22,8 @@ export default async function TransactionsPage() {
   const user = await requireUser();
   if (!(await can(PERMISSIONS.EXPENSES_VIEW))) redirect("/dashboard");
   const canManage = await can(PERMISSIONS.EXPENSES_MANAGE);
+  const today = todayInTimezone();
+  const defaultDateFrom = shiftDate(today, -30);
 
   const rows = await db
     .select({
@@ -86,7 +88,7 @@ export default async function TransactionsPage() {
         <article><span className="stat-icon green"><Icon name="wallet" /></span><div><small>Số dư quỹ</small><strong>{formatMoney(income - expense)}</strong></div></article>
       </section>
 
-      <TransactionsCollection rows={rows} canManage={canManage} />
+      <TransactionsCollection rows={rows} canManage={canManage} defaultDateFrom={defaultDateFrom} defaultDateTo={today} />
     </>
   );
 }

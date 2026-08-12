@@ -55,6 +55,13 @@ export function monthStart(value = todayInTimezone()) {
   return `${value.slice(0, 7)}-01`;
 }
 
+export function shiftDate(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export function normalizePhone(value: string) {
   return value.replace(/\D/g, "");
 }

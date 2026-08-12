@@ -11,7 +11,7 @@ import {
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatMoney, todayInTimezone } from "@/lib/format";
+import { formatMoney, shiftDate, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { ChargesCollection } from "@/components/charges-collection";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
@@ -25,6 +25,8 @@ export default async function ChargesPage() {
   if (!canViewAll && !canViewOwn) redirect("/dashboard");
   if (!canViewAll && !user.memberId) redirect("/dashboard");
   const canManage = await can(PERMISSIONS.CHARGES_MANAGE);
+  const today = todayInTimezone();
+  const defaultDateFrom = shiftDate(today, -30);
 
   const conditions = [
     eq(memberCharges.clubId, user.clubId),
@@ -89,7 +91,7 @@ export default async function ChargesPage() {
         <span><strong>{formatMoney(total)}</strong> tổng phải thu</span>
       </div>
 
-      <ChargesCollection rows={rows} canManage={canManage} />
+      <ChargesCollection rows={rows} canManage={canManage} defaultDateFrom={defaultDateFrom} defaultDateTo={today} />
     </>
   );
 }
