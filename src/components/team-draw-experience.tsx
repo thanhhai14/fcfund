@@ -317,10 +317,14 @@ export function TeamDrawExperience({
   return <>
     <form action={formAction} className="team-config-form" onSubmit={beginGeneration}>
       <input type="hidden" name="matchId" value={matchId} />
-      <TeamCountField memberCount={participants.length} defaultValue={defaultTeamCount} />
-      <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={defaultLookbackMatches} required /></label>
-      <button className="button primary" type="submit" disabled={disabled || pending}>{pending ? "Đang cân bằng…" : hasTeams ? "Chia lại đội" : "Tạo đội cân bằng"}</button>
-      {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}>Xem lại bốc thăm</button>}
+      <div className="team-config-fields">
+        <TeamCountField memberCount={participants.length} defaultValue={defaultTeamCount} />
+        <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={defaultLookbackMatches} required /></label>
+      </div>
+      <div className="team-config-actions">
+        {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}>Xem lại bốc thăm</button>}
+        <button className="button primary" type="submit" disabled={disabled || pending}>{pending ? "Đang cân bằng…" : hasTeams ? "Chia lại đội" : "Tạo đội cân bằng"}</button>
+      </div>
       {state && !state.ok && <p className="form-message error">{state.message}</p>}
     </form>
     {stage}

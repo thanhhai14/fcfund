@@ -3629,9 +3629,35 @@ label>textarea {
 
 .team-config-form {
   display: grid;
-  grid-template-columns: 170px 190px auto;
   gap: 12px;
-  align-items: end;
+}
+
+.team-config-fields {
+  display: grid;
+  grid-template-columns: 170px 190px;
+  gap: 12px;
+  align-items: start;
+}
+
+.team-config-fields>label,
+.team-config-fields>.team-count-field {
+  min-width: 0;
+}
+
+.team-config-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.team-config-actions>.button {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+}
+
+.team-config-actions>.button:only-child {
+  grid-column: 1 / -1;
 }
 
 .team-warning {
@@ -5458,6 +5484,10 @@ label>textarea {
   }
 
   .team-config-form {
+    grid-template-columns: 1fr;
+  }
+
+  .team-config-fields {
     grid-template-columns: 1fr;
   }
 
