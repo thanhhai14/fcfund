@@ -33,6 +33,7 @@ type Participant = {
   name: string;
   avatarVersion: number | null;
   seedTier: SeedTier;
+  formScore: number;
 };
 
 const SEED_LABELS: Record<SeedTier, string> = {
@@ -123,6 +124,7 @@ export function TeamDrawExperience({
           ordered.push({
             ...member,
             avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? null,
+            formScore: participantMap.get(member.participantId)?.formScore ?? 5000,
             teamId: team.id,
             teamName: team.name,
             teamColor: team.color,
@@ -171,12 +173,14 @@ export function TeamDrawExperience({
           { opacity: 1, transform: "scale(1)" },
         ] : [
           { opacity: 0, transform: "translate3d(0, 18px, 0) scale(.94)" },
-          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .22 },
-          { opacity: 1, transform: `translate3d(${dx * .45}px, ${dy * .28 - 28}px, 0) scale(.82)`, offset: .58 },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .08 },
+          { opacity: 1, transform: "translate3d(0, 0, 0) scale(1)", offset: .444 },
+          { opacity: 1, transform: `translate3d(${dx * .48}px, ${dy * .3 - 36}px, 0) scale(.86)`, offset: .67 },
+          { opacity: 1, transform: `translate3d(${dx}px, ${dy}px, 0) scale(.5)`, offset: .889 },
           { opacity: 0, transform: `translate3d(${dx}px, ${dy}px, 0) scale(.28)` },
-        ], { duration: reducedMotion ? 350 : 1000, easing: "cubic-bezier(.22,.8,.25,1)", fill: "forwards" });
+        ], { duration: reducedMotion ? 600 : 4500, easing: "cubic-bezier(.22,.8,.25,1)", fill: "forwards" });
         try { await animation.finished; } catch { /* Animation was skipped. */ }
-      } else await wait(1000);
+      } else await wait(4500);
       setRevealed((current) => current.includes(member.participantId) ? current : [...current, member.participantId]);
       setActive(null);
       if (haptics) window.navigator.vibrate?.(20);
@@ -244,7 +248,7 @@ export function TeamDrawExperience({
           {phase === "countdown" && <strong className="team-draw-countdown" key={countdown}>{countdown}</strong>}
           {phase === "drawing" && active && <div ref={flyingRef} className="team-draw-player" style={{ "--destination-color": active.teamColor } as React.CSSProperties}>
             <MemberAvatar memberId={active.memberId} name={active.name} avatarVersion={active.avatarVersion} className="large" />
-            <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]}</small><b>{active.teamName}</b>
+            <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]} · {Math.round(active.formScore / 100)} điểm phong độ</small><b>{active.teamName}</b>
           </div>}
           {phase === "complete" && <div className="team-draw-complete"><Icon name="trophy" /><strong>Đội hình đã hoàn tất</strong><small>{totalMembers} cầu thủ · {draw?.teams.length ?? 0} đội</small></div>}
           {phase === "error" && <div className="team-draw-error"><Icon name="triangle-exclamation" /><strong>Không thể chia đội</strong><small>{state?.message}</small></div>}
@@ -254,9 +258,17 @@ export function TeamDrawExperience({
           {draw.teams.map((team) => <article className="team-draw-destination" style={{ "--team-color": team.color } as React.CSSProperties} ref={(node) => { if (node) teamRefs.current.set(team.id, node); else teamRefs.current.delete(team.id); }} key={team.id}>
             <header><strong>{team.name}</strong><span>{team.members.filter((member) => revealedSet.has(member.participantId)).length}/{team.members.length}</span></header>
             <ol>
-              {team.members.map((member) => <li className={revealedSet.has(member.participantId) ? "revealed" : "waiting"} key={member.participantId} title={member.name}>
-                <span>{revealedSet.has(member.participantId) ? member.name : "Đang chờ…"}</span>{member.isLocked && <Icon name="shield" />}
-              </li>)}
+              {team.members.map((member) => {
+                const memberDetail = participantMap.get(member.participantId);
+                const isRevealed = revealedSet.has(member.participantId);
+                return <li className={isRevealed ? "revealed" : "waiting"} key={member.participantId} title={member.name}>
+                  {isRevealed ? <span className="team-draw-member-entry">
+                    <MemberAvatar memberId={member.memberId} name={member.name} avatarVersion={memberDetail?.avatarVersion} />
+                    <span><strong>{member.name}</strong><small>{SEED_LABELS[member.seedTier]} · {Math.round((memberDetail?.formScore ?? 5000) / 100)} điểm</small></span>
+                  </span> : <span className="team-draw-member-waiting">Đang chờ…</span>}
+                  {member.isLocked && <Icon name="shield" />}
+                </li>;
+              })}
             </ol>
           </article>)}
         </div>}

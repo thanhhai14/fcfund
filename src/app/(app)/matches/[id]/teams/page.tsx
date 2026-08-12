@@ -217,6 +217,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               name: participant.name,
               avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
               seedTier: effectiveSeed(participant)!,
+              formScore: participant.memberId ? stats.get(participant.memberId)?.formScore ?? 5000 : 5000,
             }))}
             defaultTeamCount={Math.min(draft.teamCount, Math.max(2, maxTeamCount))}
             defaultLookbackMatches={draft.lookbackMatches}

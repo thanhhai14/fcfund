@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1600" viewBox="0 0 900 1600">
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#0d5127"/>
+      <stop offset=".5" stop-color="#20733a"/>
+      <stop offset="1" stop-color="#0d5127"/>
+    </linearGradient>
+    <radialGradient id="shade">
+      <stop offset=".5" stop-color="#081d11" stop-opacity="0"/>
+      <stop offset="1" stop-color="#06170d" stop-opacity=".65"/>
+    </radialGradient>
+    <pattern id="stripes" width="900" height="280" patternUnits="userSpaceOnUse">
+      <rect width="900" height="140" fill="#fff" opacity=".04"/>
+    </pattern>
+  </defs>
+  <rect width="900" height="1600" fill="url(#grass)"/>
+  <rect width="900" height="1600" fill="url(#stripes)"/>
+  <g fill="none" stroke="#edf8e9" stroke-width="5" opacity=".45">
+    <rect x="50" y="60" width="800" height="1480"/>
+    <path d="M50 800h800"/>
+    <circle cx="450" cy="800" r="108"/>
+    <circle cx="450" cy="800" r="5" fill="#edf8e9"/>
+    <path d="M225 60v230h450V60M225 1540v-230h450v230"/>
+    <path d="M330 60v92h240V60M330 1540v-92h240v92"/>
+    <path d="M351 290a108 108 0 0 0 198 0M351 1310a108 108 0 0 1 198 0"/>
+    <circle cx="450" cy="220" r="5" fill="#edf8e9"/>
+    <circle cx="450" cy="1380" r="5" fill="#edf8e9"/>
+  </g>
+  <rect width="900" height="1600" fill="url(#shade)"/>
+</svg>

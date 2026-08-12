@@ -3854,8 +3854,8 @@ label>textarea {
   overflow: hidden;
   color: white;
   background:
-    radial-gradient(circle at 50% 38%, rgba(239, 113, 152, .18), transparent 30%),
-    linear-gradient(145deg, #021f36, var(--forest-950) 58%, #072943);
+    linear-gradient(rgba(3, 31, 19, .36), rgba(2, 22, 14, .64)),
+    url("/images/team-draw-pitch-landscape.svg") center / cover no-repeat;
   isolation: isolate;
 }
 
@@ -3864,10 +3864,8 @@ label>textarea {
   inset: 0;
   z-index: -1;
   content: "";
-  opacity: .16;
-  background:
-    linear-gradient(90deg, transparent 49.8%, white 50%, transparent 50.2%),
-    radial-gradient(circle at center, transparent 0 17%, white 17.2% 17.5%, transparent 17.7%);
+  opacity: .4;
+  background: radial-gradient(circle at 50% 38%, rgba(239, 113, 152, .2), transparent 28%);
   pointer-events: none;
 }
 
@@ -3974,7 +3972,7 @@ label>textarea {
   place-items: center;
   color: var(--pink-soft);
   font-size: 40px;
-  animation: team-draw-ball 1.4s linear infinite;
+  animation: team-draw-ball 3s linear infinite;
 }
 
 .team-draw-complete>svg,
@@ -4019,10 +4017,12 @@ label>textarea {
   width: min(280px, calc(100vw - 40px));
   min-height: 138px;
   padding: 16px;
-  color: var(--ink);
-  background: white;
+  color: white;
+  background: linear-gradient(145deg, rgba(7, 73, 43, .94), rgba(3, 42, 27, .9));
+  border: 1px solid rgba(255, 255, 255, .24);
   border-top: 5px solid var(--destination-color);
-  box-shadow: 8px 8px 0 var(--brand-primary);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, .28);
+  backdrop-filter: blur(10px);
   will-change: transform, opacity;
 }
 
@@ -4043,7 +4043,7 @@ label>textarea {
 
 .team-draw-player>small {
   margin-top: 3px;
-  color: var(--muted);
+  color: #c8decf;
   font-size: 10px;
 }
 
@@ -4070,9 +4070,11 @@ label>textarea {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: rgba(255, 255, 255, .96);
+  background: linear-gradient(145deg, rgba(8, 73, 45, .68), rgba(3, 43, 28, .58));
+  border: 1px solid rgba(255, 255, 255, .18);
   border-top: 5px solid var(--team-color);
   box-shadow: 5px 5px 0 rgba(0, 0, 0, .2);
+  backdrop-filter: blur(10px);
 }
 
 .team-draw-destination>header {
@@ -4082,8 +4084,8 @@ label>textarea {
   justify-content: space-between;
   gap: 6px;
   padding: 9px 11px;
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, .16);
 }
 
 .team-draw-destination>header strong {
@@ -4094,7 +4096,7 @@ label>textarea {
 }
 
 .team-draw-destination>header span {
-  color: var(--team-color);
+  color: white;
   font-size: 10px;
   font-weight: 900;
   white-space: nowrap;
@@ -4118,8 +4120,8 @@ label>textarea {
   justify-content: space-between;
   gap: 5px;
   padding: 3px 9px;
-  color: var(--ink);
-  border-top: 1px solid #edf0f2;
+  color: white;
+  border-top: 1px solid rgba(255, 255, 255, .12);
   font-size: clamp(8px, 1.05vw, 11px);
   font-weight: 800;
 }
@@ -4128,11 +4130,45 @@ label>textarea {
   border-top: 0;
 }
 
-.team-draw-destination li span {
+.team-draw-member-entry,
+.team-draw-member-entry>span,
+.team-draw-member-waiting {
+  min-width: 0;
+}
+
+.team-draw-member-entry {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+}
+
+.team-draw-member-entry>.member-identity-avatar {
+  width: 27px;
+  height: 27px;
+  flex-basis: 27px;
+  font-size: 8px;
+}
+
+.team-draw-member-entry strong,
+.team-draw-member-entry small {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.team-draw-member-entry strong {
+  font-size: inherit;
+}
+
+.team-draw-member-entry small {
+  margin-top: 2px;
+  color: #bbd1c2;
+  font-size: 8px;
+  font-weight: 650;
 }
 
 .team-draw-destination li svg {
@@ -4142,8 +4178,8 @@ label>textarea {
 }
 
 .team-draw-destination li.waiting {
-  color: #a7b1ba;
-  background: rgba(235, 240, 244, .62);
+  color: rgba(230, 241, 234, .56);
+  background: rgba(1, 24, 15, .18);
 }
 
 .team-draw-destination li.revealed {
@@ -4211,10 +4247,16 @@ label>textarea {
 
 @keyframes team-draw-member-in {
   from { color: white; background: var(--team-color); transform: translateY(-3px); }
-  to { color: var(--ink); background: white; transform: translateY(0); }
+  to { color: white; background: rgba(255, 255, 255, .04); transform: translateY(0); }
 }
 
 @media (max-width: 700px) {
+  .team-draw-stage {
+    background:
+      linear-gradient(rgba(3, 31, 19, .34), rgba(2, 22, 14, .64)),
+      url("/images/team-draw-pitch-portrait.svg") center / cover no-repeat;
+  }
+
   .team-draw-header {
     padding: 10px 12px;
   }
@@ -4304,6 +4346,22 @@ label>textarea {
     padding: 1px 6px;
     font-size: clamp(7px, 2.3vw, 9px);
     line-height: 1.15;
+  }
+
+  .team-draw-member-entry {
+    display: block;
+  }
+
+  .team-draw-member-entry>.member-identity-avatar,
+  .team-draw-member-entry small {
+    display: none;
+  }
+
+  .team-draw-member-entry strong {
+    overflow: hidden;
+    font-size: inherit;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .team-draw-footer {
