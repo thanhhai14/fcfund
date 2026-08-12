@@ -8,11 +8,13 @@ import {
   activityLogs,
   chargeTypes,
   matches,
+  matchParticipants,
   matchTeamMembers,
   matchTeams,
   matchTeamVersions,
   memberCharges,
   memberMatchStats,
+  members,
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
 import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
@@ -238,4 +240,178 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   revalidatePath("/reports");
   for (const memberId of memberIds) revalidatePath(`/members/${memberId}`);
   return { ok: true, message: `Đã ghi nhận kết quả và tạo ${penaltyRows.length} khoản phạt.` };
+}
+
+export async function replaceConfirmedMatchMemberAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  const matchId = str(formData, "matchId");
+  const versionId = str(formData, "versionId");
+  const teamMemberId = str(formData, "teamMemberId");
+  const replacementMemberId = str(formData, "replacementMemberId");
+  const reason = str(formData, "reason");
+
+  const [match] = await db.select().from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+    isNull(matches.deletedAt),
+  )).limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const [version] = await db.select().from(matchTeamVersions).where(and(
+    eq(matchTeamVersions.id, versionId),
+    eq(matchTeamVersions.matchId, matchId),
+    eq(matchTeamVersions.status, "CONFIRMED"),
+  )).limit(1);
+  if (!version) return { ok: false, message: "Chỉ có thể thay người trong đội hình đã xác nhận." };
+
+  const [slot] = await db.select({
+    id: matchTeamMembers.id,
+    participantId: matchTeamMembers.participantId,
+    memberId: matchTeamMembers.memberId,
+    displayName: matchTeamMembers.displayNameSnapshot,
+    teamId: matchTeamMembers.teamId,
+    teamName: matchTeams.name,
+  }).from(matchTeamMembers)
+    .innerJoin(matchTeams, eq(matchTeamMembers.teamId, matchTeams.id))
+    .where(and(
+      eq(matchTeamMembers.id, teamMemberId),
+      eq(matchTeamMembers.versionId, versionId),
+      eq(matchTeams.versionId, versionId),
+    )).limit(1);
+  if (!slot) return { ok: false, message: "Không tìm thấy cầu thủ trong đội hình đã xác nhận." };
+  if (slot.memberId === replacementMemberId) return { ok: false, message: "Người thay thế đang là cầu thủ hiện tại." };
+
+  const [replacement] = await db.select().from(members).where(and(
+    eq(members.id, replacementMemberId),
+    eq(members.clubId, actor.clubId),
+    eq(members.status, "ACTIVE"),
+  )).limit(1);
+  if (!replacement) return { ok: false, message: "Thành viên thay thế không tồn tại hoặc đã ngừng hoạt động." };
+
+  const [alreadyAssigned] = await db.select({ id: matchTeamMembers.id }).from(matchTeamMembers).where(and(
+    eq(matchTeamMembers.versionId, versionId),
+    eq(matchTeamMembers.memberId, replacementMemberId),
+  )).limit(1);
+  if (alreadyAssigned) return { ok: false, message: "Thành viên thay thế đã có trong một đội của trận này." };
+
+  const [replacementParticipant] = await db.select().from(matchParticipants).where(and(
+    eq(matchParticipants.matchId, matchId),
+    eq(matchParticipants.memberId, replacementMemberId),
+  )).limit(1);
+  const transferredCharges = slot.memberId ? await db.select({
+    id: memberCharges.id,
+    quantity: memberCharges.quantity,
+    totalAmount: memberCharges.totalAmount,
+  }).from(memberCharges).where(and(
+    eq(memberCharges.matchId, matchId),
+    eq(memberCharges.memberId, slot.memberId),
+    isNull(memberCharges.deletedAt),
+  )) : [];
+
+  const metrics = metricsRecord(version.metrics);
+  const placementMap = metricsRecord(metrics.placements);
+  const placement = typeof placementMap[slot.teamName] === "number" ? placementMap[slot.teamName] as number : null;
+  const teams = placement ? await db.select({ name: matchTeams.name }).from(matchTeams).where(eq(matchTeams.versionId, versionId)) : [];
+  const tiedCount = placement ? teams.filter((team) => placementMap[team.name] === placement).length : 0;
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    let participantId = replacementParticipant?.id ?? slot.participantId;
+    if (replacementParticipant) {
+      if (slot.participantId && slot.participantId !== replacementParticipant.id) {
+        await tx.delete(matchParticipants).where(eq(matchParticipants.id, slot.participantId));
+      }
+    } else if (slot.participantId) {
+      await tx.update(matchParticipants).set({
+        memberId: replacement.id,
+        guestName: null,
+        seedTier: null,
+        seedEvaluatedAt: null,
+        seedEvaluatedBy: null,
+        note: reason ? `Thay người sau trận: ${reason}` : "Thay người sau trận",
+      }).where(eq(matchParticipants.id, slot.participantId));
+    } else {
+      const [createdParticipant] = await tx.insert(matchParticipants).values({
+        matchId,
+        memberId: replacement.id,
+        note: reason ? `Thay người sau trận: ${reason}` : "Thay người sau trận",
+      }).returning({ id: matchParticipants.id });
+      participantId = createdParticipant.id;
+    }
+
+    await tx.update(matchTeamMembers).set({
+      participantId,
+      memberId: replacement.id,
+      displayNameSnapshot: replacement.fullName,
+    }).where(eq(matchTeamMembers.id, slot.id));
+
+    if (slot.memberId) {
+      await tx.update(memberCharges).set({
+        memberId: replacement.id,
+        updatedAt: now,
+      }).where(and(
+        eq(memberCharges.matchId, matchId),
+        eq(memberCharges.memberId, slot.memberId),
+        isNull(memberCharges.deletedAt),
+      ));
+      await tx.delete(memberMatchStats).where(and(
+        eq(memberMatchStats.matchId, matchId),
+        eq(memberMatchStats.memberId, slot.memberId),
+      ));
+    }
+
+    await tx.delete(memberMatchStats).where(and(
+      eq(memberMatchStats.matchId, matchId),
+      eq(memberMatchStats.memberId, replacement.id),
+    ));
+    if (placement && Number.isInteger(placement)) {
+      await tx.insert(memberMatchStats).values({
+        clubId: actor.clubId,
+        memberId: replacement.id,
+        matchId,
+        teamVersionId: versionId,
+        teamId: slot.teamId,
+        playedOn: match.playedOn,
+        teamCount: teams.length,
+        placement,
+        isTied: tiedCount > 1,
+        result: placement === 1 ? "WIN" : "LOSS",
+        source: "RECORDED",
+        placementScore: placementFormScore(teams.length, placement),
+        formulaVersion: FORMULA_VERSION,
+        calculatedAt: now,
+        createdBy: actor.id,
+        updatedAt: now,
+      });
+    }
+
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: { team: slot.teamName, memberId: slot.memberId, memberName: slot.displayName },
+      afterData: {
+        team: slot.teamName,
+        memberId: replacement.id,
+        memberName: replacement.fullName,
+        transferredChargeIds: transferredCharges.map((charge) => charge.id),
+        transferredAmount: transferredCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
+        placement,
+      },
+      message: `Thay ${slot.displayName} bằng ${replacement.fullName} tại ${slot.teamName}${reason ? ` · ${reason}` : ""}`,
+    });
+  });
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/matches/${matchId}/teams`);
+  revalidatePath("/matches");
+  revalidatePath("/charges");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+  if (match.publicLineupToken) revalidatePath(`/lineup/${match.publicLineupToken}`);
+  if (slot.memberId) revalidatePath(`/members/${slot.memberId}`);
+  revalidatePath(`/members/${replacement.id}`);
+  return { ok: true, message: `Đã thay ${slot.displayName} bằng ${replacement.fullName} trong ${slot.teamName}.` };
 }

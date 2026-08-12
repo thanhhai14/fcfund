@@ -5,6 +5,8 @@ import { formatMoney } from "@/lib/format";
 import { Icon } from "./icon";
 import { ColumnVisibilityMenu, useColumnVisibility, type CollectionColumn } from "./collection-controls";
 import { MemberIdentity } from "./member-identity";
+import { MatchMemberReplacement } from "./match-member-replacement";
+import type { MemberSelectOption } from "./searchable-member-select";
 
 type ChargeView = {
   id: string;
@@ -18,6 +20,7 @@ type ChargeView = {
 
 export type MatchParticipantView = {
   id: string;
+  teamMemberId: string | null;
   memberId: string | null;
   name: string;
   avatarVersion: number | null;
@@ -77,12 +80,20 @@ export function MatchDetailView({
   teams,
   canViewSeed,
   canViewTeams,
+  canManageTeams,
+  matchId,
+  confirmedVersionId,
+  replacementMembers,
   resultContent,
 }: {
   participants: MatchParticipantView[];
   teams: MatchTeamView[];
   canViewSeed: boolean;
   canViewTeams: boolean;
+  canManageTeams: boolean;
+  matchId: string;
+  confirmedVersionId: string | null;
+  replacementMembers: MemberSelectOption[];
   resultContent: ReactNode;
 }) {
   const [section, setSection] = useState<"result" | "members">("result");
@@ -214,6 +225,17 @@ export function MatchDetailView({
                     <div key={member.id}>
                       <MemberIdentity memberId={member.memberId} name={member.name} avatarVersion={member.avatarVersion} secondary={canViewSeed ? member.seedTier ? SEED_LABELS[member.seedTier] ?? member.seedTier : "Chưa có Seed" : null} compact />
                       <span className="team-member-charge">{member.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />)}{!member.charges.length && <small>—</small>}</span>
+                      {canManageTeams && confirmedVersionId && member.teamMemberId && <MatchMemberReplacement
+                        matchId={matchId}
+                        versionId={confirmedVersionId}
+                        teamMemberId={member.teamMemberId}
+                        current={{ memberId: member.memberId, name: member.name, avatarVersion: member.avatarVersion }}
+                        teamName={team.name}
+                        teamPlace={team.place}
+                        chargeQuantity={chargeSummary(member.charges).quantity}
+                        chargeAmount={chargeSummary(member.charges).amount}
+                        options={replacementMembers}
+                      />}
                     </div>
                   ))}
                 </div>

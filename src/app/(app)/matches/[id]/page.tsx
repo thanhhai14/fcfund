@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { MatchDetailView, type MatchParticipantView, type MatchTeamView } from "@/components/match-detail-view";
@@ -110,9 +110,22 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .where(eq(matchTeams.versionId, confirmedVersion.id))
     .orderBy(matchTeams.teamIndex) : [];
   const teamMemberRows = confirmedVersion ? await db.select({
+    id: matchTeamMembers.id,
     participantId: matchTeamMembers.participantId,
+    memberId: matchTeamMembers.memberId,
     teamId: matchTeamMembers.teamId,
   }).from(matchTeamMembers).where(eq(matchTeamMembers.versionId, confirmedVersion.id)) : [];
+  const assignedMemberIds = new Set(teamMemberRows.flatMap((row) => row.memberId ? [row.memberId] : []));
+  const replacementMemberRows = canManageTeams && confirmedVersion ? await db.select({
+    id: members.id,
+    name: members.fullName,
+    code: members.code,
+    phone: members.phone,
+    avatarUpdatedAt: avatars.updatedAt,
+  }).from(members)
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
+    .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE")))
+    .orderBy(asc(members.fullName)) : [];
   const penaltyTypes = canManageTeams && confirmedVersion ? await db.select({
     id: chargeTypes.id,
     name: chargeTypes.name,
@@ -132,16 +145,18 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     chargesByMember.set(charge.memberId, current);
   }
   const teamById = new Map(teamRows.map((team) => [team.id, team]));
-  const participantTeam = new Map(teamMemberRows.flatMap((row) => row.participantId ? [[row.participantId, row.teamId]] : []));
+  const participantTeam = new Map(teamMemberRows.flatMap((row) => row.participantId ? [[row.participantId, row]] : []));
   const placements = getPlacements(confirmedVersion?.metrics);
   const selectedPenaltyTypeId = getMetricString(confirmedVersion?.metrics, "resultChargeTypeId")
     ?? penaltyTypes[0]?.id;
   const hasRecordedResult = teamRows.length > 0 && teamRows.every((team) => placements[team.name]);
 
   const participants: MatchParticipantView[] = participantRows.map((row) => {
-    const team = teamById.get(participantTeam.get(row.id) ?? "");
+    const teamMembership = participantTeam.get(row.id);
+    const team = teamById.get(teamMembership?.teamId ?? "");
     return {
       id: row.id,
+      teamMemberId: teamMembership?.id ?? null,
       memberId: row.memberId,
       name: row.memberName ?? row.guestName ?? "Khách",
       avatarVersion: row.avatarUpdatedAt?.getTime() ?? null,
@@ -257,7 +272,23 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         </section>
       )}
 
-      <MatchDetailView participants={participants} teams={teams} canViewSeed={canViewSeed} canViewTeams={canViewTeams} resultContent={resultContent} />
+      <MatchDetailView
+        participants={participants}
+        teams={teams}
+        canViewSeed={canViewSeed}
+        canViewTeams={canViewTeams}
+        canManageTeams={canManageTeams}
+        matchId={match.id}
+        confirmedVersionId={confirmedVersion?.id ?? null}
+        replacementMembers={replacementMemberRows.filter((member) => !assignedMemberIds.has(member.id)).map((member) => ({
+          id: member.id,
+          name: member.name,
+          code: member.code,
+          phone: member.phone,
+          avatarVersion: member.avatarUpdatedAt,
+        }))}
+        resultContent={resultContent}
+      />
 
       {canManageMatches && <p className="match-detail-edit-note">Muốn đổi người tham gia hoặc khoản thu? Quay lại danh sách trận và chọn <strong>Sửa</strong>.</p>}
     </>
