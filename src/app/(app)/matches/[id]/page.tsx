@@ -43,6 +43,22 @@ function getPlacements(metrics: unknown): Record<string, number> {
   ));
 }
 
+function getMetricNumberRecord(metrics: unknown, key: string): Record<string, number> {
+  if (typeof metrics === "string") {
+    try {
+      return getMetricNumberRecord(JSON.parse(metrics), key);
+    } catch {
+      return {};
+    }
+  }
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return {};
+  const record = (metrics as Record<string, unknown>)[key];
+  if (!record || typeof record !== "object" || Array.isArray(record)) return {};
+  return Object.fromEntries(Object.entries(record).flatMap(([name, value]) =>
+    typeof value === "number" && Number.isFinite(value) ? [[name, value]] : [],
+  ));
+}
+
 function getMetricString(metrics: unknown, key: string) {
   if (typeof metrics === "string") {
     try {
@@ -87,11 +103,14 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const chargeRows = await db.select({
     id: memberCharges.id,
     memberId: memberCharges.memberId,
+    chargeTypeId: memberCharges.chargeTypeId,
+    isLossPenalty: memberCharges.isLossPenaltySnapshot,
     name: chargeTypes.name,
     iconName: chargeTypes.iconName,
     color: chargeTypes.color,
     reportAsIcon: chargeTypes.reportAsIcon,
     quantity: memberCharges.quantity,
+    unitAmount: memberCharges.unitAmount,
     amount: memberCharges.totalAmount,
   }).from(memberCharges)
     .innerJoin(chargeTypes, eq(memberCharges.chargeTypeId, chargeTypes.id))
@@ -147,9 +166,26 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const teamById = new Map(teamRows.map((team) => [team.id, team]));
   const participantTeam = new Map(teamMemberRows.flatMap((row) => row.participantId ? [[row.participantId, row]] : []));
   const placements = getPlacements(confirmedVersion?.metrics);
+  const storedPenaltyQuantities = getMetricNumberRecord(confirmedVersion?.metrics, "penaltyQuantities");
   const selectedPenaltyTypeId = getMetricString(confirmedVersion?.metrics, "resultChargeTypeId")
     ?? penaltyTypes[0]?.id;
+  const memberIdsByTeam = new Map(teamRows.map((team) => [team.id, new Set(teamMemberRows.flatMap((row) => row.teamId === team.id && row.memberId ? [row.memberId] : []))]));
+  const penaltyQuantityByTeam = new Map(teamRows.map((team) => {
+    const stored = storedPenaltyQuantities[team.name];
+    if (Number.isInteger(stored) && stored >= 0) return [team.id, stored] as const;
+    const memberIds = memberIdsByTeam.get(team.id) ?? new Set<string>();
+    const existing = chargeRows
+      .filter((charge) => memberIds.has(charge.memberId)
+        && charge.isLossPenalty
+        && (!selectedPenaltyTypeId || charge.chargeTypeId === selectedPenaltyTypeId))
+      .map((charge) => charge.quantity);
+    const unique = [...new Set(existing)];
+    const place = placements[team.name];
+    return [team.id, unique.length === 1 ? unique[0] : place ? Math.max(0, place - 1) : 0] as const;
+  }));
   const hasRecordedResult = teamRows.length > 0 && teamRows.every((team) => placements[team.name]);
+  const selectedPenaltyType = penaltyTypes.find((type) => type.id === selectedPenaltyTypeId) ?? penaltyTypes[0];
+  const historicalPenaltyUnitAmount = chargeRows.find((charge) => charge.chargeTypeId === selectedPenaltyTypeId && charge.isLossPenalty)?.unitAmount ?? 0;
 
   const participants: MatchParticipantView[] = participantRows.map((row) => {
     const teamMembership = participantTeam.get(row.id);
@@ -191,7 +227,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
         {hasRecordedResult && <span className="validation-badge valid"><Icon name="check" /> Đã có kết quả</span>}
       </div>
-      <p className="panel-note">Chọn thứ hạng cho từng đội; có thể chọn đồng hạng khi không tranh hạng. Hạng 1 không bị phạt, các hạng sau nhận số lần phạt bằng hạng trừ 1.</p>
+      <p className="panel-note">Chọn thứ hạng và nhập số lần phạt riêng cho từng đội. Thứ hạng dùng tính kết quả và phong độ; số lần phạt chỉ dùng tạo khoản phải thu.</p>
       {penaltyTypes.length ? (
         <MutationForm action={recordMatchResultAction} className="match-result-form">
           <input type="hidden" name="matchId" value={match.id} />
@@ -203,13 +239,16 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           </label>
           <div className="match-result-teams">
             {teamRows.map((team) => (
-              <label key={team.id} style={{ borderLeftColor: team.color ?? undefined }}>
+              <div className="match-result-team" key={team.id} style={{ borderLeftColor: team.color ?? undefined }}>
                 <span><Icon name="people-group" /><b>{team.name}</b><small>{team.memberCount} người</small></span>
-                <select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
-                  <option value="" disabled>Chọn hạng</option>
-                  {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}{index === 0 ? " · Không phạt" : ` · Phạt ${index} lần`}</option>)}
-                </select>
-              </label>
+                <div className="match-result-team-inputs">
+                  <label>Thứ hạng<select name={`place:${team.id}`} defaultValue={placements[team.name] ?? ""} required>
+                    <option value="" disabled>Chọn hạng</option>
+                    {teamRows.map((_, index) => <option key={index + 1} value={index + 1}>Hạng {index + 1}</option>)}
+                  </select></label>
+                  <label>Số lần phạt<input name={`penaltyQuantity:${team.id}`} type="number" min="0" max="99" step="1" defaultValue={penaltyQuantityByTeam.get(team.id) ?? 0} required /></label>
+                </div>
+              </div>
             ))}
           </div>
           <div className="match-result-footer"><span>Ghi lại kết quả sẽ thay thế khoản phạt được sinh từ kết quả trước.</span><SubmitButton>{hasRecordedResult ? "Cập nhật kết quả" : "Xác nhận kết quả"}</SubmitButton></div>
@@ -221,7 +260,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   ) : (
     <section className="match-result-readonly">
       <div className="panel-heading"><div><span className="eyebrow">Kết quả trận đấu</span><h2>{hasRecordedResult ? "Thứ hạng các đội" : "Chưa ghi nhận kết quả"}</h2></div></div>
-      {hasRecordedResult ? <div className="match-result-summary-grid">{teams.slice().sort((a, b) => (a.place ?? 99) - (b.place ?? 99)).map((team) => <article key={team.id} style={{ borderTopColor: team.color ?? undefined }}><small>Hạng {team.place}</small><strong>{team.name}</strong><span>{team.place === 1 ? "Thắng" : `Phạt ${(team.place ?? 1) - 1} lần`}</span></article>)}</div> : <p className="match-result-empty">Kết quả sẽ xuất hiện tại đây sau khi quản trị viên nhập thứ hạng trận đấu.</p>}
+      {hasRecordedResult ? <div className="match-result-summary-grid">{teams.slice().sort((a, b) => (a.place ?? 99) - (b.place ?? 99)).map((team) => <article key={team.id} style={{ borderTopColor: team.color ?? undefined }}><small>Hạng {team.place}</small><strong>{team.name}</strong><span>{team.place === 1 ? "Thắng" : "Thua"} · Phạt {penaltyQuantityByTeam.get(team.id) ?? 0} lần</span></article>)}</div> : <p className="match-result-empty">Kết quả sẽ xuất hiện tại đây sau khi quản trị viên nhập thứ hạng trận đấu.</p>}
     </section>
   );
 
@@ -287,6 +326,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
           phone: member.phone,
           avatarVersion: member.avatarUpdatedAt,
         }))}
+        penaltyQuantityByTeam={Object.fromEntries(penaltyQuantityByTeam)}
+        penaltyUnitAmount={selectedPenaltyType?.defaultAmount ?? historicalPenaltyUnitAmount}
         resultContent={resultContent}
       />
 

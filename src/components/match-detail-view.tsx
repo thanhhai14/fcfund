@@ -7,6 +7,7 @@ import { ColumnVisibilityMenu, useColumnVisibility, type CollectionColumn } from
 import { MemberIdentity } from "./member-identity";
 import { MatchMemberReplacement } from "./match-member-replacement";
 import type { MemberSelectOption } from "./searchable-member-select";
+import { MatchLateMemberAddition } from "./match-late-member-addition";
 
 type ChargeView = {
   id: string;
@@ -84,6 +85,8 @@ export function MatchDetailView({
   matchId,
   confirmedVersionId,
   replacementMembers,
+  penaltyQuantityByTeam,
+  penaltyUnitAmount,
   resultContent,
 }: {
   participants: MatchParticipantView[];
@@ -94,6 +97,8 @@ export function MatchDetailView({
   matchId: string;
   confirmedVersionId: string | null;
   replacementMembers: MemberSelectOption[];
+  penaltyQuantityByTeam: Record<string, number>;
+  penaltyUnitAmount: number;
   resultContent: ReactNode;
 }) {
   const [section, setSection] = useState<"result" | "members">("result");
@@ -219,7 +224,7 @@ export function MatchDetailView({
                 style={{ borderTopColor: team.color ?? undefined }}
                 key={team.id}
               >
-                <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người</span></div><Icon name="people-group" /></header>
+                <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người</span></div><div className="match-team-card-heading-actions">{canManageTeams && confirmedVersionId && <MatchLateMemberAddition matchId={matchId} versionId={confirmedVersionId} team={team} options={replacementMembers} penaltyQuantity={penaltyQuantityByTeam[team.id] ?? 0} penaltyUnitAmount={penaltyUnitAmount} />}<Icon name="people-group" /></div></header>
                 <div className="match-team-view-members">
                   {members.map((member) => (
                     <div key={member.id}>

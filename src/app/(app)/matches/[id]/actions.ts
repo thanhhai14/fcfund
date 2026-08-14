@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
 import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
+import { getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 
 type MutationResult = { ok: boolean; message: string };
@@ -119,12 +120,18 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   if (teams.length < 2) return { ok: false, message: "Trận chưa có đủ đội để nhập kết quả." };
 
   const placements = new Map<string, number>();
+  const penaltyQuantities = new Map<string, number>();
   for (const team of teams) {
     const place = Number(str(formData, `place:${team.id}`));
     if (!Number.isInteger(place) || place < 1 || place > teams.length) {
       return { ok: false, message: `Thứ hạng của ${team.name} không hợp lệ.` };
     }
+    const penaltyQuantity = Number(str(formData, `penaltyQuantity:${team.id}`));
+    if (!Number.isInteger(penaltyQuantity) || penaltyQuantity < 0 || penaltyQuantity > 99) {
+      return { ok: false, message: `Số lần phạt của ${team.name} phải là số nguyên từ 0 đến 99.` };
+    }
     placements.set(team.id, place);
+    penaltyQuantities.set(team.id, penaltyQuantity);
   }
   if (![...placements.values()].includes(1)) {
     return { ok: false, message: "Kết quả phải có ít nhất một đội hạng 1." };
@@ -150,19 +157,21 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
     : chargeTypeId;
   const replacedTypeIds = [...new Set([previousChargeTypeId, chargeTypeId])];
   const placementByName = Object.fromEntries(teams.map((team) => [team.name, placements.get(team.id)]));
+  const penaltyQuantitiesByName = Object.fromEntries(teams.map((team) => [team.name, penaltyQuantities.get(team.id)]));
   const placementCounts = [...placements.values()].reduce((counts, place) => counts.set(place, (counts.get(place) ?? 0) + 1), new Map<number, number>());
   const now = new Date();
   const newMetrics = {
     ...oldMetrics,
     placements: placementByName,
+    penaltyQuantities: penaltyQuantitiesByName,
     resultChargeTypeId: chargeTypeId,
     resultRecordedAt: now.toISOString(),
     resultRecordedBy: actor.id,
   };
   const penaltyRows = teamMembers.flatMap((row) => {
     const place = placements.get(row.teamId);
-    if (!row.memberId || !place || place === 1) return [];
-    const quantity = place - 1;
+    const quantity = penaltyQuantities.get(row.teamId) ?? 0;
+    if (!row.memberId || !place || quantity <= 0) return [];
     return [{
       clubId: actor.clubId,
       memberId: row.memberId,
@@ -174,7 +183,7 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       unitAmount: penaltyType.defaultAmount,
       totalAmount: quantity * penaltyType.defaultAmount,
       isLossPenaltySnapshot: true,
-      note: `Kết quả hạng ${place} · trận ${match.playedOn}`,
+      note: `Kết quả hạng ${place} · phạt ${quantity} lần · trận ${match.playedOn}`,
       createdBy: actor.id,
     }];
   });
@@ -226,9 +235,9 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       entityId: matchId,
       action: "UPDATE",
       actorId: actor.id,
-      beforeData: { placements: oldMetrics.placements, resultChargeTypeId: oldMetrics.resultChargeTypeId },
-      afterData: { placements: placementByName, resultChargeTypeId: chargeTypeId, penaltyCount: penaltyRows.length, statCount: statRows.length },
-      message: `Ghi nhận kết quả trận: ${teams.map((team) => `${team.name} hạng ${placements.get(team.id)}`).join(", ")}`,
+      beforeData: { placements: oldMetrics.placements, penaltyQuantities: oldMetrics.penaltyQuantities, resultChargeTypeId: oldMetrics.resultChargeTypeId },
+      afterData: { placements: placementByName, penaltyQuantities: penaltyQuantitiesByName, resultChargeTypeId: chargeTypeId, penaltyCount: penaltyRows.length, statCount: statRows.length },
+      message: `Ghi nhận kết quả trận: ${teams.map((team) => `${team.name} hạng ${placements.get(team.id)}, phạt ${penaltyQuantities.get(team.id)} lần`).join("; ")}`,
     });
   });
 
@@ -414,4 +423,134 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
   if (slot.memberId) revalidatePath(`/members/${slot.memberId}`);
   revalidatePath(`/members/${replacement.id}`);
   return { ok: true, message: `Đã thay ${slot.displayName} bằng ${replacement.fullName} trong ${slot.teamName}.` };
+}
+
+export async function addConfirmedMatchMemberAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  const matchId = str(formData, "matchId");
+  const versionId = str(formData, "versionId");
+  const teamId = str(formData, "teamId");
+  const memberId = str(formData, "memberId");
+  const seedTier = str(formData, "seedTier") as "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "GOALKEEPER";
+  const applyResult = formData.get("applyResult") === "on";
+  const applyPenalty = formData.get("applyPenalty") === "on";
+  const reason = str(formData, "reason");
+  const validSeeds = new Set(["TIER_1", "TIER_2", "TIER_3", "TIER_4", "GOALKEEPER"]);
+  if (!validSeeds.has(seedTier)) return { ok: false, message: "Hãy chọn Seed của thành viên trong trận này." };
+
+  const [match] = await db.select().from(matches).where(and(
+    eq(matches.id, matchId), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt),
+  )).limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const [version] = await db.select().from(matchTeamVersions).where(and(
+    eq(matchTeamVersions.id, versionId), eq(matchTeamVersions.matchId, matchId), eq(matchTeamVersions.status, "CONFIRMED"),
+  )).limit(1);
+  if (!version) return { ok: false, message: "Chỉ có thể bổ sung người vào đội hình đã xác nhận." };
+  const [team] = await db.select().from(matchTeams).where(and(
+    eq(matchTeams.id, teamId), eq(matchTeams.versionId, versionId),
+  )).limit(1);
+  if (!team) return { ok: false, message: "Đội được chọn không hợp lệ." };
+  const [member] = await db.select().from(members).where(and(
+    eq(members.id, memberId), eq(members.clubId, actor.clubId), eq(members.status, "ACTIVE"),
+  )).limit(1);
+  if (!member) return { ok: false, message: "Thành viên không tồn tại hoặc đã ngừng hoạt động." };
+  const [alreadyAssigned] = await db.select({ id: matchTeamMembers.id }).from(matchTeamMembers).where(and(
+    eq(matchTeamMembers.versionId, versionId), eq(matchTeamMembers.memberId, memberId),
+  )).limit(1);
+  if (alreadyAssigned) return { ok: false, message: "Thành viên này đã thuộc một đội trong trận." };
+
+  const [participant] = await db.select().from(matchParticipants).where(and(
+    eq(matchParticipants.matchId, matchId), eq(matchParticipants.memberId, memberId),
+  )).limit(1);
+  const [latestOrder] = await db.select({ displayOrder: matchTeamMembers.displayOrder }).from(matchTeamMembers)
+    .where(eq(matchTeamMembers.teamId, teamId)).orderBy(desc(matchTeamMembers.displayOrder)).limit(1);
+  const [stat] = (await getMatchFormStats({ clubId: actor.clubId, playedOn: match.playedOn, memberIds: [memberId], lookbackMatches: version.lookbackMatches })).values();
+  const metrics = metricsRecord(version.metrics);
+  const placements = metricsRecord(metrics.placements);
+  const penalties = metricsRecord(metrics.penaltyQuantities);
+  const placement = typeof placements[team.name] === "number" ? placements[team.name] as number : null;
+  const penaltyQuantity = typeof penalties[team.name] === "number"
+    ? Math.max(0, Math.trunc(penalties[team.name] as number))
+    : placement ? Math.max(0, placement - 1) : 0;
+  const resultChargeTypeId = typeof metrics.resultChargeTypeId === "string" && UUID_PATTERN.test(metrics.resultChargeTypeId)
+    ? metrics.resultChargeTypeId : null;
+  const allTeams = placement ? await db.select({ name: matchTeams.name }).from(matchTeams).where(eq(matchTeams.versionId, versionId)) : [];
+  const tiedCount = placement ? allTeams.filter((row) => placements[row.name] === placement).length : 0;
+  let penaltyType: typeof chargeTypes.$inferSelect | null = null;
+  if (applyPenalty && placement && penaltyQuantity > 0 && !resultChargeTypeId) {
+    return { ok: false, message: "Kết quả trận chưa có loại thu phạt để áp dụng cho cầu thủ bổ sung." };
+  }
+  if (applyPenalty && placement && penaltyQuantity > 0 && resultChargeTypeId) {
+    [penaltyType] = await db.select().from(chargeTypes).where(and(
+      eq(chargeTypes.id, resultChargeTypeId), eq(chargeTypes.clubId, actor.clubId),
+      eq(chargeTypes.calculation, "OCCURRENCE"), eq(chargeTypes.isLossPenalty, true),
+    )).limit(1);
+    if (!penaltyType) return { ok: false, message: "Không tìm thấy loại thu phạt đã dùng cho kết quả trận." };
+  }
+  const now = new Date();
+  const tierWeight = { TIER_1: 4, TIER_2: 3, TIER_3: 2, TIER_4: 1, GOALKEEPER: 0 }[seedTier];
+
+  await db.transaction(async (tx) => {
+    let participantId = participant?.id;
+    if (participant) {
+      await tx.update(matchParticipants).set({
+        seedTier, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
+        note: reason ? `Bổ sung sau khi chốt đội: ${reason}` : "Bổ sung sau khi chốt đội",
+      }).where(eq(matchParticipants.id, participant.id));
+    } else {
+      const [created] = await tx.insert(matchParticipants).values({
+        matchId, memberId, seedTier, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
+        note: reason ? `Bổ sung sau khi chốt đội: ${reason}` : "Bổ sung sau khi chốt đội",
+      }).returning({ id: matchParticipants.id });
+      participantId = created.id;
+    }
+    await tx.insert(matchTeamMembers).values({
+      versionId, teamId, participantId, memberId, displayNameSnapshot: member.fullName,
+      seedTierSnapshot: seedTier,
+      recentMatchCountSnapshot: stat?.matchCount ?? 0,
+      recentLossCountSnapshot: stat?.lossCount ?? 0,
+      recentLossRateSnapshot: stat?.lossRate ?? null,
+      formScoreSnapshot: stat?.formScore ?? 5000,
+      formConfidenceSnapshot: stat?.formConfidence ?? 0,
+      inferredMatchCountSnapshot: stat?.inferredMatchCount ?? 0,
+      displayOrder: (latestOrder?.displayOrder ?? -1) + 1,
+    });
+    await tx.update(matchTeams).set({
+      memberCount: team.memberCount + 1,
+      goalkeeperCount: team.goalkeeperCount + (seedTier === "GOALKEEPER" ? 1 : 0),
+      outfieldSkillScore: team.outfieldSkillScore + tierWeight,
+      recentLossScore: team.recentLossScore + (10_000 - (stat?.formScore ?? 5000)),
+      formScoreTotal: team.formScoreTotal + (stat?.formScore ?? 5000),
+      lowFormCount: team.lowFormCount + (stat?.lowForm ? 1 : 0),
+    }).where(eq(matchTeams.id, teamId));
+    if (placement && applyResult) {
+      await tx.delete(memberMatchStats).where(and(eq(memberMatchStats.matchId, matchId), eq(memberMatchStats.memberId, memberId)));
+      await tx.insert(memberMatchStats).values({
+        clubId: actor.clubId, memberId, matchId, teamVersionId: versionId, teamId,
+        playedOn: match.playedOn, teamCount: allTeams.length, placement,
+        isTied: tiedCount > 1, result: placement === 1 ? "WIN" : "LOSS", source: "RECORDED",
+        placementScore: placementFormScore(allTeams.length, placement), formulaVersion: FORMULA_VERSION,
+        calculatedAt: now, createdBy: actor.id, updatedAt: now,
+      });
+    }
+    if (placement && applyPenalty && penaltyQuantity > 0 && penaltyType) {
+      await tx.insert(memberCharges).values({
+        clubId: actor.clubId, memberId, chargeTypeId: penaltyType.id, matchId, source: "MATCH",
+        chargeDate: match.playedOn, quantity: penaltyQuantity, unitAmount: penaltyType.defaultAmount,
+        totalAmount: penaltyQuantity * penaltyType.defaultAmount, isLossPenaltySnapshot: true,
+        note: `Bổ sung sau trận · hạng ${placement} · phạt ${penaltyQuantity} lần · trận ${match.playedOn}`,
+        createdBy: actor.id,
+      });
+    }
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId, entityType: "match", entityId: matchId, action: "UPDATE", actorId: actor.id,
+      afterData: { memberId, memberName: member.fullName, teamId, teamName: team.name, seedTier, placement, penaltyQuantity: applyPenalty ? penaltyQuantity : 0, appliedResult: applyResult },
+      message: `Bổ sung ${member.fullName} vào ${team.name}${reason ? ` · ${reason}` : ""}`,
+    });
+  });
+
+  revalidatePath(`/matches/${matchId}`); revalidatePath(`/matches/${matchId}/teams`); revalidatePath("/matches");
+  revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports"); revalidatePath(`/members/${memberId}`);
+  if (match.publicLineupToken) revalidatePath(`/lineup/${match.publicLineupToken}`);
+  return { ok: true, message: `Đã bổ sung ${member.fullName} vào ${team.name}.` };
 }

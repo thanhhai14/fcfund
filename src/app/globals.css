@@ -2755,7 +2755,7 @@ label>textarea {
   gap: 8px;
 }
 
-.match-result-teams>label {
+.match-result-team {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -2765,7 +2765,7 @@ label>textarea {
   border-left: 4px solid var(--forest-900);
 }
 
-.match-result-teams>label>span {
+.match-result-team>span {
   min-width: 0;
   flex: 1;
   display: grid;
@@ -2774,22 +2774,39 @@ label>textarea {
   gap: 4px 7px;
 }
 
-.match-result-teams>label>span svg {
+.match-result-team>span svg {
   grid-row: 1 / 3;
   color: var(--forest-700);
 }
 
-.match-result-teams>label b {
+.match-result-team b {
   font-size: 10px;
 }
 
-.match-result-teams>label small {
+.match-result-team small {
   color: var(--muted);
   font-size: 7px;
 }
 
-.match-result-teams select {
-  width: 145px;
+.match-result-team-inputs {
+  display: grid;
+  grid-template-columns: minmax(120px, 145px) 92px;
+  gap: 8px;
+}
+
+.match-result-team-inputs>label {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.match-result-team-inputs select,
+.match-result-team-inputs input {
+  width: 100%;
+  min-width: 0;
   padding: 8px;
   font-size: 8px;
   font-weight: 750;
@@ -3208,6 +3225,72 @@ label>textarea {
 .match-team-view-card>header>svg {
   color: var(--forest-700);
   font-size: 17px;
+}
+
+.match-team-card-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.match-team-card-heading-actions>svg {
+  color: var(--forest-700);
+  font-size: 17px;
+}
+
+.match-add-member-disclosure>summary {
+  display: inline-flex;
+  min-height: 30px;
+  padding: 0 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--forest-800);
+  background: var(--forest-50);
+  border: 1px solid var(--forest-100);
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.match-add-member-disclosure>summary:hover,
+.match-add-member-disclosure[open]>summary {
+  color: white;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.match-add-member-disclosure>.disclosure-content {
+  width: min(440px, calc(100vw - 32px));
+  padding: 18px;
+  text-align: left;
+}
+
+.late-member-result-options {
+  display: grid;
+  gap: 1px;
+  padding: 1px;
+  background: var(--line);
+}
+
+.late-member-result-options>label {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  min-height: 42px;
+  padding: 9px 10px;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.late-member-result-options input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
 }
 
 .match-team-view-members {
@@ -5713,13 +5796,27 @@ label>textarea {
     grid-column: 2;
   }
 
-  .match-result-teams>label {
+  .match-team-card-heading-actions {
+    gap: 6px;
+  }
+
+  .match-add-member-disclosure>summary span {
+    display: none;
+  }
+
+  .match-add-member-disclosure>summary {
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+  }
+
+  .match-result-team {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .match-result-teams select {
-    width: 100%;
+  .match-result-team-inputs {
+    grid-template-columns: minmax(0, 1fr) minmax(90px, .55fr);
   }
 
   .team-member-charge {
