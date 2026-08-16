@@ -14,7 +14,7 @@ type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" 
 function MonthlyCellView({ type, cell }: { type: MonthlyType; cell?: MonthlyCell }) {
   if (!cell) return <span className="monthly-empty">—</span>;
   if (!type.reportAsIcon) return <span className="monthly-money"><strong>{formatMoney(cell.total)}</strong>{cell.quantity > 1 && <small>{cell.quantity} lần</small>}</span>;
-  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${cell.quantity} lần · ${formatMoney(cell.total)}`}>{Array.from({ length: cell.quantity }, (_, index) => <Icon name={type.iconName} key={index} className="report-charge-icon" />)}</span>;
+  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${cell.quantity} lần · ${formatMoney(cell.total)}`}>{Array.from({ length: cell.quantity }, (_, index) => <Icon name={type.iconName} key={index} className="report-charge-icon" />)}<small className="report-charge-quantity">({cell.quantity})</small></span>;
 }
 
 export function MonthlyReportCollection({ month, monthLabel, previousMonth, nextMonth, total, types, members }: { month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; types: MonthlyType[]; members: MonthlyMember[] }) {
