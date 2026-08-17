@@ -26,6 +26,8 @@ function participants(count: number): BalanceParticipant[] {
     formConfidence: 7_000,
     inferredMatchCount: 0,
     lowForm: index % 7 === 0,
+    desiredPositions: index % 4 === 0 ? ["DEFENDER"] : index % 4 === 1 ? ["MIDFIELDER"] : index % 4 === 2 ? ["FORWARD"] : [],
+    playerStrength: index % 2 === 0 ? "DEFENSE" : "ATTACK",
   }));
 }
 
@@ -37,10 +39,18 @@ for (const [memberCount, teamCount] of [[10, 2], [11, 3], [18, 4], [19, 4], [20,
   const sizes = first.teams.map((team) => team.memberCount);
   const goalkeepers = first.teams.map((team) => team.goalkeeperCount);
   const lowFormCounts = first.teams.map((team) => team.lowFormCount);
+  const attackCounts = first.teams.map((team) => team.strengthCounts.ATTACK);
+  const defenseCounts = first.teams.map((team) => team.strengthCounts.DEFENSE);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
   if (Math.min(...sizes) < 1 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
   if (Math.max(...goalkeepers) - Math.min(...goalkeepers) > 1) throw new Error("Thủ môn không được chia đều.");
   if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
+  if (Math.max(...attackCounts) - Math.min(...attackCounts) > 1) throw new Error("Cầu thủ thiên công chưa được phân bổ đều.");
+  if (Math.max(...defenseCounts) - Math.min(...defenseCounts) > 1) throw new Error("Cầu thủ thiên thủ chưa được phân bổ đều.");
+  for (const position of ["DEFENDER", "MIDFIELDER", "FORWARD"] as const) {
+    const counts = first.teams.map((team) => team.positionCounts[position]);
+    if (Math.max(...counts) - Math.min(...counts) > 1) throw new Error(`Vị trí ${position} chưa được phân bổ đều.`);
+  }
 }
 
 try {

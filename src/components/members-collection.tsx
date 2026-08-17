@@ -8,6 +8,7 @@ import { MemberIdentity } from "./member-identity";
 import { InfoTooltip } from "./info-tooltip";
 import { preferredFootLabel } from "@/lib/member-profile";
 import { PreferredFootIcon } from "./preferred-foot-icon";
+import { playerPositionsLabel, playerStrengthLabel, type PlayerPosition, type PlayerStrength } from "@/lib/player-profile";
 
 export type MemberCollectionRow = {
   id: string;
@@ -23,6 +24,8 @@ export type MemberCollectionRow = {
   bio: string | null;
   nickname: string | null;
   preferredPosition: string | null;
+  desiredPositions: PlayerPosition[];
+  playerStrength: PlayerStrength | null;
   preferredFoot: string | null;
   shirtNumber: number | null;
   matchCount: number;
@@ -75,7 +78,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
     const result = rows.filter((row) => {
-      if (search && !normalizeSearch(`${row.name} ${row.code} ${row.phone} ${row.nickname ?? ""} ${row.preferredPosition ?? ""}`).includes(search)) return false;
+      if (search && !normalizeSearch(`${row.name} ${row.code} ${row.phone} ${row.nickname ?? ""} ${row.preferredPosition ?? ""} ${playerPositionsLabel(row.desiredPositions)} ${playerStrengthLabel(row.playerStrength)}`).includes(search)) return false;
       if (status !== "ALL" && row.status !== status) return false;
       if (account === "HAS" && !row.hasAccount) return false;
       if (account === "NONE" && row.hasAccount) return false;
@@ -132,7 +135,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
       ) : (
         <section className="member-grid">
           {visible.map((member, index) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
-            <div className="member-card-top"><span className="report-rank-badge member-card-rank">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={[member.nickname, member.preferredPosition].filter(Boolean).join(" · ") || null} /><InfoTooltip content={member.bio} label={`Giới thiệu của ${member.name}`} /></div>
+            <div className="member-card-top"><span className="report-rank-badge member-card-rank">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={[member.nickname, playerPositionsLabel(member.desiredPositions), playerStrengthLabel(member.playerStrength)].filter(Boolean).join(" · ")} /><InfoTooltip content={member.bio} label={`Giới thiệu của ${member.name}`} /></div>
             <div className="member-card-cv">{member.shirtNumber !== null && <span>#{member.shirtNumber}</span>}{member.preferredFoot && <span className="preferred-foot-value"><PreferredFootIcon value={member.preferredFoot} />{preferredFootLabel(member.preferredFoot)}</span>}{member.shirtNumber === null && !member.preferredFoot && <span>Chưa cập nhật CV</span>}</div>
             <div className="member-card-meta">{showForm && <><div><small>Số trận</small><strong>{member.matchCount}</strong></div><div><small>Thắng / Thua</small><strong><span className="won">{member.winCount}</span> / <span className="lost">{member.lossCount}</span></strong></div><div><small>Tỷ lệ thắng</small><strong>{member.winRate !== null ? `${member.winRate}%` : "—"}</strong></div><div><small>Phong độ</small><strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong></div></>}<div><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}

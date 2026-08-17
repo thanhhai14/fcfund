@@ -33,6 +33,7 @@ import {
 import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
 import { can, requirePermission } from "@/lib/permissions";
+import { isPlayerPosition, isPlayerStrength, type PlayerPosition } from "@/lib/player-profile";
 
 type MutationResult = { ok: boolean; message: string };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -198,6 +199,12 @@ export async function updateMemberProfileAction(formData: FormData): Promise<Mut
   const shirtNumberText = str(formData, "shirtNumber");
   const shirtNumber = shirtNumberText ? Number(shirtNumberText) : null;
   if (shirtNumber !== null && (!Number.isInteger(shirtNumber) || shirtNumber < 0 || shirtNumber > 99)) return { ok: false, message: "Số áo phải từ 0 đến 99." };
+  const desiredPositionValues = formData.getAll("desiredPositions").map(String);
+  if (desiredPositionValues.some((value) => !isPlayerPosition(value))) return { ok: false, message: "Vị trí mong muốn không hợp lệ." };
+  const desiredPositions = [...new Set(desiredPositionValues)] as PlayerPosition[];
+  const strengthValue = str(formData, "playerStrength");
+  if (strengthValue && !isPlayerStrength(strengthValue)) return { ok: false, message: "Thế mạnh không hợp lệ." };
+  const playerStrength = strengthValue && isPlayerStrength(strengthValue) ? strengthValue : null;
 
   const [linkedAccount] = await db.select({ id: users.id }).from(users).where(eq(users.memberId, memberId)).limit(1);
   const avatarOwnerCondition = linkedAccount
@@ -223,12 +230,14 @@ export async function updateMemberProfileAction(formData: FormData): Promise<Mut
         bio: str(formData, "bio") || null,
         nickname: str(formData, "nickname") || null,
         preferredPosition: str(formData, "preferredPosition") || null,
+        desiredPositions,
+        playerStrength,
         preferredFoot: str(formData, "preferredFoot") || null,
         shirtNumber,
         updatedAt: new Date(),
       }).onConflictDoUpdate({
         target: memberProfiles.memberId,
-        set: { bio: str(formData, "bio") || null, nickname: str(formData, "nickname") || null, preferredPosition: str(formData, "preferredPosition") || null, preferredFoot: str(formData, "preferredFoot") || null, shirtNumber, updatedAt: new Date() },
+        set: { bio: str(formData, "bio") || null, nickname: str(formData, "nickname") || null, preferredPosition: str(formData, "preferredPosition") || null, desiredPositions, playerStrength, preferredFoot: str(formData, "preferredFoot") || null, shirtNumber, updatedAt: new Date() },
       });
       if (removeAvatar && !uploaded && beforeAvatar) await tx.delete(avatars).where(eq(avatars.id, beforeAvatar.id));
       if (uploaded && avatarFile instanceof File) {

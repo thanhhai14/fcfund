@@ -11,12 +11,14 @@ import {
   matchTeamMembers,
   matchTeams,
   matchTeamVersions,
+  memberProfiles,
   members,
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
 import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "@/lib/team-balancer";
+import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
 
 type MutationResult = { ok: boolean; message: string };
 type TeamDrawResult = MutationResult & {
@@ -59,9 +61,12 @@ async function currentParticipants(matchId: string) {
     guestName: matchParticipants.guestName,
     seedTier: matchParticipants.seedTier,
     memberName: members.fullName,
+    desiredPositions: memberProfiles.desiredPositions,
+    playerStrength: memberProfiles.playerStrength,
   })
     .from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
+    .leftJoin(memberProfiles, eq(matchParticipants.memberId, memberProfiles.memberId))
     .where(eq(matchParticipants.matchId, matchId));
 }
 
@@ -220,6 +225,8 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
       formConfidence: stat?.formConfidence ?? 0,
       inferredMatchCount: stat?.inferredMatchCount ?? 0,
       lowForm: stat?.lowForm ?? false,
+      desiredPositions: (row.desiredPositions ?? []) as PlayerPosition[],
+      playerStrength: (row.playerStrength ?? null) as PlayerStrength | null,
       lockedTeamIndex: lockedMap.get(row.id),
     };
   });
@@ -262,6 +269,8 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
         formScoreSnapshot: member.formScore,
         formConfidenceSnapshot: member.formConfidence,
         inferredMatchCountSnapshot: member.inferredMatchCount,
+        desiredPositionsSnapshot: member.desiredPositions,
+        playerStrengthSnapshot: member.playerStrength,
         isLocked: Boolean(member.lockedTeamIndex),
         displayOrder,
       })));

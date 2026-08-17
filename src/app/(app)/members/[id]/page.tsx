@@ -36,6 +36,8 @@ import { MemberAvatar } from "@/components/member-identity";
 import { getMatchFormStats, getMemberCareerStats } from "@/lib/match-form-stats";
 import { preferredFootLabel } from "@/lib/member-profile";
 import { PreferredFootIcon } from "@/components/preferred-foot-icon";
+import { PlayerRoleFields } from "@/components/player-role-fields";
+import { playerPositionsLabel, playerStrengthLabel } from "@/lib/player-profile";
 
 export default async function MemberDetailPage({
   params,
@@ -141,7 +143,7 @@ export default async function MemberDetailPage({
                 {mayViewPhone && <span className="member-profile-phone">{member.phone}</span>}
               </div>
             </div>
-            {canEditProfile && <Disclosure label={<><Icon name="edit" /> Chỉnh sửa CV</>} className="member-cv-disclosure"><MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form"><input type="hidden" name="memberId" value={member.id} /><label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>{avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}<label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label><div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Tiền đạo, hậu vệ..." /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div><label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label><label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label><SubmitButton>Lưu CV và avatar</SubmitButton></MutationForm></Disclosure>}
+            {canEditProfile && <Disclosure label={<><Icon name="edit" /> Chỉnh sửa CV</>} className="member-cv-disclosure"><MutationForm action={updateMemberProfileAction} className="form-stack member-profile-form"><input type="hidden" name="memberId" value={member.id} /><label>Avatar<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>{avatar && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}<label>Biệt danh<input name="nickname" defaultValue={profile?.nickname ?? ""} /></label><div className="form-row"><label>Vị trí sở trường<input name="preferredPosition" defaultValue={profile?.preferredPosition ?? ""} placeholder="Nội dung tự do để giới thiệu trong CV" /></label><label>Chân thuận<select name="preferredFoot" defaultValue={profile?.preferredFoot ?? ""}><option value="">Chưa chọn</option><option value="RIGHT">Chân phải</option><option value="LEFT">Chân trái</option><option value="BOTH">Hai chân</option></select></label></div><PlayerRoleFields desiredPositions={profile?.desiredPositions ?? []} playerStrength={profile?.playerStrength ?? null} /><label>Số áo<input name="shirtNumber" type="number" min="0" max="99" defaultValue={profile?.shirtNumber ?? ""} /></label><label>Giới thiệu<textarea name="bio" rows={4} maxLength={2000} defaultValue={profile?.bio ?? ""} placeholder="Phong cách thi đấu, sở trường, lời giới thiệu..." /></label><SubmitButton>Lưu CV và avatar</SubmitButton></MutationForm></Disclosure>}
           </div>
 
           <div className="member-profile-bio">
@@ -151,6 +153,8 @@ export default async function MemberDetailPage({
 
           <div className="member-profile-meta">
             <span><small>Vị trí sở trường</small><strong>{profile?.preferredPosition || "Chưa cập nhật"}</strong></span>
+            <span><small>Vị trí mong muốn</small><strong>{playerPositionsLabel(profile?.desiredPositions)}</strong></span>
+            <span><small>Thế mạnh</small><strong>{playerStrengthLabel(profile?.playerStrength)}</strong></span>
             <span><small>Chân thuận</small><strong className="preferred-foot-value"><PreferredFootIcon value={profile?.preferredFoot} />{preferredFootLabel(profile?.preferredFoot)}</strong></span>
             <span><small>Số áo</small><strong className="accent">{profile?.shirtNumber !== null && profile?.shirtNumber !== undefined ? `#${profile.shirtNumber}` : "Chưa cập nhật"}</strong></span>
             <span><small>Trạng thái</small><strong>{member.status === "ACTIVE" ? "Đang hoạt động" : "Ngừng hoạt động"}</strong></span>

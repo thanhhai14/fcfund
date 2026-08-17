@@ -37,6 +37,8 @@ export default async function MembersPage() {
       bio: memberProfiles.bio,
       nickname: memberProfiles.nickname,
       preferredPosition: memberProfiles.preferredPosition,
+      desiredPositions: memberProfiles.desiredPositions,
+      playerStrength: memberProfiles.playerStrength,
       preferredFoot: memberProfiles.preferredFoot,
       shirtNumber: memberProfiles.shirtNumber,
     })
@@ -122,6 +124,8 @@ export default async function MembersPage() {
         bio: member.bio,
         nickname: member.nickname,
         preferredPosition: member.preferredPosition,
+        desiredPositions: member.desiredPositions ?? [],
+        playerStrength: member.playerStrength,
         preferredFoot: member.preferredFoot,
         shirtNumber: member.shirtNumber,
         matchCount: careerStats.get(member.id)?.matchCount ?? 0,

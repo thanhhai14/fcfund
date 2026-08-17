@@ -2065,6 +2065,48 @@ label>textarea {
   padding: 8px;
 }
 
+.player-role-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.player-role-fields fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+
+.player-role-fields legend {
+  padding: 0 5px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.player-role-fields legend small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.player-position-options,
+.player-strength-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.player-role-fields .check-field {
+  min-height: 38px;
+  padding: 8px;
+  background: var(--surface-soft);
+  border: 1px solid transparent;
+}
+
 .chatter-actor {
   display: flex;
   align-items: center;
@@ -3678,7 +3720,7 @@ label>textarea {
 
 .team-builder-summary {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -3718,6 +3760,10 @@ label>textarea {
 
 .team-builder-summary article:nth-child(3) {
   border-top-color: var(--burgundy);
+}
+
+.team-builder-summary article:nth-child(4) {
+  border-top-color: var(--success);
 }
 
 .team-builder-summary small,
@@ -3896,6 +3942,12 @@ label>textarea {
   font-size: 9px;
 }
 
+.team-warning.neutral {
+  color: var(--forest-900);
+  background: #eef6fa;
+  border-left-color: var(--forest-700);
+}
+
 .team-result-section {
   margin-top: 20px;
 }
@@ -3964,7 +4016,7 @@ label>textarea {
 
 .team-metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: #fafbfc;
@@ -3989,6 +4041,22 @@ label>textarea {
   display: block;
   margin-top: 3px;
   font-size: 10px;
+}
+
+.team-role-summary {
+  display: flex;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #fafbfc;
+  border-bottom: 1px solid var(--line);
+}
+
+.team-role-summary span {
+  padding: 3px 7px;
+  color: var(--forest-900);
+  background: #eaf2f6;
+  font-size: 8px;
+  font-weight: 800;
 }
 
 .team-member-cards {
@@ -5746,6 +5814,12 @@ label>textarea {
 }
 
 @media (max-width: 560px) {
+  .player-role-fields,
+  .player-position-options,
+  .player-strength-options {
+    grid-template-columns: 1fr;
+  }
+
   .public-lineup-page {
     width: calc(100% - 18px);
     padding-top: 9px;

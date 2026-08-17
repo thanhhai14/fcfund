@@ -9,6 +9,7 @@ import {
   matchTeamMembers,
   matchTeams,
   matchTeamVersions,
+  memberProfiles,
   members,
 } from "@/db/schema";
 import { Icon } from "@/components/icon";
@@ -22,6 +23,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
+import { playerPositionsLabel, playerStrengthLabel } from "@/lib/player-profile";
 import {
   confirmMatchTeamsAction,
   generateMatchTeamsAction,
@@ -67,9 +69,12 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     seedTier: matchParticipants.seedTier,
     seedEvaluatedAt: matchParticipants.seedEvaluatedAt,
     avatarUpdatedAt: avatars.updatedAt,
+    desiredPositions: memberProfiles.desiredPositions,
+    playerStrength: memberProfiles.playerStrength,
   }).from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
     .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
+    .leftJoin(memberProfiles, eq(matchParticipants.memberId, memberProfiles.memberId))
     .where(eq(matchParticipants.matchId, id));
   const participants = participantRows
     .map((row) => ({ ...row, name: row.memberName ?? row.guestName ?? "Khách" }))
@@ -125,6 +130,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     ?? (participant.memberId ? previousSeeds.get(participant.memberId) : undefined);
   const missingSeeds = participants.filter((participant) => !effectiveSeed(participant));
   const goalkeeperCount = participants.filter((participant) => effectiveSeed(participant) === "GOALKEEPER").length;
+  const missingRoleProfiles = participants.filter((participant) => !(participant.desiredPositions?.length) || !participant.playerStrength).length;
   const maxTeamCount = participants.length;
   const isDraftLocked = Boolean(draft?.tierLockedAt);
   const currentDraw: TeamDrawData | null = displayedVersion?.randomKey && teamRows.length ? {
@@ -156,6 +162,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       <section className="team-builder-summary">
         <article><small>Người tham gia</small><strong>{participants.length}</strong><span>{participants.length >= 10 ? "Đủ điều kiện tạo đội" : `Cần thêm ${10 - participants.length} người`}</span></article>
         <article><small>Thủ môn</small><strong>{goalkeeperCount}</strong><span>Được phân bổ đều giữa các đội</span></article>
+        <article><small>Hồ sơ chiến thuật</small><strong>{participants.length - missingRoleProfiles}/{participants.length}</strong><span>{missingRoleProfiles ? `${missingRoleProfiles} người dùng thiết lập trung lập` : "Đã đủ vị trí và thế mạnh"}</span></article>
         <article><small>Phiên bản hiển thị</small><strong>{displayedVersion ? `v${displayedVersion.version}` : "—"}</strong><span>{displayedVersion?.status === "DRAFT" ? "Bản nháp" : displayedVersion?.status === "CONFIRMED" ? "Đã xác nhận" : "Chưa tạo đội"}</span></article>
       </section>
 
@@ -207,6 +214,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
           <div className="panel-heading"><div><span className="eyebrow">Bước 2</span><h2>Cấu hình và tạo đội</h2></div></div>
           {participants.length < 10 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 10 người tham gia để tạo đội.</p>}
           {goalkeeperCount < (draft.teamCount ?? 2) && <p className="team-warning"><Icon name="triangle-exclamation" /> Có thể có đội không có thủ môn nếu số thủ môn ít hơn số đội.</p>}
+          {missingRoleProfiles > 0 && <p className="team-warning neutral"><Icon name="info" /> {missingRoleProfiles} người chưa khai báo đủ vị trí mong muốn và thế mạnh; hệ thống vẫn chia như cầu thủ linh hoạt/trung lập.</p>}
           <TeamDrawExperience
             action={generateMatchTeamsAction}
             matchId={match.id}
@@ -218,6 +226,8 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
               seedTier: effectiveSeed(participant)!,
               formScore: participant.memberId ? stats.get(participant.memberId)?.formScore ?? 5000 : 5000,
+              desiredPositions: participant.desiredPositions ?? [],
+              playerStrength: participant.playerStrength ?? null,
             }))}
             defaultTeamCount={Math.min(draft.teamCount, Math.max(2, maxTeamCount))}
             defaultLookbackMatches={draft.lookbackMatches}
@@ -292,6 +302,13 @@ function TeamCard({
   showForm?: boolean;
 }) {
   const averageFormScore = team.memberCount ? Math.round(team.formScoreTotal / team.memberCount) : 5000;
+  const attackCount = rows.filter((row) => row.playerStrengthSnapshot === "ATTACK").length;
+  const defenseCount = rows.filter((row) => row.playerStrengthSnapshot === "DEFENSE").length;
+  const positionCounts = {
+    DEFENDER: rows.filter((row) => row.desiredPositionsSnapshot.includes("DEFENDER")).length,
+    MIDFIELDER: rows.filter((row) => row.desiredPositionsSnapshot.includes("MIDFIELDER")).length,
+    FORWARD: rows.filter((row) => row.desiredPositionsSnapshot.includes("FORWARD")).length,
+  };
   return (
     <article className="team-card" style={{ borderTopColor: team.color ?? undefined }}>
       <header>
@@ -302,12 +319,14 @@ function TeamCard({
         <span><small>Thủ môn</small><b>{team.goalkeeperCount}</b></span>
         <span><small>Điểm Seed</small><b>{team.outfieldSkillScore}</b></span>
         <span><small>Điểm phong độ</small><b>{showForm ? formScore(averageFormScore) : "Ẩn"}</b></span>
+        <span><small>Công / thủ</small><b>{attackCount} / {defenseCount}</b></span>
       </div>
+      <div className="team-role-summary"><span>HV {positionCounts.DEFENDER}</span><span>TV {positionCounts.MIDFIELDER}</span><span>TĐ {positionCounts.FORWARD}</span></div>
       <div className="team-member-cards">
         {rows.map((row) => (
           <div key={row.id}>
             {showSeed ? <span className={`seed-chip ${row.seedTierSnapshot.toLowerCase()}`}>{SEED_LABELS[row.seedTierSnapshot]}</span> : <span className="seed-chip hidden-seed">Seed ẩn</span>}
-            <MemberIdentity memberId={row.memberId} name={row.displayNameSnapshot} avatarVersion={row.avatarUpdatedAt} secondary={showForm ? `${row.recentMatchCountSnapshot} trận · ${row.recentMatchCountSnapshot - row.recentLossCountSnapshot} hạng nhất · ${formScore(row.formScoreSnapshot)}${row.inferredMatchCountSnapshot ? ` · ${row.inferredMatchCountSnapshot} suy luận` : ""}` : null} compact />
+            <MemberIdentity memberId={row.memberId} name={row.displayNameSnapshot} avatarVersion={row.avatarUpdatedAt} secondary={showForm ? `${playerPositionsLabel(row.desiredPositionsSnapshot)} · ${playerStrengthLabel(row.playerStrengthSnapshot)} · ${formScore(row.formScoreSnapshot)} phong độ` : null} compact />
             {editable && <span className="team-member-controls">
               <select name={`team_${row.id}`} defaultValue={row.teamId} aria-label={`Đội của ${row.displayNameSnapshot}`}>
                 {allTeams.map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}

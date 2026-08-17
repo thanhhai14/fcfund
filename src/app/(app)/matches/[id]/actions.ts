@@ -14,6 +14,7 @@ import {
   matchTeamVersions,
   memberCharges,
   memberMatchStats,
+  memberProfiles,
   members,
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
@@ -296,6 +297,10 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
     eq(members.status, "ACTIVE"),
   )).limit(1);
   if (!replacement) return { ok: false, message: "Thành viên thay thế không tồn tại hoặc đã ngừng hoạt động." };
+  const [replacementProfile] = await db.select({
+    desiredPositions: memberProfiles.desiredPositions,
+    playerStrength: memberProfiles.playerStrength,
+  }).from(memberProfiles).where(eq(memberProfiles.memberId, replacementMemberId)).limit(1);
 
   const [alreadyAssigned] = await db.select({ id: matchTeamMembers.id }).from(matchTeamMembers).where(and(
     eq(matchTeamMembers.versionId, versionId),
@@ -352,6 +357,8 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
       participantId,
       memberId: replacement.id,
       displayNameSnapshot: replacement.fullName,
+      desiredPositionsSnapshot: replacementProfile?.desiredPositions ?? [],
+      playerStrengthSnapshot: replacementProfile?.playerStrength ?? null,
     }).where(eq(matchTeamMembers.id, slot.id));
 
     if (slot.memberId) {
@@ -454,6 +461,10 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     eq(members.id, memberId), eq(members.clubId, actor.clubId), eq(members.status, "ACTIVE"),
   )).limit(1);
   if (!member) return { ok: false, message: "Thành viên không tồn tại hoặc đã ngừng hoạt động." };
+  const [memberProfile] = await db.select({
+    desiredPositions: memberProfiles.desiredPositions,
+    playerStrength: memberProfiles.playerStrength,
+  }).from(memberProfiles).where(eq(memberProfiles.memberId, memberId)).limit(1);
   const [alreadyAssigned] = await db.select({ id: matchTeamMembers.id }).from(matchTeamMembers).where(and(
     eq(matchTeamMembers.versionId, versionId), eq(matchTeamMembers.memberId, memberId),
   )).limit(1);
@@ -513,6 +524,8 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
       formScoreSnapshot: stat?.formScore ?? 5000,
       formConfidenceSnapshot: stat?.formConfidence ?? 0,
       inferredMatchCountSnapshot: stat?.inferredMatchCount ?? 0,
+      desiredPositionsSnapshot: memberProfile?.desiredPositions ?? [],
+      playerStrengthSnapshot: memberProfile?.playerStrength ?? null,
       displayOrder: (latestOrder?.displayOrder ?? -1) + 1,
     });
     await tx.update(matchTeams).set({

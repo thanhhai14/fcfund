@@ -1,3 +1,5 @@
+import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
+
 export type SeedTier = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "GOALKEEPER";
 
 export type BalanceParticipant = {
@@ -12,6 +14,8 @@ export type BalanceParticipant = {
   formConfidence: number;
   inferredMatchCount: number;
   lowForm: boolean;
+  desiredPositions: PlayerPosition[];
+  playerStrength: PlayerStrength | null;
   lockedTeamIndex?: number;
 };
 
@@ -25,6 +29,8 @@ export type BalancedTeam = {
   formScoreTotal: number;
   lowFormCount: number;
   tierCounts: Record<"TIER_1" | "TIER_2" | "TIER_3" | "TIER_4", number>;
+  positionCounts: Record<PlayerPosition, number>;
+  strengthCounts: Record<PlayerStrength, number>;
 };
 
 const TIER_WEIGHT: Record<SeedTier, number> = {
@@ -66,6 +72,8 @@ function shuffled<T>(rows: T[], random: () => number) {
 
 function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
   const tierCounts = { TIER_1: 0, TIER_2: 0, TIER_3: 0, TIER_4: 0 };
+  const positionCounts: Record<PlayerPosition, number> = { GOALKEEPER: 0, DEFENDER: 0, MIDFIELDER: 0, FORWARD: 0 };
+  const strengthCounts: Record<PlayerStrength, number> = { DEFENSE: 0, ATTACK: 0 };
   let goalkeeperCount = 0;
   let skillScore = 0;
   let recentLossScore = 0;
@@ -78,6 +86,8 @@ function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
     recentLossScore += 10_000 - member.formScore;
     formScoreTotal += member.formScore;
     if (member.lowForm) lowFormCount += 1;
+    for (const position of member.desiredPositions) positionCounts[position] += 1;
+    if (member.playerStrength) strengthCounts[member.playerStrength] += 1;
   }
   return {
     index,
@@ -89,6 +99,8 @@ function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
     formScoreTotal,
     lowFormCount,
     tierCounts,
+    positionCounts,
+    strengthCounts,
   };
 }
 
@@ -107,9 +119,22 @@ export function balanceCost(teams: BalanceParticipant[][]) {
   const lowFormGap = spread(summaries.map((team) => team.lowFormCount));
   const tierGap = (["TIER_1", "TIER_2", "TIER_3", "TIER_4"] as const)
     .reduce((sum, tier) => sum + spread(summaries.map((team) => team.tierCounts[tier])), 0);
+  const positionGap = (["DEFENDER", "MIDFIELDER", "FORWARD"] as const)
+    .reduce((sum, position) => sum + spread(summaries.map((team) => team.positionCounts[position])), 0);
+  const strengthGap = (["DEFENSE", "ATTACK"] as const)
+    .reduce((sum, strength) => sum + spread(summaries.map((team) => team.strengthCounts[strength])), 0);
+  const missingCoverage = summaries.reduce((sum, team) => {
+    if (!team.memberCount) return sum;
+    const hasDefense = team.positionCounts.DEFENDER > 0 || team.positionCounts.MIDFIELDER > 0 || team.strengthCounts.DEFENSE > 0;
+    const hasAttack = team.positionCounts.FORWARD > 0 || team.positionCounts.MIDFIELDER > 0 || team.strengthCounts.ATTACK > 0;
+    return sum + Number(!hasDefense) + Number(!hasAttack);
+  }, 0);
   return sizeGap * 1_000_000_000
     + goalkeeperGap * 100_000_000
+    + missingCoverage * 10_000_000
+    + positionGap * 3_000_000
     + skillGap * 1_000_000
+    + strengthGap * 500_000
     + tierGap * 100_000
     + lowFormGap * 20_000
     + formAverageGap;

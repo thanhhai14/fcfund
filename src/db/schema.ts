@@ -17,6 +17,7 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
 
 const auditColumns = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -117,6 +118,8 @@ export const memberProfiles = pgTable("member_profiles", {
   bio: text("bio"),
   nickname: varchar("nickname", { length: 100 }),
   preferredPosition: varchar("preferred_position", { length: 100 }),
+  desiredPositions: jsonb("desired_positions").$type<PlayerPosition[]>().default([]).notNull(),
+  playerStrength: varchar("player_strength", { length: 20 }).$type<PlayerStrength>(),
   preferredFoot: varchar("preferred_foot", { length: 20 }),
   shirtNumber: integer("shirt_number"),
   ...auditColumns,
@@ -327,6 +330,8 @@ export const matchTeamMembers = pgTable(
     formScoreSnapshot: integer("form_score_snapshot").default(5000).notNull(),
     formConfidenceSnapshot: integer("form_confidence_snapshot").default(0).notNull(),
     inferredMatchCountSnapshot: integer("inferred_match_count_snapshot").default(0).notNull(),
+    desiredPositionsSnapshot: jsonb("desired_positions_snapshot").$type<PlayerPosition[]>().default([]).notNull(),
+    playerStrengthSnapshot: varchar("player_strength_snapshot", { length: 20 }).$type<PlayerStrength>(),
     isLocked: boolean("is_locked").default(false).notNull(),
     displayOrder: integer("display_order").default(0).notNull(),
   },
