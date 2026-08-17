@@ -229,9 +229,12 @@ Trọng số `W_skill`, `W_tier`, `W_loss` là cấu hình kỹ thuật ban đ�
 2. Chọn đủ số thủ môn từ các ứng viên, ưu tiên người chỉ khai báo vị trí thủ môn; không ưu tiên Tier thấp hơn.
 3. Giữ một chỗ thủ môn cho mỗi đội, nhóm cầu thủ sân theo Tier 1–7 và chia cầu thủ sân trước.
 4. Xếp thủ môn sau cùng; Tier và Điểm phong độ của thủ môn nhân hệ số 0,15.
-5. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
-6. Chỉ nhận phép đổi làm giảm `cost` và không phá ràng buộc cứng.
-7. Dừng khi không còn cải thiện hoặc đạt giới hạn vòng lặp.
+5. Với bóng đá sân 5, đội hình chính dùng đúng 1 thủ môn và 4 cầu thủ sân mạnh nhất theo Tier; phong độ dùng để phân định người cùng Tier.
+6. Số lượng của từng Tier giữa các đội chênh tối đa 1. Ví dụ có 4 cầu thủ Tier 1 và 2 đội thì bắt buộc chia 2–2, không cho tổng điểm toàn đội bù lại thành 1–3.
+7. Cân bằng sức mạnh và phong độ của đội hình chính trước; phần cầu thủ dự bị chỉ mang trọng số 25% trong điểm cân bằng tổng.
+8. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
+9. Chỉ nhận phép đổi làm giảm `cost` và không phá ràng buộc cứng.
+10. Dừng khi không còn cải thiện hoặc đạt giới hạn vòng lặp.
 
 Đây là bài toán nhiều mục tiêu: quân số, kỹ năng, tier, thủ môn và lịch sử thua có thể cạnh tranh nhau. Vì vậy UI nên hiển thị các chỉ số cân bằng, không tuyên bố kết quả là “công bằng tuyệt đối”.
 

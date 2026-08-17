@@ -15,16 +15,47 @@ export type BalanceParticipant = {
 export type BalancedTeam = {
   index: number; members: BalanceParticipant[]; memberCount: number; goalkeeperCount: number;
   skillScore: number; recentLossScore: number; formScoreTotal: number; lowFormCount: number;
+  lineupMemberCount: number; lineupSkillScore: number; lineupFormScore: number;
   tierCounts: Record<SeedTier, number>; positionCounts: Record<PlayerPosition, number>;
   strengthCounts: Record<PlayerStrength, number>;
 };
 
 const GOALKEEPER_FACTOR = 0.15;
+const STARTING_OUTFIELD_COUNT = 4;
+const BENCH_FACTOR = 0.25;
 
 function hashKey(value: string) { let hash = 2166136261; for (const char of value) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); } return hash >>> 0; }
 function seededRandom(key: string) { let state = hashKey(key) || 1; return () => { state += 0x6d2b79f5; let value = state; value = Math.imul(value ^ (value >>> 15), value | 1); value ^= value + Math.imul(value ^ (value >>> 7), value | 61); return ((value ^ (value >>> 14)) >>> 0) / 4294967296; }; }
 function shuffled<T>(rows: T[], random: () => number) { const result = [...rows]; for (let index = result.length - 1; index > 0; index -= 1) { const swapIndex = Math.floor(random() * (index + 1)); [result[index], result[swapIndex]] = [result[swapIndex], result[index]]; } return result; }
 function spread(values: number[]) { return values.length ? Math.max(...values) - Math.min(...values) : 0; }
+
+function startingLineup(members: BalanceParticipant[]) {
+  const goalkeeper = members.find((member) => member.assignedAsGoalkeeper);
+  const outfield = members.filter((member) => !member.assignedAsGoalkeeper)
+    .sort((first, second) => SEED_WEIGHT[second.seedTier] - SEED_WEIGHT[first.seedTier]
+      || second.formScore - first.formScore
+      || first.participantId.localeCompare(second.participantId))
+    .slice(0, STARTING_OUTFIELD_COUNT);
+  const positionCounts: Record<Exclude<PlayerPosition, "GOALKEEPER">, number> = { DEFENDER: 0, MIDFIELDER: 0, FORWARD: 0 };
+  const strengthCounts: Record<PlayerStrength, number> = { DEFENSE: 0, ATTACK: 0 };
+  for (const member of outfield) {
+    for (const position of member.desiredPositions) {
+      if (position !== "GOALKEEPER") positionCounts[position] += 1;
+    }
+    if (member.playerStrength) strengthCounts[member.playerStrength] += 1;
+  }
+  const goalkeeperWeight = goalkeeper ? GOALKEEPER_FACTOR : 0;
+  const formWeight = outfield.length + goalkeeperWeight;
+  return {
+    memberCount: outfield.length + Number(Boolean(goalkeeper)),
+    skillScore: outfield.reduce((sum, member) => sum + SEED_WEIGHT[member.seedTier], 0)
+      + (goalkeeper ? SEED_WEIGHT[goalkeeper.seedTier] * GOALKEEPER_FACTOR : 0),
+    formScore: formWeight ? (outfield.reduce((sum, member) => sum + member.formScore, 0)
+      + (goalkeeper ? goalkeeper.formScore * GOALKEEPER_FACTOR : 0)) / formWeight : 0,
+    positionCounts,
+    strengthCounts,
+  };
+}
 
 function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
   const tierCounts = Object.fromEntries(ACTIVE_SEED_TIERS.map((tier) => [tier, 0])) as Record<SeedTier, number>;
@@ -44,7 +75,14 @@ function summarize(index: number, members: BalanceParticipant[]): BalancedTeam {
     recentLossScore += (10_000 - member.formScore) * factor;
     formScoreTotal += member.formScore * factor;
   }
-  return { index, members, memberCount: members.length, goalkeeperCount, skillScore: Math.round(skillScore), recentLossScore: Math.round(recentLossScore), formScoreTotal: Math.round(formScoreTotal), lowFormCount, tierCounts, positionCounts, strengthCounts };
+  const lineup = startingLineup(members);
+  return {
+    index, members, memberCount: members.length, goalkeeperCount,
+    skillScore: Math.round(skillScore), recentLossScore: Math.round(recentLossScore),
+    formScoreTotal: Math.round(formScoreTotal), lowFormCount,
+    lineupMemberCount: lineup.memberCount, lineupSkillScore: Math.round(lineup.skillScore * 100) / 100,
+    lineupFormScore: Math.round(lineup.formScore), tierCounts, positionCounts, strengthCounts,
+  };
 }
 
 export function balanceCost(teams: BalanceParticipant[][]) {
@@ -53,11 +91,41 @@ export function balanceCost(teams: BalanceParticipant[][]) {
   const goalkeeperGap = spread(summaries.map((team) => team.goalkeeperCount));
   const skillGap = spread(summaries.map((team) => team.skillScore));
   const formGap = spread(summaries.map((team) => team.memberCount ? team.formScoreTotal / team.memberCount : 0));
-  const tierGap = ACTIVE_SEED_TIERS.reduce((sum, tier) => sum + spread(summaries.map((team) => team.tierCounts[tier])), 0);
+  const tierSpreads = ACTIVE_SEED_TIERS.map((tier) => spread(summaries.map((team) => team.tierCounts[tier])));
+  const tierGap = tierSpreads.reduce((sum, gap) => sum + gap, 0);
+  const tierExcess = tierSpreads.reduce((sum, gap) => sum + Math.max(0, gap - 1), 0);
+  const lineups = teams.map(startingLineup);
+  const lineupSizeGap = spread(lineups.map((lineup) => lineup.memberCount));
+  const lineupSkillGap = spread(lineups.map((lineup) => lineup.skillScore));
+  const lineupFormGap = spread(lineups.map((lineup) => lineup.formScore));
+  const lineupPositionGap = (["DEFENDER", "MIDFIELDER", "FORWARD"] as const)
+    .reduce((sum, position) => sum + spread(lineups.map((lineup) => lineup.positionCounts[position])), 0);
+  const lineupStrengthGap = (["DEFENSE", "ATTACK"] as const)
+    .reduce((sum, strength) => sum + spread(lineups.map((lineup) => lineup.strengthCounts[strength])), 0);
   const positionGap = (["DEFENDER", "MIDFIELDER", "FORWARD"] as const).reduce((sum, position) => sum + spread(summaries.map((team) => team.positionCounts[position])), 0);
   const strengthGap = (["DEFENSE", "ATTACK"] as const).reduce((sum, strength) => sum + spread(summaries.map((team) => team.strengthCounts[strength])), 0);
+  const positionExcess = (["DEFENDER", "MIDFIELDER", "FORWARD"] as const)
+    .reduce((sum, position) => sum + Math.max(0, spread(summaries.map((team) => team.positionCounts[position])) - 1), 0);
+  const strengthExcess = (["DEFENSE", "ATTACK"] as const)
+    .reduce((sum, strength) => sum + Math.max(0, spread(summaries.map((team) => team.strengthCounts[strength])) - 1), 0);
   const missingCoverage = summaries.reduce((sum, team) => sum + Number(!(team.positionCounts.DEFENDER || team.positionCounts.MIDFIELDER || team.strengthCounts.DEFENSE)) + Number(!(team.positionCounts.FORWARD || team.positionCounts.MIDFIELDER || team.strengthCounts.ATTACK)), 0);
-  return sizeGap * 1e9 + goalkeeperGap * 1e8 + missingCoverage * 1e7 + positionGap * 3e6 + skillGap * 1e6 + strengthGap * 5e5 + tierGap * 1e5 + spread(summaries.map((team) => team.lowFormCount)) * 2e4 + formGap;
+  return sizeGap * 1e12
+    + goalkeeperGap * 1e11
+    + tierExcess * 1e10
+    + positionExcess * 5e9
+    + strengthExcess * 2e9
+    + lineupSizeGap * 1e9
+    + missingCoverage * 1e8
+    + lineupSkillGap * 1e7
+    + lineupPositionGap * 2e6
+    + skillGap * 1e7 * BENCH_FACTOR
+    + lineupStrengthGap * 1e6
+    + positionGap * 5e5
+    + strengthGap * 2e5
+    + tierGap * 1e5
+    + spread(summaries.map((team) => team.lowFormCount)) * 2e4
+    + lineupFormGap * 10
+    + formGap;
 }
 
 export function generateBalancedTeams(participants: BalanceParticipant[], teamCount: number, randomKey: string) {
@@ -136,5 +204,7 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
   }
   const summaries = teams.map((members, index) => summarize(index + 1, members));
   if (summaries.some((team) => team.goalkeeperCount !== 1)) throw new Error("Mỗi đội phải có đúng một thủ môn.");
+  const unevenTier = ACTIVE_SEED_TIERS.find((tier) => spread(summaries.map((team) => team.tierCounts[tier])) > 1);
+  if (unevenTier) throw new Error(`Không thể phân bổ đều ${unevenTier.replace("TIER_", "Tier ")}; hãy mở khóa các cầu thủ đã giữ đội và thử lại.`);
   return { teams: summaries, cost: currentCost };
 }

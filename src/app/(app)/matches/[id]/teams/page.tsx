@@ -24,7 +24,7 @@ import { formatDate } from "@/lib/format";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
 import { playerPositionsLabel, playerStrengthLabel } from "@/lib/player-profile";
-import { isActiveSeedTier, SEED_LABELS, type SeedTier } from "@/lib/seed-tier";
+import { isActiveSeedTier, SEED_LABELS, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import {
   confirmMatchTeamsAction,
   generateMatchTeamsAction,
@@ -300,6 +300,13 @@ function TeamCard({
 }) {
   const weightedMemberCount = rows.reduce((sum, row) => sum + (row.assignedAsGoalkeeper ? 0.15 : 1), 0);
   const averageFormScore = weightedMemberCount ? Math.round(team.formScoreTotal / weightedMemberCount) : 5000;
+  const goalkeeper = rows.find((row) => row.assignedAsGoalkeeper);
+  const startingOutfield = rows.filter((row) => !row.assignedAsGoalkeeper && isActiveSeedTier(row.seedTierSnapshot))
+    .sort((first, second) => SEED_WEIGHT[second.seedTierSnapshot as SeedTier] - SEED_WEIGHT[first.seedTierSnapshot as SeedTier]
+      || second.formScoreSnapshot - first.formScoreSnapshot)
+    .slice(0, 4);
+  const lineupSkillScore = startingOutfield.reduce((sum, row) => sum + SEED_WEIGHT[row.seedTierSnapshot as SeedTier], 0)
+    + (goalkeeper && isActiveSeedTier(goalkeeper.seedTierSnapshot) ? SEED_WEIGHT[goalkeeper.seedTierSnapshot] * 0.15 : 0);
   const attackCount = rows.filter((row) => !row.assignedAsGoalkeeper && row.playerStrengthSnapshot === "ATTACK").length;
   const defenseCount = rows.filter((row) => !row.assignedAsGoalkeeper && row.playerStrengthSnapshot === "DEFENSE").length;
   const positionCounts = {
@@ -315,7 +322,7 @@ function TeamCard({
       </header>
       <div className="team-metrics">
         <span><small>Thủ môn</small><b>{team.goalkeeperCount}</b></span>
-        <span><small>Điểm Seed</small><b>{team.outfieldSkillScore}</b></span>
+        <span><small>Seed đội hình 5</small><b>{Math.round(lineupSkillScore * 100) / 100}</b></span>
         <span><small>Điểm phong độ</small><b>{showForm ? formScore(averageFormScore) : "Ẩn"}</b></span>
         <span><small>Công / thủ</small><b>{attackCount} / {defenseCount}</b></span>
       </div>

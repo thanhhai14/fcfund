@@ -130,12 +130,12 @@ set +a
 npm run test:teams:live
 ```
 
-Script mở transaction PostgreSQL với `READ ONLY = ON` trước khi truy vấn. Thành viên, Seed Tier 1–7, ứng viên thủ môn, vị trí hoặc thế mạnh được bổ sung để mô phỏng chỉ tồn tại trong RAM; script không thực hiện `INSERT`, `UPDATE` hoặc `DELETE`.
+Script mở transaction PostgreSQL với `READ ONLY = ON` trước khi truy vấn và không thực hiện `INSERT`, `UPDATE` hoặc `DELETE`. Toàn bộ thành viên, Seed Tier 1–7, cờ có thể bắt gôn, CV và lịch sử phong độ đều lấy từ database; script không sinh cầu thủ hoặc thuộc tính thay thế.
 
 Menu có hai nguồn danh sách:
 
-1. **Chọn một trận có sẵn:** hiển thị 20 trận gần đây, lấy đúng người tham gia và Seed của trận; điểm phong độ chỉ tính từ các trận trước ngày diễn ra trận được chọn. Cùng danh sách này được thử với 2, 3 và 4 đội.
-2. **Tự động:** lấy thành viên đang hoạt động và tạo ba case 10 người/2 đội, 15 người/3 đội và 19 người/4 đội. Dữ liệu còn thiếu được mô phỏng trong RAM và ghi rõ trên terminal.
+1. **Chọn một trận có sẵn:** hiển thị 20 trận gần đây, lấy đúng người tham gia, Seed và cờ có thể bắt gôn của trận; điểm phong độ chỉ tính từ các trận trước ngày diễn ra trận được chọn. Cùng danh sách này được thử với 2, 3 và 4 đội. Case thiếu Seed hoặc thiếu ứng viên thủ môn sẽ bị bỏ qua kèm lý do, không tự bổ sung dữ liệu.
+2. **Tự động:** dùng thành viên đang hoạt động cùng lần đánh giá Seed/cờ thủ môn gần nhất trong DB để tạo ba case 10 người/2 đội, 15 người/3 đội và 19 người/4 đội. Case không đủ dữ liệu thật sẽ bị bỏ qua.
 
 Có thể bỏ qua menu bằng tham số:
 

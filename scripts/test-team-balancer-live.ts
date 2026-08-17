@@ -1,7 +1,7 @@
 import { createInterface, type Interface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import postgres from "postgres";
-import { calculateAdjustedFormScore } from "../src/lib/form-score";
+import { calculateAdjustedFormScore, isLowForm } from "../src/lib/form-score";
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "../src/lib/team-balancer";
 import type { PlayerPosition, PlayerStrength } from "../src/lib/player-profile";
 
@@ -17,8 +17,24 @@ type MemberRow = {
   latest_seed: string | null;
   goalkeeper_available: boolean | null;
 };
-type StatRow = { member_id: string; placement_score: number };
-type FallbackSummary = { virtualMembers: number; seeds: number; positions: number; strengths: number };
+type StatRow = {
+  member_id: string;
+  match_id: string;
+  played_on: string;
+  created_at: Date;
+  placement_score: number;
+  result: "WIN" | "LOSS";
+  inferred: boolean;
+};
+type FormStat = {
+  matchCount: number;
+  lossCount: number;
+  lossRate: number | null;
+  formScore: number;
+  formConfidence: number;
+  inferredMatchCount: number;
+  lowForm: boolean;
+};
 
 const AUTO_CASES = [
   { label: "2 đội · quân số chuẩn", teamCount: 2, memberCount: 10 },
@@ -26,10 +42,6 @@ const AUTO_CASES = [
   { label: "4 đội · quân số lẻ", teamCount: 4, memberCount: 19 },
 ] as const;
 const SEEDS: SeedTier[] = ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6", "TIER_7"];
-const POSITION_FALLBACKS: PlayerPosition[][] = [
-  ["DEFENDER"], ["MIDFIELDER"], ["FORWARD"], ["FORWARD"],
-  ["DEFENDER", "MIDFIELDER"], ["MIDFIELDER", "FORWARD"],
-];
 const POSITION_LABELS: Record<PlayerPosition, string> = {
   GOALKEEPER: "TM", DEFENDER: "HV", MIDFIELDER: "TV", FORWARD: "TĐ",
 };
@@ -66,70 +78,64 @@ function parsedPositions(value: unknown) {
     : [];
 }
 
-function virtualMember(index: number): MemberRow {
-  return {
-    id: `virtual-${index + 1}`,
-    member_id: null,
-    full_name: `[TEST] Cầu thủ ${index + 1}`,
-    desired_positions: POSITION_FALLBACKS[index % POSITION_FALLBACKS.length],
-    player_strength: index % 2 ? "ATTACK" : "DEFENSE",
-    latest_seed: null,
-    goalkeeper_available: null,
-  };
-}
-
 function buildParticipants(input: {
   source: MemberRow[];
-  scores: Map<string, number>;
+  stats: Map<string, FormStat>;
   memberCount: number;
   teamCount: number;
   mode: TestMode;
 }) {
-  const rows = [...input.source];
-  const fallback: FallbackSummary = { virtualMembers: 0, seeds: 0, positions: 0, strengths: 0 };
-  while (rows.length < input.memberCount) {
-    rows.push(virtualMember(rows.length));
-    fallback.virtualMembers += 1;
-  }
-  const selected = rows.slice(0, input.memberCount);
-  const participants = selected.map((member, index): BalanceParticipant => {
-    let seedTier: SeedTier;
-    if (input.mode === "auto") {
-      seedTier = isSeed(member.latest_seed) ? member.latest_seed : SEEDS[index % SEEDS.length];
-      if (!isSeed(member.latest_seed)) fallback.seeds += 1;
-    } else if (isSeed(member.latest_seed)) {
-      seedTier = member.latest_seed;
-    } else {
-      seedTier = SEEDS[index % SEEDS.length];
-      fallback.seeds += 1;
+  let selected: MemberRow[];
+  if (input.mode === "match") {
+    selected = [...input.source];
+  } else {
+    const eligible = input.source.filter((member) => isSeed(member.latest_seed));
+    const goalkeepers = eligible.filter((member) => member.goalkeeper_available);
+    if (goalkeepers.length < input.teamCount) {
+      throw new Error(`Database chỉ có ${goalkeepers.length} thành viên có Seed hợp lệ và được đánh dấu có thể bắt gôn; case ${input.teamCount} đội cần ${input.teamCount}.`);
     }
+    const selectedGoalkeepers = goalkeepers.slice(0, input.teamCount);
+    const selectedIds = new Set(selectedGoalkeepers.map((member) => member.id));
+    selected = [...selectedGoalkeepers, ...eligible.filter((member) => !selectedIds.has(member.id))].slice(0, input.memberCount);
+    if (selected.length < input.memberCount) {
+      throw new Error(`Database chỉ có ${selected.length}/${input.memberCount} thành viên hoạt động với Seed Tier 1–7 đã lưu.`);
+    }
+  }
 
-    const storedPositions = parsedPositions(member.desired_positions);
-    const desiredPositions = storedPositions.length ? storedPositions : POSITION_FALLBACKS[index % POSITION_FALLBACKS.length];
-    if (!storedPositions.length) fallback.positions += 1;
-    const playerStrength: PlayerStrength = member.player_strength === "ATTACK" || member.player_strength === "DEFENSE"
+  const missingSeeds = selected.filter((member) => !isSeed(member.latest_seed));
+  if (missingSeeds.length) {
+    throw new Error(`Thiếu Seed Tier 1–7 trong DB: ${missingSeeds.map((member) => member.full_name).join(", ")}.`);
+  }
+  const goalkeeperCount = selected.filter((member) => member.goalkeeper_available).length;
+  if (goalkeeperCount < input.teamCount) {
+    throw new Error(`Trận chỉ có ${goalkeeperCount} người được đánh dấu có thể bắt gôn; case ${input.teamCount} đội cần ${input.teamCount}.`);
+  }
+
+  const participants = selected.map((member): BalanceParticipant => {
+    const seedTier = member.latest_seed as SeedTier;
+    const desiredPositions = parsedPositions(member.desired_positions);
+    const playerStrength: PlayerStrength | null = member.player_strength === "ATTACK" || member.player_strength === "DEFENSE"
       ? member.player_strength
-      : index % 2 ? "ATTACK" : "DEFENSE";
-    if (member.player_strength !== "ATTACK" && member.player_strength !== "DEFENSE") fallback.strengths += 1;
-    const formScore = member.member_id ? input.scores.get(member.member_id) ?? 5_000 : 5_000;
+      : null;
+    const stat = member.member_id ? input.stats.get(member.member_id) : undefined;
     return {
       participantId: `test-${input.teamCount}-${member.id}`,
       memberId: member.member_id,
       name: member.full_name,
       seedTier,
-      goalkeeperAvailable: Boolean(member.goalkeeper_available) || index < input.teamCount || desiredPositions.includes("GOALKEEPER"),
-      recentMatchCount: 0,
-      recentLossCount: 0,
-      recentLossRate: null,
-      formScore,
-      formConfidence: 0,
-      inferredMatchCount: 0,
-      lowForm: formScore < 4_000,
+      goalkeeperAvailable: Boolean(member.goalkeeper_available),
+      recentMatchCount: stat?.matchCount ?? 0,
+      recentLossCount: stat?.lossCount ?? 0,
+      recentLossRate: stat?.lossRate ?? null,
+      formScore: stat?.formScore ?? 5_000,
+      formConfidence: stat?.formConfidence ?? 0,
+      inferredMatchCount: stat?.inferredMatchCount ?? 0,
+      lowForm: stat?.lowForm ?? false,
       desiredPositions,
       playerStrength,
     };
   });
-  return { participants, fallback };
+  return participants;
 }
 
 function validate(result: ReturnType<typeof generateBalancedTeams>, expectedMembers: number) {
@@ -142,14 +148,12 @@ function validate(result: ReturnType<typeof generateBalancedTeams>, expectedMemb
   if (goalkeepers.some((count) => count !== 1)) throw new Error("Mỗi đội phải có đúng một thủ môn.");
 }
 
-function printResult(label: string, result: ReturnType<typeof generateBalancedTeams>, fallback: FallbackSummary) {
+function printResult(label: string, result: ReturnType<typeof generateBalancedTeams>) {
   console.log(`\n${"═".repeat(78)}\n${label} · balance cost ${result.cost.toLocaleString("vi-VN")}\n${"═".repeat(78)}`);
-  if (Object.values(fallback).some(Boolean)) {
-    console.log(`Mô phỏng trong RAM: ${fallback.virtualMembers} người bổ sung · ${fallback.seeds} Seed · ${fallback.positions} vị trí · ${fallback.strengths} thế mạnh.`);
-  } else console.log("Dùng hoàn toàn dữ liệu đã lưu của danh sách trận.");
+  console.log("Dùng hoàn toàn dữ liệu đã lưu trong database; không bổ sung dữ liệu mô phỏng.");
   for (const team of result.teams) {
     const role = team.positionCounts;
-    console.log(`\n${team.index}. ĐỘI ${String.fromCharCode(64 + team.index)} · ${team.memberCount} người · TM ${team.goalkeeperCount} · Seed ${team.skillScore} · Công/Thủ ${team.strengthCounts.ATTACK}/${team.strengthCounts.DEFENSE} · HV/TV/TĐ ${role.DEFENDER}/${role.MIDFIELDER}/${role.FORWARD}`);
+    console.log(`\n${team.index}. ĐỘI ${String.fromCharCode(64 + team.index)} · ${team.memberCount} người · TM ${team.goalkeeperCount} · Đội hình 5: Seed ${team.lineupSkillScore}, phong độ ${Math.round(team.lineupFormScore / 100)} · Toàn đội: Seed ${team.skillScore} · Công/Thủ ${team.strengthCounts.ATTACK}/${team.strengthCounts.DEFENSE} · HV/TV/TĐ ${role.DEFENDER}/${role.MIDFIELDER}/${role.FORWARD}`);
     console.table(team.members.map((member, index) => ({
       STT: index + 1,
       "Thành viên": member.name,
@@ -234,11 +238,11 @@ async function main() {
         SELECT member.id, member.id AS member_id, member.full_name,
           COALESCE(profile.desired_positions, '[]'::jsonb) AS desired_positions,
           profile.player_strength, latest.seed_tier AS latest_seed,
-          NULL::boolean AS goalkeeper_available
+          latest.goalkeeper_available
         FROM members member
         LEFT JOIN member_profiles profile ON profile.member_id = member.id
         LEFT JOIN LATERAL (
-          SELECT participant.seed_tier
+          SELECT participant.seed_tier, participant.goalkeeper_available
           FROM match_participants participant
           INNER JOIN matches match ON match.id = participant.match_id
           WHERE participant.member_id = member.id AND participant.seed_tier IS NOT NULL AND match.deleted_at IS NULL
@@ -250,27 +254,97 @@ async function main() {
       `;
       if (selectedMatch && members.length < 10) throw new Error(`Trận ${dateLabel(selectedMatch.played_on)} chỉ có ${members.length} người; thuật toán cần ít nhất 10 người.`);
 
-      const statRows = selectedMatch ? await tx<StatRow[]>`
-        SELECT member_id, placement_score FROM (
-          SELECT stat.member_id, stat.placement_score,
-            ROW_NUMBER() OVER (PARTITION BY stat.member_id ORDER BY stat.played_on DESC, stat.created_at DESC) AS row_number
-          FROM member_match_stats stat
-          INNER JOIN matches match ON match.id = stat.match_id
-          WHERE stat.club_id = ${club.id} AND stat.result <> 'UNRANKED'
-            AND stat.played_on < ${selectedMatch.played_on} AND match.deleted_at IS NULL
-        ) ranked WHERE row_number <= 10 ORDER BY member_id, row_number
+      const recordedRows = selectedMatch ? await tx<StatRow[]>`
+        SELECT stat.member_id, stat.match_id, stat.played_on::text AS played_on,
+          match.created_at, stat.placement_score, stat.result,
+          (stat.source = 'PENALTY_INFERRED') AS inferred
+        FROM member_match_stats stat
+        INNER JOIN matches match ON match.id = stat.match_id
+        WHERE stat.club_id = ${club.id} AND stat.result <> 'UNRANKED'
+          AND stat.played_on < ${selectedMatch.played_on} AND match.deleted_at IS NULL
       ` : await tx<StatRow[]>`
-        SELECT member_id, placement_score FROM (
-          SELECT stat.member_id, stat.placement_score,
-            ROW_NUMBER() OVER (PARTITION BY stat.member_id ORDER BY stat.played_on DESC, stat.created_at DESC) AS row_number
-          FROM member_match_stats stat
-          INNER JOIN matches match ON match.id = stat.match_id
-          WHERE stat.club_id = ${club.id} AND stat.result <> 'UNRANKED' AND match.deleted_at IS NULL
-        ) ranked WHERE row_number <= 10 ORDER BY member_id, row_number
+        SELECT stat.member_id, stat.match_id, stat.played_on::text AS played_on,
+          match.created_at, stat.placement_score, stat.result,
+          (stat.source = 'PENALTY_INFERRED') AS inferred
+        FROM member_match_stats stat
+        INNER JOIN matches match ON match.id = stat.match_id
+        WHERE stat.club_id = ${club.id} AND stat.result <> 'UNRANKED' AND match.deleted_at IS NULL
       `;
-      const scoreRows = new Map<string, number[]>();
-      for (const row of statRows) scoreRows.set(row.member_id, [...(scoreRows.get(row.member_id) ?? []), row.placement_score]);
-      const scores = new Map([...scoreRows].map(([memberId, rows]) => [memberId, calculateAdjustedFormScore(rows).formScore]));
+      const inferredRows = selectedMatch ? await tx<StatRow[]>`
+        SELECT participant.member_id, match.id AS match_id, match.played_on::text AS played_on,
+          match.created_at,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM member_charges loss
+            WHERE loss.match_id = match.id AND loss.member_id = participant.member_id
+              AND loss.club_id = ${club.id} AND loss.is_loss_penalty_snapshot = true AND loss.deleted_at IS NULL
+          ) THEN 0 ELSE 10000 END AS placement_score,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM member_charges loss
+            WHERE loss.match_id = match.id AND loss.member_id = participant.member_id
+              AND loss.club_id = ${club.id} AND loss.is_loss_penalty_snapshot = true AND loss.deleted_at IS NULL
+          ) THEN 'LOSS' ELSE 'WIN' END AS result,
+          true AS inferred
+        FROM match_participants participant
+        INNER JOIN matches match ON match.id = participant.match_id
+        WHERE match.club_id = ${club.id} AND match.deleted_at IS NULL
+          AND match.played_on < ${selectedMatch.played_on} AND participant.member_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM member_charges penalty
+            WHERE penalty.match_id = match.id AND penalty.club_id = ${club.id}
+              AND penalty.is_loss_penalty_snapshot = true AND penalty.deleted_at IS NULL
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM member_match_stats stat
+            WHERE stat.match_id = match.id AND stat.member_id = participant.member_id AND stat.result <> 'UNRANKED'
+          )
+      ` : await tx<StatRow[]>`
+        SELECT participant.member_id, match.id AS match_id, match.played_on::text AS played_on,
+          match.created_at,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM member_charges loss
+            WHERE loss.match_id = match.id AND loss.member_id = participant.member_id
+              AND loss.club_id = ${club.id} AND loss.is_loss_penalty_snapshot = true AND loss.deleted_at IS NULL
+          ) THEN 0 ELSE 10000 END AS placement_score,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM member_charges loss
+            WHERE loss.match_id = match.id AND loss.member_id = participant.member_id
+              AND loss.club_id = ${club.id} AND loss.is_loss_penalty_snapshot = true AND loss.deleted_at IS NULL
+          ) THEN 'LOSS' ELSE 'WIN' END AS result,
+          true AS inferred
+        FROM match_participants participant
+        INNER JOIN matches match ON match.id = participant.match_id
+        WHERE match.club_id = ${club.id} AND match.deleted_at IS NULL AND participant.member_id IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM member_charges penalty
+            WHERE penalty.match_id = match.id AND penalty.club_id = ${club.id}
+              AND penalty.is_loss_penalty_snapshot = true AND penalty.deleted_at IS NULL
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM member_match_stats stat
+            WHERE stat.match_id = match.id AND stat.member_id = participant.member_id AND stat.result <> 'UNRANKED'
+          )
+      `;
+      const eventsByMember = new Map<string, StatRow[]>();
+      for (const row of [...recordedRows, ...inferredRows]) {
+        eventsByMember.set(row.member_id, [...(eventsByMember.get(row.member_id) ?? []), row]);
+      }
+      const stats = new Map<string, FormStat>();
+      for (const [memberId, events] of eventsByMember) {
+        const selectedEvents = [...events].sort((first, second) => second.played_on.localeCompare(first.played_on)
+          || second.created_at.getTime() - first.created_at.getTime()
+          || second.match_id.localeCompare(first.match_id)).slice(0, 10);
+        const lossCount = selectedEvents.filter((event) => event.result === "LOSS").length;
+        const { formScore, formConfidence } = calculateAdjustedFormScore(selectedEvents.map((event) => event.placement_score));
+        stats.set(memberId, {
+          matchCount: selectedEvents.length,
+          lossCount,
+          lossRate: selectedEvents.length ? Math.round((lossCount / selectedEvents.length) * 10_000) : null,
+          formScore,
+          formConfidence,
+          inferredMatchCount: selectedEvents.filter((event) => event.inferred).length,
+          lowForm: isLowForm(selectedEvents.length, formScore),
+        });
+      }
 
       console.log("\nFCFund · LIVE TEAM BALANCER TEST");
       console.log("Database: kết nối thành công (URL được ẩn)");
@@ -279,19 +353,26 @@ async function main() {
       console.log(selectedMatch
         ? `Nguồn: trận ${dateLabel(selectedMatch.played_on)} · ${members.length} người · phong độ tính trước ngày trận`
         : `Nguồn: tự động · ${members.length} thành viên hoạt động từ production`);
-      console.log("Mọi bổ sung hoặc dữ liệu dự phòng chỉ tồn tại trong RAM.");
+      console.log("Nguồn kiểm thử chỉ sử dụng dữ liệu đã lưu trong DB; transaction không cho phép ghi.");
 
       const cases = selectedMatch
         ? [2, 3, 4].map((teamCount) => ({ label: `${teamCount} đội · danh sách trận ${dateLabel(selectedMatch.played_on)}`, teamCount, memberCount: members.length }))
         : AUTO_CASES;
+      let completedCases = 0;
       for (const testCase of cases) {
-        const { participants, fallback } = buildParticipants({ source: members, scores, memberCount: testCase.memberCount, teamCount: testCase.teamCount, mode });
-        const key = selectedMatch?.id ?? club.id;
-        const result = generateBalancedTeams(participants, testCase.teamCount, `live-readonly-${key}-${testCase.teamCount}-${testCase.memberCount}`);
-        validate(result, testCase.memberCount);
-        printResult(`CASE ${testCase.label}`, result, fallback);
+        try {
+          const participants = buildParticipants({ source: members, stats, memberCount: testCase.memberCount, teamCount: testCase.teamCount, mode });
+          const key = selectedMatch?.id ?? club.id;
+          const result = generateBalancedTeams(participants, testCase.teamCount, `live-readonly-${key}-${testCase.teamCount}-${testCase.memberCount}`);
+          validate(result, participants.length);
+          printResult(`CASE ${testCase.label}`, result);
+          completedCases += 1;
+        } catch (error) {
+          console.log(`\n⏭ Bỏ qua CASE ${testCase.label}: ${error instanceof Error ? error.message : error}`);
+        }
       }
-      console.log(`\n✅ Hoàn tất ${cases.length} case. Không có dữ liệu nào được ghi vào database.\n`);
+      if (!completedCases) throw new Error("Không có case nào đủ dữ liệu thật để chạy.");
+      console.log(`\n✅ Hoàn tất ${completedCases}/${cases.length} case đủ điều kiện. Không có dữ liệu nào được ghi vào database.\n`);
     });
   } finally {
     readline?.close();
