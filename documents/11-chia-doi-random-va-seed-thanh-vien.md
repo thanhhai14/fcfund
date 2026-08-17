@@ -1,11 +1,11 @@
 # Chia đội random, seed và phong độ thành viên
 
-**Trạng thái:** Cập nhật Điểm phong độ ngày 07/08/2026
+**Trạng thái:** Cập nhật Tier 1–7 và vai trò thủ môn ngày 17/08/2026
 **Phạm vi:** Mở rộng module Trận đấu; tài liệu thiết kế trước khi triển khai
 
 ## 1. Mục tiêu
 
-- Đánh giá lại seed của từng người tham gia theo Tier 1–4 hoặc Thủ môn ở mỗi trận.
+- Đánh giá lại seed của từng người tham gia theo Tier 1–7 ở mỗi trận; khả năng bắt gôn được đánh dấu riêng.
 - Chia từ 2 đội trở lên từ danh sách người tham gia trận.
 - Cho phép chia đội khi có ít nhất 10 người; đội thiếu người được cảnh báo nhưng không bị chặn.
 - Quân số và thủ môn được phân bổ đều, chênh lệch giữa các đội không quá 1.
@@ -23,13 +23,15 @@ Mỗi người tham gia có đúng một seed trong phạm vi **một trận**:
 
 | Seed | Ý nghĩa | Trọng số đề xuất |
 |---|---|---:|
-| Tier 1 | Nhóm mạnh nhất | 4 |
-| Tier 2 | Nhóm khá | 3 |
-| Tier 3 | Nhóm trung bình | 2 |
-| Tier 4 | Nhóm còn lại | 1 |
-| Thủ môn | Vị trí đặc biệt | Không cộng vào điểm cầu thủ sân |
+| Tier 1 | Mạnh nhất | 7 |
+| Tier 2 | | 6 |
+| Tier 3 | | 5 |
+| Tier 4 | Trung tâm thang đánh giá | 4 |
+| Tier 5 | | 3 |
+| Tier 6 | | 2 |
+| Tier 7 | Thấp nhất | 1 |
 
-Tier càng nhỏ thì trình độ càng cao. Thủ môn là một tier riêng và được cân bằng theo **số lượng thủ môn**, không dùng chung thang điểm Tier 1–4. Nếu sau này cần đánh giá trình độ thủ môn, phải bổ sung một thuộc tính riêng thay vì đổi ý nghĩa của tier Thủ môn.
+Tier càng nhỏ thì trình độ tổng quát càng cao, bao gồm năng lực ở các vị trí người đó có thể chơi. Thủ môn không còn là một Tier: người được chọn bắt gôn vẫn có Tier 1–7, nhưng đóng góp của Tier và Điểm phong độ vào điểm cân bằng đội chỉ bằng **15%** cầu thủ sân.
 
 Seed không được lưu như thuộc tính cố định của hồ sơ thành viên. Khi tạo trận mới, Admin phải đánh giá lại seed cho danh sách tham gia của chính trận đó. Seed của trận gần nhất có thể hiển thị ở một cột tham khảo, nhưng không được tự động điền hoặc tự động xác nhận cho trận mới.
 
@@ -96,16 +98,17 @@ Hệ thống chỉ cho bấm **Tạo đội** khi đồng thời thỏa mãn:
 1. Trận đã được tạo và có danh sách người tham gia.
 2. Số đội do người thao tác nhập là số nguyên và lớn hơn hoặc bằng 2.
 3. Có ít nhất 10 người tham gia và số đội không vượt quá số người.
-4. Tất cả người tham gia đều đã có seed.
-5. Tier đã được lưu và khóa cho phiên bản đội hình đang chuẩn bị.
+4. Tất cả người tham gia đều đã có Seed Tier 1–7.
+5. Có ít nhất một ứng viên bắt gôn cho mỗi đội.
+6. Tier và khả năng bắt gôn đã được lưu, khóa cho phiên bản đội hình đang chuẩn bị.
 
 Nếu thiếu seed, hệ thống không tự gán Tier 3. UI hiển thị danh sách cụ thể những người còn thiếu và đưa con trỏ đến ô seed đầu tiên cần nhập.
 
-Quân số các đội phải chênh nhau không quá 1. Số thủ môn giữa hai đội bất kỳ cũng phải chênh nhau không quá 1.
+Quân số các đội phải chênh nhau không quá 1. Mỗi đội phải có đúng một thủ môn.
 
 Hệ thống không còn chặn theo chuẩn 5 người mỗi đội. Nếu có đội dưới 5 người, UI hiển thị phân bổ dự kiến và cảnh báo để người tổ chức cân nhắc, nhưng vẫn cho phép tạo và xác nhận đội hình.
 
-Nếu số thủ môn ít hơn số đội, hệ thống vẫn có thể chia đều theo nghĩa chênh lệch không quá 1, nhưng phải cảnh báo rằng có đội không có thủ môn. Nếu nghiệp vụ thực tế yêu cầu mỗi đội bắt buộc có một thủ môn thì quy tắc này cần được nâng thành điều kiện chặn.
+Nếu số người được đánh dấu có thể bắt gôn ít hơn số đội, hệ thống chặn thao tác và báo số người còn thiếu.
 
 ## 4. Workflow giao diện
 
@@ -123,10 +126,10 @@ Xem | Sửa | Xóa | Tạo đội
 
 Trang tạo đội tải toàn bộ người đã được check tham gia trận và hiển thị:
 
-| Thành viên | Seed trận này | Số trận | Hạng nhất | Phong độ |
-|---|---|---:|---:|---:|
+| Thành viên | Seed trận này | Có thể bắt gôn | Số trận | Hạng nhất | Phong độ |
+|---|---|---:|---:|---:|---:|
 
-- Seed có thể nhập nhanh ngay trong bảng.
+- Seed Tier 1–7 và checkbox có thể bắt gôn có thể nhập nhanh ngay trong bảng. Checkbox mặc định lấy từ vị trí mong muốn trong CV và vẫn được phép chỉnh riêng cho trận.
 - Seed được lưu trên bản ghi người tham gia của trận hiện tại, không ghi vào hồ sơ thành viên.
 - Nếu trận hiện tại chưa có Seed, dropdown tự chọn sẵn Seed gần nhất trước đó của chính thành viên. Gợi ý này chỉ được ghi nhận khi Admin lưu và khóa Seed.
 - Người thiếu seed được tô cảnh báo.
@@ -164,7 +167,7 @@ Mỗi đội hiển thị:
 - số người;
 - số thủ môn;
 - tổng điểm cầu thủ sân;
-- số lượng từng Tier 1–4;
+- số lượng từng Tier 1–7 của cầu thủ sân;
 - điểm phong độ trung bình và số người phong độ thấp.
 
 Admin được kéo/thả người giữa các đội. Sau mỗi thay đổi, hệ thống tính lại các chỉ số và cảnh báo nếu vi phạm quân số hoặc phân bổ thủ môn. Có thể khóa một người tại đội hiện tại trước khi bấm chia lại.
@@ -223,9 +226,9 @@ Trọng số `W_skill`, `W_tier`, `W_loss` là cấu hình kỹ thuật ban đ�
 ### 5.3. Các bước thực thi đề xuất
 
 1. Sinh `random_key` và xáo người trong các nhóm tương đương.
-2. Phân bổ thủ môn vòng tròn vào các đội có ít thủ môn nhất.
-3. Nhóm cầu thủ sân theo Tier 1–4 và xáo trong từng tier.
-4. Phân bổ kiểu snake draft, ưu tiên cân bằng điểm kỹ năng trước rồi đến Điểm phong độ.
+2. Chọn đủ số thủ môn từ các ứng viên, ưu tiên người chỉ khai báo vị trí thủ môn; không ưu tiên Tier thấp hơn.
+3. Giữ một chỗ thủ môn cho mỗi đội, nhóm cầu thủ sân theo Tier 1–7 và chia cầu thủ sân trước.
+4. Xếp thủ môn sau cùng; Tier và Điểm phong độ của thủ môn nhân hệ số 0,15.
 5. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
 6. Chỉ nhận phép đổi làm giảm `cost` và không phá ràng buộc cứng.
 7. Dừng khi không còn cải thiện hoặc đạt giới hạn vòng lặp.
@@ -261,7 +264,8 @@ Báo cáo phân biệt rõ kết quả chính thức và số trận còn phải
 
 | Cột | Kiểu | Ý nghĩa |
 |---|---|---|
-| seed_tier | enum | NULL, TIER_1, TIER_2, TIER_3, TIER_4, GOALKEEPER |
+| seed_tier | enum | NULL, TIER_1…TIER_7; GOALKEEPER chỉ giữ để đọc lịch sử cũ |
+| goalkeeper_available | boolean | có thể bắt gôn trong trận hiện tại |
 | seed_evaluated_at | timestamptz | thời điểm đánh giá seed cho trận |
 | seed_evaluated_by | uuid | người đánh giá seed cho trận |
 
@@ -319,6 +323,8 @@ Mỗi trận có tối đa một `DRAFT` và một `CONFIRMED` hiện hành. Cá
 | version_id | uuid | FK match_team_versions, phục vụ ràng buộc duy nhất |
 | participant_id | uuid | FK match_participants |
 | seed_tier_snapshot | enum | seed lúc khóa tier |
+| goalkeeper_available_snapshot | boolean | snapshot khả năng bắt gôn của trận |
+| assigned_as_goalkeeper | boolean | người này được xếp bắt gôn trong đội hình |
 | recent_match_count_snapshot | smallint | số trận trong cửa sổ |
 | recent_loss_count_snapshot | smallint | số trận thua suy luận |
 | recent_loss_rate_snapshot | numeric | tỷ lệ thua suy luận |
@@ -357,10 +363,10 @@ Mỗi dòng là kết quả của một thành viên trong một trận. Bảng 
 - `(match_id, version)` là duy nhất.
 - `(version_id, team_index)` là duy nhất.
 - Một `participant_id` chỉ xuất hiện một lần trong một version.
-- Seed chỉ nhận một trong 5 giá trị đã định nghĩa.
+- Dữ liệu mới chỉ nhận Seed Tier 1–7; `GOALKEEPER` chỉ được đọc để tương thích lịch sử.
 - `team_count >= 2`, `lookback_matches > 0`.
-- Không xác nhận nếu bất kỳ đội nào dưới 5 người.
-- Không xác nhận nếu chênh lệch quân số hoặc thủ môn lớn hơn 1.
+- Không xác nhận nếu tổng người dưới 10 hoặc quân số giữa các đội chênh quá 1.
+- Không xác nhận nếu có đội không có đúng một thủ môn.
 - Xóa mềm trận làm ẩn đội hình nhưng không xóa audit/version.
 - Chia đội không tự tạo, sửa hoặc xóa khoản thu tài chính.
 
@@ -390,10 +396,10 @@ Activity log tối thiểu ghi: đánh giá/thay đổi seed của trận, khóa
 
 ## 10. Tình huống biên
 
-- 9 người, 2 đội: chặn vì không đủ tối thiểu 5 người/đội.
+- 9 người, 2 đội: chặn vì tổng danh sách chưa đủ 10 người.
 - 16 người, 3 đội: hợp lệ với quân số 6–5–5.
-- 2 thủ môn, 3 đội: chia 1–1–0 và cảnh báo một đội thiếu thủ môn.
-- 4 thủ môn, 3 đội: chia 2–1–1.
+- 2 ứng viên thủ môn, 3 đội: chặn và báo thiếu 1 người có thể bắt gôn.
+- 4 ứng viên thủ môn, 3 đội: chọn 3 người làm thủ môn, mỗi đội đúng 1 người; người còn lại vẫn có thể được chia như cầu thủ sân.
 - Có người thiếu seed: chặn và liệt kê đúng người cần nhập.
 - Tất cả cầu thủ sân cùng tier: cân bằng theo quân số và phong độ, random quyết định giữa các phương án tương đương.
 - Người chưa có lịch sử: dùng mức phong độ trung tính.

@@ -102,7 +102,7 @@ Không quản lý trực tiếp:
 - diễn biến trận;
 - đội thắng/đội thua được nhập tay.
 
-Hệ thống có chia từ 2 đội trở lên theo seed Tier 1–4/Thủ môn và phong độ gần đây. Trận thắng/thua được suy luận từ loại khoản thu đánh dấu là phạt thua; chi tiết và giới hạn dữ liệu nằm tại tài liệu 11.
+Hệ thống có chia từ 2 đội trở lên theo Seed Tier 1–7, vai trò thủ môn riêng theo trận và phong độ gần đây. Trận thắng/thua được suy luận từ loại khoản thu đánh dấu là phạt thua; chi tiết và giới hạn dữ liệu nằm tại tài liệu 11.
 
 Không phải ai tham gia cũng phải đóng Quỹ lẻ. Admin tự chọn khoản thu áp dụng cho từng người.
 

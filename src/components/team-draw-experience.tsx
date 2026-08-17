@@ -7,8 +7,8 @@ import { Icon } from "./icon";
 import { MemberAvatar } from "./member-identity";
 import { TeamCountField } from "./team-count-field";
 import { playerPositionsLabel, playerStrengthLabel, type PlayerPosition, type PlayerStrength } from "@/lib/player-profile";
+import { ACTIVE_SEED_TIERS, SEED_LABELS, type StoredSeedTier } from "@/lib/seed-tier";
 
-type SeedTier = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "GOALKEEPER";
 
 export type TeamDrawData = {
   runId: string;
@@ -21,7 +21,8 @@ export type TeamDrawData = {
       participantId: string;
       memberId: string | null;
       name: string;
-      seedTier: SeedTier;
+      seedTier: StoredSeedTier;
+      assignedAsGoalkeeper: boolean;
       isLocked: boolean;
     }>;
   }>;
@@ -33,20 +34,13 @@ type Participant = {
   memberId: string | null;
   name: string;
   avatarVersion: number | null;
-  seedTier: SeedTier;
+  seedTier: StoredSeedTier;
+  goalkeeperAvailable: boolean;
+  assignedAsGoalkeeper?: boolean;
   formScore: number;
   desiredPositions: PlayerPosition[];
   playerStrength: PlayerStrength | null;
 };
-
-const SEED_LABELS: Record<SeedTier, string> = {
-  GOALKEEPER: "Thủ môn",
-  TIER_1: "Tier 1",
-  TIER_2: "Tier 2",
-  TIER_3: "Tier 3",
-  TIER_4: "Tier 4",
-};
-const SEED_ORDER: Record<SeedTier, number> = { GOALKEEPER: 0, TIER_1: 1, TIER_2: 2, TIER_3: 3, TIER_4: 4 };
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -117,8 +111,8 @@ export function TeamDrawExperience({
   function orderedMembers(draw: TeamDrawData) {
     const ordered: Array<Participant & { teamId: string; teamName: string; teamColor: string; isLocked: boolean }> = [];
     const teams = [...draw.teams].sort((a, b) => a.index - b.index);
-    for (const seed of (Object.keys(SEED_ORDER) as SeedTier[]).sort((a, b) => SEED_ORDER[a] - SEED_ORDER[b])) {
-      const groups = teams.map((team) => team.members.filter((member) => member.seedTier === seed));
+    for (const seed of ACTIVE_SEED_TIERS) {
+      const groups = teams.map((team) => team.members.filter((member) => member.seedTier === seed && !member.assignedAsGoalkeeper));
       const rounds = Math.max(0, ...groups.map((members) => members.length));
       for (let round = 0; round < rounds; round += 1) {
         groups.forEach((members, teamIndex) => {
@@ -131,6 +125,7 @@ export function TeamDrawExperience({
             formScore: participantMap.get(member.participantId)?.formScore ?? 5000,
             desiredPositions: participantMap.get(member.participantId)?.desiredPositions ?? [],
             playerStrength: participantMap.get(member.participantId)?.playerStrength ?? null,
+            goalkeeperAvailable: participantMap.get(member.participantId)?.goalkeeperAvailable ?? false,
             teamId: team.id,
             teamName: team.name,
             teamColor: team.color,
@@ -138,6 +133,15 @@ export function TeamDrawExperience({
         });
       }
     }
+    teams.forEach((team) => team.members.filter((member) => member.assignedAsGoalkeeper).forEach((member) => ordered.push({
+      ...member,
+      avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? null,
+      formScore: participantMap.get(member.participantId)?.formScore ?? 5000,
+      desiredPositions: participantMap.get(member.participantId)?.desiredPositions ?? [],
+      playerStrength: participantMap.get(member.participantId)?.playerStrength ?? null,
+      goalkeeperAvailable: true,
+      teamId: team.id, teamName: team.name, teamColor: team.color,
+    })));
     return ordered;
   }
 
@@ -283,7 +287,7 @@ export function TeamDrawExperience({
           {phase === "drawing" && active && <div ref={flyingRef} className="team-draw-player" style={{ "--destination-color": active.teamColor } as React.CSSProperties}>
             <MemberAvatar memberId={active.memberId} name={active.name} avatarVersion={active.avatarVersion} className="large" />
             <span className="team-draw-player-meta">
-              <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]} · {playerPositionsLabel(active.desiredPositions)} · {playerStrengthLabel(active.playerStrength)} · {Math.round(active.formScore / 100)} điểm phong độ</small><b>{active.teamName}</b>
+              <strong>{active.name}</strong><small>{SEED_LABELS[active.seedTier]}{active.assignedAsGoalkeeper ? " · Thủ môn" : ""} · {playerPositionsLabel(active.desiredPositions)} · {playerStrengthLabel(active.playerStrength)} · {Math.round(active.formScore / 100)} điểm phong độ</small><b>{active.teamName}</b>
             </span>
           </div>}
           {phase === "complete" && <div className="team-draw-complete"><Icon name="trophy" /><strong>Đội hình đã hoàn tất</strong><small>{totalMembers} cầu thủ · {draw?.teams.length ?? 0} đội</small></div>}
@@ -300,7 +304,7 @@ export function TeamDrawExperience({
                 return <li className={isRevealed ? "revealed" : "waiting"} key={member.participantId} title={member.name}>
                   {isRevealed ? <span className="team-draw-member-entry">
                     <MemberAvatar memberId={member.memberId} name={member.name} avatarVersion={memberDetail?.avatarVersion} />
-                    <span><strong>{member.name}</strong><small>{SEED_LABELS[member.seedTier]} · {playerPositionsLabel(memberDetail?.desiredPositions)} · {Math.round((memberDetail?.formScore ?? 5000) / 100)} điểm</small></span>
+                    <span><strong>{member.name}</strong><small>{SEED_LABELS[member.seedTier]}{member.assignedAsGoalkeeper ? " · Thủ môn" : ""} · {playerPositionsLabel(memberDetail?.desiredPositions)} · {Math.round((memberDetail?.formScore ?? 5000) / 100)} điểm</small></span>
                   </span> : <span className="team-draw-member-waiting">Đang chờ…</span>}
                   {member.isLocked && <Icon name="shield" />}
                 </li>;

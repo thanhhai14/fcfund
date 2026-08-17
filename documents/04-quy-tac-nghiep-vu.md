@@ -189,8 +189,8 @@ Hệ thống có ba vai trò:
 
 ## BR-31 — Seed thành viên
 
-- Seed được đánh giá lại riêng cho từng người tham gia ở mỗi trận, gồm Tier 1, Tier 2, Tier 3, Tier 4 hoặc Thủ môn.
-- Thủ môn là tier riêng, không phải một vị trí bổ sung cho Tier 1–4.
+- Seed được đánh giá lại riêng cho từng người tham gia ở mỗi trận, gồm Tier 1 đến Tier 7; Tier 1 mạnh nhất và Tier 7 thấp nhất.
+- Thủ môn không phải Seed. Mỗi người vẫn có Tier 1–7 và được đánh dấu riêng là có thể bắt gôn trong trận hiện tại.
 - Seed không phải thuộc tính cố định của hồ sơ thành viên và không được tự động kế thừa sang trận mới.
 - Seed trận gần nhất chỉ được hiển thị để tham khảo khi đánh giá lại.
 - Người tham gia chưa có seed trong trận hiện tại không được đưa vào kết quả chia đội.
@@ -206,9 +206,9 @@ Hệ thống có ba vai trò:
 
 ## BR-33 — Cân bằng thủ môn
 
-- Thủ môn được chia đều giữa các đội.
-- Số thủ môn giữa hai đội bất kỳ chênh nhau không quá 1.
-- Nếu số thủ môn ít hơn số đội, hệ thống cảnh báo có đội không có thủ môn nhưng chưa chặn chia đội.
+- Mỗi đội phải có đúng một người được xếp làm thủ môn.
+- Số người có thể bắt gôn phải lớn hơn hoặc bằng số đội, nếu thiếu hệ thống chặn chia đội.
+- Cầu thủ sân được chia trước và thủ môn được xếp sau cùng. Tier và Điểm phong độ của người được xếp bắt gôn chỉ tính 15% so với cầu thủ sân.
 
 ## BR-34 — Workflow tạo đội
 
@@ -219,7 +219,7 @@ Hệ thống có ba vai trò:
 
 ## BR-35 — Chia đội cân bằng
 
-- Hệ thống cân bằng quân số, thủ môn, tổng điểm Tier 1–4, phân bổ từng tier và phong độ gần đây.
+- Hệ thống cân bằng quân số, thủ môn, tổng điểm Tier 1–7, phân bổ từng tier và phong độ gần đây.
 - Random chỉ quyết định giữa các phương án có mức cân bằng tương đương.
 - Admin được chỉnh thủ công trước khi xác nhận nhưng không được xác nhận đội hình vi phạm ràng buộc cứng.
 

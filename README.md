@@ -119,6 +119,39 @@ npm run lint
 npm run build
 ```
 
+### Test chia đội bằng dữ liệu production, không ghi dữ liệu
+
+Nạp biến môi trường production rồi chạy menu tương tác:
+
+```bash
+set -a
+source .env.production.local
+set +a
+npm run test:teams:live
+```
+
+Script mở transaction PostgreSQL với `READ ONLY = ON` trước khi truy vấn. Thành viên, Seed Tier 1–7, ứng viên thủ môn, vị trí hoặc thế mạnh được bổ sung để mô phỏng chỉ tồn tại trong RAM; script không thực hiện `INSERT`, `UPDATE` hoặc `DELETE`.
+
+Menu có hai nguồn danh sách:
+
+1. **Chọn một trận có sẵn:** hiển thị 20 trận gần đây, lấy đúng người tham gia và Seed của trận; điểm phong độ chỉ tính từ các trận trước ngày diễn ra trận được chọn. Cùng danh sách này được thử với 2, 3 và 4 đội.
+2. **Tự động:** lấy thành viên đang hoạt động và tạo ba case 10 người/2 đội, 15 người/3 đội và 19 người/4 đội. Dữ liệu còn thiếu được mô phỏng trong RAM và ghi rõ trên terminal.
+
+Có thể bỏ qua menu bằng tham số:
+
+```bash
+npm run test:teams:live -- --mode=auto
+npm run test:teams:live -- --mode=match --match=2026-08-11
+npm run test:teams:live -- --mode=match --match=11/08/2026
+npm run test:teams:live -- --mode=match --match=<UUID_TRẬN>
+```
+
+Nếu database có nhiều club, chỉ định club cần kiểm tra:
+
+```bash
+TEST_CLUB_ID=<UUID_CLUB> npm run test:teams:live -- --mode=auto
+```
+
 E2E dùng Chrome đã cài:
 
 ```bash

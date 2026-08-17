@@ -133,6 +133,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     participantId: matchTeamMembers.participantId,
     memberId: matchTeamMembers.memberId,
     teamId: matchTeamMembers.teamId,
+    assignedAsGoalkeeper: matchTeamMembers.assignedAsGoalkeeper,
   }).from(matchTeamMembers).where(eq(matchTeamMembers.versionId, confirmedVersion.id)) : [];
   const assignedMemberIds = new Set(teamMemberRows.flatMap((row) => row.memberId ? [row.memberId] : []));
   const replacementMemberRows = canManageTeams && confirmedVersion ? await db.select({
@@ -197,6 +198,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       name: row.memberName ?? row.guestName ?? "Khách",
       avatarVersion: row.avatarUpdatedAt?.getTime() ?? null,
       seedTier: canViewSeed ? row.seedTier : null,
+      assignedAsGoalkeeper: teamMembership?.assignedAsGoalkeeper ?? false,
       teamId: team?.id ?? null,
       teamName: team?.name ?? null,
       teamIndex: team?.teamIndex ?? null,

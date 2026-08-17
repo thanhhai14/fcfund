@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test:teams": "tsx scripts/test-team-balancer.ts",
+    "test:teams:live": "tsx scripts/test-team-balancer-live.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

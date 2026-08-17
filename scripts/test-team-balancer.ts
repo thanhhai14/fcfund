@@ -16,9 +16,8 @@ function participants(count: number): BalanceParticipant[] {
     participantId: `participant-${index}`,
     memberId: `member-${index}`,
     name: `Cầu thủ ${index + 1}`,
-    seedTier: (index < Math.max(1, Math.floor(count / 8))
-      ? "GOALKEEPER"
-      : `TIER_${(index % 4) + 1}`) as SeedTier,
+    seedTier: `TIER_${(index % 7) + 1}` as SeedTier,
+    goalkeeperAvailable: index < 5,
     recentMatchCount: 10,
     recentLossCount: index % 5,
     recentLossRate: (index % 5) * 1_500,
@@ -43,7 +42,7 @@ for (const [memberCount, teamCount] of [[10, 2], [11, 3], [18, 4], [19, 4], [20,
   const defenseCounts = first.teams.map((team) => team.strengthCounts.DEFENSE);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
   if (Math.min(...sizes) < 1 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
-  if (Math.max(...goalkeepers) - Math.min(...goalkeepers) > 1) throw new Error("Thủ môn không được chia đều.");
+  if (goalkeepers.some((count) => count !== 1)) throw new Error("Mỗi đội phải có đúng một thủ môn.");
   if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
   if (Math.max(...attackCounts) - Math.min(...attackCounts) > 1) throw new Error("Cầu thủ thiên công chưa được phân bổ đều.");
   if (Math.max(...defenseCounts) - Math.min(...defenseCounts) > 1) throw new Error("Cầu thủ thiên thủ chưa được phân bổ đều.");

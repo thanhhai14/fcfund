@@ -64,8 +64,13 @@ TIER_1
 TIER_2
 TIER_3
 TIER_4
+TIER_5
+TIER_6
+TIER_7
 GOALKEEPER
 ```
+
+`GOALKEEPER` chỉ còn phục vụ tương thích dữ liệu cũ. Dữ liệu mới dùng Tier 1–7 và các cột boolean riêng để lưu khả năng/việc được xếp bắt gôn.
 
 ### match_team_version_status
 

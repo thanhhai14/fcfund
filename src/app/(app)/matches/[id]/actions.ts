@@ -21,6 +21,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
+import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 
 type MutationResult = { ok: boolean; message: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -438,12 +439,12 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
   const versionId = str(formData, "versionId");
   const teamId = str(formData, "teamId");
   const memberId = str(formData, "memberId");
-  const seedTier = str(formData, "seedTier") as "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "GOALKEEPER";
+  const seedTier = str(formData, "seedTier") as SeedTier;
+  const assignedAsGoalkeeper = formData.get("assignedAsGoalkeeper") === "on";
   const applyResult = formData.get("applyResult") === "on";
   const applyPenalty = formData.get("applyPenalty") === "on";
   const reason = str(formData, "reason");
-  const validSeeds = new Set(["TIER_1", "TIER_2", "TIER_3", "TIER_4", "GOALKEEPER"]);
-  if (!validSeeds.has(seedTier)) return { ok: false, message: "Hãy chọn Seed của thành viên trong trận này." };
+  if (!isActiveSeedTier(seedTier)) return { ok: false, message: "Hãy chọn Seed Tier 1–7 của thành viên trong trận này." };
 
   const [match] = await db.select().from(matches).where(and(
     eq(matches.id, matchId), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt),
@@ -457,6 +458,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     eq(matchTeams.id, teamId), eq(matchTeams.versionId, versionId),
   )).limit(1);
   if (!team) return { ok: false, message: "Đội được chọn không hợp lệ." };
+  if (assignedAsGoalkeeper && team.goalkeeperCount >= 1) return { ok: false, message: `${team.name} đã có thủ môn.` };
   const [member] = await db.select().from(members).where(and(
     eq(members.id, memberId), eq(members.clubId, actor.clubId), eq(members.status, "ACTIVE"),
   )).limit(1);
@@ -499,18 +501,18 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     if (!penaltyType) return { ok: false, message: "Không tìm thấy loại thu phạt đã dùng cho kết quả trận." };
   }
   const now = new Date();
-  const tierWeight = { TIER_1: 4, TIER_2: 3, TIER_3: 2, TIER_4: 1, GOALKEEPER: 0 }[seedTier];
+  const tierWeight = SEED_WEIGHT[seedTier] * (assignedAsGoalkeeper ? 0.15 : 1);
 
   await db.transaction(async (tx) => {
     let participantId = participant?.id;
     if (participant) {
       await tx.update(matchParticipants).set({
-        seedTier, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
+        seedTier, goalkeeperAvailable: assignedAsGoalkeeper, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
         note: reason ? `Bổ sung sau khi chốt đội: ${reason}` : "Bổ sung sau khi chốt đội",
       }).where(eq(matchParticipants.id, participant.id));
     } else {
       const [created] = await tx.insert(matchParticipants).values({
-        matchId, memberId, seedTier, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
+        matchId, memberId, seedTier, goalkeeperAvailable: assignedAsGoalkeeper, seedEvaluatedAt: now, seedEvaluatedBy: actor.id,
         note: reason ? `Bổ sung sau khi chốt đội: ${reason}` : "Bổ sung sau khi chốt đội",
       }).returning({ id: matchParticipants.id });
       participantId = created.id;
@@ -518,6 +520,8 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     await tx.insert(matchTeamMembers).values({
       versionId, teamId, participantId, memberId, displayNameSnapshot: member.fullName,
       seedTierSnapshot: seedTier,
+      goalkeeperAvailableSnapshot: assignedAsGoalkeeper || Boolean(memberProfile?.desiredPositions?.includes("GOALKEEPER")),
+      assignedAsGoalkeeper,
       recentMatchCountSnapshot: stat?.matchCount ?? 0,
       recentLossCountSnapshot: stat?.lossCount ?? 0,
       recentLossRateSnapshot: stat?.lossRate ?? null,
@@ -530,11 +534,11 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     });
     await tx.update(matchTeams).set({
       memberCount: team.memberCount + 1,
-      goalkeeperCount: team.goalkeeperCount + (seedTier === "GOALKEEPER" ? 1 : 0),
-      outfieldSkillScore: team.outfieldSkillScore + tierWeight,
-      recentLossScore: team.recentLossScore + (10_000 - (stat?.formScore ?? 5000)),
-      formScoreTotal: team.formScoreTotal + (stat?.formScore ?? 5000),
-      lowFormCount: team.lowFormCount + (stat?.lowForm ? 1 : 0),
+      goalkeeperCount: team.goalkeeperCount + Number(assignedAsGoalkeeper),
+      outfieldSkillScore: Math.round(team.outfieldSkillScore + tierWeight),
+      recentLossScore: Math.round(team.recentLossScore + (10_000 - (stat?.formScore ?? 5000)) * (assignedAsGoalkeeper ? 0.15 : 1)),
+      formScoreTotal: Math.round(team.formScoreTotal + (stat?.formScore ?? 5000) * (assignedAsGoalkeeper ? 0.15 : 1)),
+      lowFormCount: team.lowFormCount + (stat?.lowForm && !assignedAsGoalkeeper ? 1 : 0),
     }).where(eq(matchTeams.id, teamId));
     if (placement && applyResult) {
       await tx.delete(memberMatchStats).where(and(eq(memberMatchStats.matchId, matchId), eq(memberMatchStats.memberId, memberId)));
@@ -557,7 +561,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     }
     await tx.insert(activityLogs).values({
       clubId: actor.clubId, entityType: "match", entityId: matchId, action: "UPDATE", actorId: actor.id,
-      afterData: { memberId, memberName: member.fullName, teamId, teamName: team.name, seedTier, placement, penaltyQuantity: applyPenalty ? penaltyQuantity : 0, appliedResult: applyResult },
+      afterData: { memberId, memberName: member.fullName, teamId, teamName: team.name, seedTier, assignedAsGoalkeeper, placement, penaltyQuantity: applyPenalty ? penaltyQuantity : 0, appliedResult: applyResult },
       message: `Bổ sung ${member.fullName} vào ${team.name}${reason ? ` · ${reason}` : ""}`,
     });
   });

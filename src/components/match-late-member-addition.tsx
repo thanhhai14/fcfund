@@ -39,8 +39,9 @@ export function MatchLateMemberAddition({
           <option value="" disabled>Chọn Seed</option>
           <option value="TIER_1">Tier 1</option><option value="TIER_2">Tier 2</option>
           <option value="TIER_3">Tier 3</option><option value="TIER_4">Tier 4</option>
-          <option value="GOALKEEPER">Thủ môn</option>
+          <option value="TIER_5">Tier 5</option><option value="TIER_6">Tier 6</option><option value="TIER_7">Tier 7</option>
         </select></label>
+        <label className="checkbox-row"><input type="checkbox" name="assignedAsGoalkeeper" /> Xếp làm thủ môn của đội</label>
         <label>Lý do / ghi chú<input name="reason" maxLength={300} placeholder="Ví dụ: đến trễ, bổ sung hiệp 2" /></label>
         <div className="replacement-impact">
           <strong>Xem trước ảnh hưởng</strong>

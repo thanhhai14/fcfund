@@ -50,6 +50,9 @@ export const memberSeedTier = pgEnum("member_seed_tier", [
   "TIER_2",
   "TIER_3",
   "TIER_4",
+  "TIER_5",
+  "TIER_6",
+  "TIER_7",
   "GOALKEEPER",
 ]);
 export const matchTeamVersionStatus = pgEnum("match_team_version_status", [
@@ -252,6 +255,7 @@ export const matchParticipants = pgTable(
     memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
     guestName: varchar("guest_name", { length: 160 }),
     seedTier: memberSeedTier("seed_tier"),
+    goalkeeperAvailable: boolean("goalkeeper_available").default(false).notNull(),
     seedEvaluatedAt: timestamp("seed_evaluated_at", { withTimezone: true }),
     seedEvaluatedBy: uuid("seed_evaluated_by").references(() => users.id, { onDelete: "set null" }),
     note: text("note"),
@@ -324,6 +328,8 @@ export const matchTeamMembers = pgTable(
     memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
     displayNameSnapshot: varchar("display_name_snapshot", { length: 160 }).notNull(),
     seedTierSnapshot: memberSeedTier("seed_tier_snapshot").notNull(),
+    goalkeeperAvailableSnapshot: boolean("goalkeeper_available_snapshot").default(false).notNull(),
+    assignedAsGoalkeeper: boolean("assigned_as_goalkeeper").default(false).notNull(),
     recentMatchCountSnapshot: integer("recent_match_count_snapshot").default(0).notNull(),
     recentLossCountSnapshot: integer("recent_loss_count_snapshot").default(0).notNull(),
     recentLossRateSnapshot: integer("recent_loss_rate_snapshot"),

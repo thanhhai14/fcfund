@@ -129,7 +129,7 @@ Liên kết người tham gia trận:
 
 - trận;
 - thành viên hoặc khách;
-- seed được đánh giá riêng cho trận: Tier 1–4 hoặc Thủ môn;
+- seed được đánh giá riêng cho trận: Tier 1–7; khả năng và việc được xếp bắt gôn là thuộc tính riêng;
 - người và thời điểm đánh giá seed;
 - ghi chú.
 

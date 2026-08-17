@@ -142,7 +142,7 @@ Lựa chọn view được ghi nhớ trên thiết bị. Nếu chưa có lựa c
 ### Bước 1 — Đánh giá Seed
 
 - Tìm thành viên theo tên.
-- Lọc chưa có Seed, Tier 1–4 hoặc Thủ môn.
+- Lọc chưa có Seed hoặc Tier 1–7; khả năng bắt gôn dùng checkbox riêng.
 - Sắp xếp theo tên, Tier, số trận gần đây hoặc tỷ lệ thua.
 - Filter không làm mất giá trị Seed đã nhập.
 - Hiển thị số người đang thấy và tổng số người tham gia.

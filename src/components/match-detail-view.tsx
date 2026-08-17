@@ -26,6 +26,7 @@ export type MatchParticipantView = {
   name: string;
   avatarVersion: number | null;
   seedTier: string | null;
+  assignedAsGoalkeeper: boolean;
   teamId: string | null;
   teamName: string | null;
   teamIndex: number | null;
@@ -47,7 +48,10 @@ const SEED_LABELS: Record<string, string> = {
   TIER_2: "Tier 2",
   TIER_3: "Tier 3",
   TIER_4: "Tier 4",
-  GOALKEEPER: "Thủ môn",
+  TIER_5: "Tier 5",
+  TIER_6: "Tier 6",
+  TIER_7: "Tier 7",
+  GOALKEEPER: "Thủ môn (dữ liệu cũ)",
 };
 
 type SortMode = "name" | "team" | "charge";
@@ -175,7 +179,7 @@ export function MatchDetailView({
                   return (
                     <tr key={row.id}>
                       <td><MemberIdentity memberId={row.memberId} name={row.name} avatarVersion={row.avatarVersion} /></td>
-                      {canViewSeed && columns.isVisible("seed") && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
+                      {canViewSeed && columns.isVisible("seed") && <td>{row.seedTier ? <span className={`seed-chip ${row.seedTier.toLowerCase()}`}>{SEED_LABELS[row.seedTier] ?? row.seedTier}{row.assignedAsGoalkeeper ? " · Thủ môn" : ""}</span> : <span className="table-muted">Chưa xếp</span>}</td>}
                       {columns.isVisible("team") && <td>{row.teamName ? <span className="team-result-cell"><span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>{row.teamPlace && <small className={row.teamPlace === 1 ? "won" : "lost"}>{resultLabel(row.teamPlace)}</small>}</span> : <span className="table-muted">Chưa chia đội</span>}</td>}
                       {columns.isVisible("charges") && <td>{row.charges.length ? <span className="detail-charge-tags">{row.charges.map((charge) => <ChargeMark charge={charge} key={charge.id} />)}</span> : <span className="table-muted">Không phát sinh</span>}</td>}
                       {columns.isVisible("quantity") && <td className="numeric-cell">{summary.quantity ? `×${summary.quantity}` : "—"}</td>}
@@ -197,7 +201,7 @@ export function MatchDetailView({
                   {row.teamName && <span className="team-tag" style={{ borderColor: row.teamColor ?? undefined, color: row.teamColor ?? undefined }}>{row.teamName}</span>}
                 </header>
                 <div className="match-member-card-meta">
-                  {canViewSeed && <span><small>Seed</small><strong>{row.seedTier ? SEED_LABELS[row.seedTier] ?? row.seedTier : "Chưa xếp"}</strong></span>}
+                  {canViewSeed && <span><small>Seed</small><strong>{row.seedTier ? `${SEED_LABELS[row.seedTier] ?? row.seedTier}${row.assignedAsGoalkeeper ? " · Thủ môn" : ""}` : "Chưa xếp"}</strong></span>}
                   <span><small>Kết quả</small><strong className={row.teamPlace === 1 ? "won" : row.teamPlace ? "lost" : ""}>{resultLabel(row.teamPlace) ?? "Chưa có"}</strong></span>
                   <span><small>Số lần</small><strong>{summary.quantity || "—"}</strong></span>
                   <span><small>Thành tiền</small><strong>{formatMoney(summary.amount)}</strong></span>
@@ -228,7 +232,7 @@ export function MatchDetailView({
                 <div className="match-team-view-members">
                   {members.map((member) => (
                     <div key={member.id}>
-                      <MemberIdentity memberId={member.memberId} name={member.name} avatarVersion={member.avatarVersion} secondary={canViewSeed ? member.seedTier ? SEED_LABELS[member.seedTier] ?? member.seedTier : "Chưa có Seed" : null} compact />
+                      <MemberIdentity memberId={member.memberId} name={member.name} avatarVersion={member.avatarVersion} secondary={canViewSeed ? member.seedTier ? `${SEED_LABELS[member.seedTier] ?? member.seedTier}${member.assignedAsGoalkeeper ? " · Thủ môn" : ""}` : "Chưa có Seed" : null} compact />
                       <span className="team-member-charge">{member.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />)}{!member.charges.length && <small>—</small>}</span>
                       {canManageTeams && confirmedVersionId && member.teamMemberId && <MatchMemberReplacement
                         matchId={matchId}

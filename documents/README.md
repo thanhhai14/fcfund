@@ -22,6 +22,6 @@ Thư mục này là nguồn mô tả nghiệp vụ và cấu trúc dữ liệu t
 - [`08-schema-postgresql.md`](./08-schema-postgresql.md): thiết kế bảng, khóa và công thức dữ liệu.
 - [`09-phan-quyen-va-chatter.md`](./09-phan-quyen-va-chatter.md): ba vai trò, policy và nhật ký thay đổi.
 - [`10-trien-khai-vercel.md`](./10-trien-khai-vercel.md): PostgreSQL, Blob, Cron và biến môi trường trên Vercel.
-- [`11-chia-doi-random-va-seed-thanh-vien.md`](./11-chia-doi-random-va-seed-thanh-vien.md): nghiệp vụ chia đội, seed Tier 1–4/Thủ môn, phong độ suy luận và phiên bản đội hình.
+- [`11-chia-doi-random-va-seed-thanh-vien.md`](./11-chia-doi-random-va-seed-thanh-vien.md): nghiệp vụ chia đội, Seed Tier 1–7, vai trò thủ môn theo trận, phong độ và phiên bản đội hình.
 
 > Nghiệp vụ lõi đã được xác nhận. Schema vật lý vẫn là bản thiết kế, chưa được triển khai.

@@ -70,7 +70,7 @@
 - Chọn người tham gia.
 - Gán không, một hoặc nhiều khoản thu cho từng người.
 - Xem tổng khoản thu phát sinh từ trận.
-- Đánh giá lại seed Tier 1–4 hoặc Thủ môn cho người tham gia ở từng trận; không tự kế thừa seed sang trận mới.
+- Đánh giá lại Seed Tier 1–7 và khả năng bắt gôn cho người tham gia ở từng trận; không tự kế thừa xác nhận sang trận mới.
 - Chia từ 2 đội trở lên, mỗi đội tối thiểu 5 người.
 - Cân bằng quân số, thủ môn, tier và phong độ suy luận gần đây.
 - Chỉnh thủ công, khóa người, chia lại và xác nhận đội hình.

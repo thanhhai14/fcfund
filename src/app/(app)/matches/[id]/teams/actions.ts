@@ -17,7 +17,8 @@ import {
 import { PERMISSIONS } from "@/lib/constants";
 import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
-import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "@/lib/team-balancer";
+import { generateBalancedTeams, type BalanceParticipant } from "@/lib/team-balancer";
+import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
 
 type MutationResult = { ok: boolean; message: string };
@@ -34,12 +35,12 @@ type TeamDrawResult = MutationResult & {
         memberId: string | null;
         name: string;
         seedTier: SeedTier;
+        assignedAsGoalkeeper: boolean;
         isLocked: boolean;
       }>;
     }>;
   };
 };
-const SEED_TIERS = new Set<SeedTier>(["TIER_1", "TIER_2", "TIER_3", "TIER_4", "GOALKEEPER"]);
 
 function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -60,6 +61,7 @@ async function currentParticipants(matchId: string) {
     memberId: matchParticipants.memberId,
     guestName: matchParticipants.guestName,
     seedTier: matchParticipants.seedTier,
+    goalkeeperAvailable: matchParticipants.goalkeeperAvailable,
     memberName: members.fullName,
     desiredPositions: memberProfiles.desiredPositions,
     playerStrength: memberProfiles.playerStrength,
@@ -87,12 +89,14 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
   const participants = await currentParticipants(matchId);
   if (!participants.length) return { ok: false, message: "Trận chưa có người tham gia." };
   const seeds = new Map<string, SeedTier>();
+  const goalkeeperAvailability = new Map<string, boolean>();
   for (const participant of participants) {
     const seed = str(formData, `seed_${participant.id}`) as SeedTier;
-    if (!SEED_TIERS.has(seed)) {
+    if (!isActiveSeedTier(seed)) {
       return { ok: false, message: `Chưa đánh giá Seed cho ${participant.memberName ?? participant.guestName ?? "thành viên"}.` };
     }
     seeds.set(participant.id, seed);
+    goalkeeperAvailability.set(participant.id, formData.get(`goalkeeper_${participant.id}`) === "on");
   }
 
   const existingDraft = await draftForMatch(matchId);
@@ -107,6 +111,7 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
     for (const participant of participants) {
       await tx.update(matchParticipants).set({
         seedTier: seeds.get(participant.id),
+        goalkeeperAvailable: goalkeeperAvailability.get(participant.id) ?? false,
         seedEvaluatedAt: now,
         seedEvaluatedBy: actor.id,
       }).where(eq(matchParticipants.id, participant.id));
@@ -143,7 +148,7 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
       action: existingDraft ? "UPDATE" : "CREATE",
       actorId: actor.id,
       message: `Đánh giá và khóa Seed cho ${participants.length} người của trận ${match.playedOn}`,
-      afterData: Object.fromEntries(seeds),
+      afterData: { seeds: Object.fromEntries(seeds), goalkeeperAvailability: Object.fromEntries(goalkeeperAvailability) },
     });
   });
 
@@ -195,7 +200,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
   if (!Number.isInteger(teamCount) || teamCount < 2) return { ok: false, message: "Số đội phải là số nguyên từ 2 trở lên." };
   if (participants.length < 10) return { ok: false, message: "Cần ít nhất 10 người tham gia để tạo đội." };
   if (teamCount > participants.length) return { ok: false, message: "Số đội không được vượt quá số người tham gia." };
-  const missingSeed = participants.find((row) => !row.seedTier);
+  const missingSeed = participants.find((row) => !isActiveSeedTier(row.seedTier));
   if (missingSeed) return { ok: false, message: `Thiếu Seed của ${missingSeed.memberName ?? missingSeed.guestName ?? "thành viên"}.` };
 
   const memberIds = participants.flatMap((row) => row.memberId ? [row.memberId] : []);
@@ -203,12 +208,16 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
   const existingAssignments = await db.select({
     participantId: matchTeamMembers.participantId,
     isLocked: matchTeamMembers.isLocked,
+    assignedAsGoalkeeper: matchTeamMembers.assignedAsGoalkeeper,
     teamIndex: matchTeams.teamIndex,
   }).from(matchTeamMembers)
     .innerJoin(matchTeams, eq(matchTeamMembers.teamId, matchTeams.id))
     .where(eq(matchTeamMembers.versionId, draft.id));
   const lockedMap = new Map(existingAssignments.flatMap((row) => row.isLocked && row.participantId
     ? [[row.participantId, row.teamIndex] as const]
+    : []));
+  const lockedGoalkeeperMap = new Map(existingAssignments.flatMap((row) => row.isLocked && row.participantId
+    ? [[row.participantId, row.assignedAsGoalkeeper] as const]
     : []));
 
   const balanceRows: BalanceParticipant[] = participants.map((row) => {
@@ -218,6 +227,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
       memberId: row.memberId,
       name: row.memberName ?? row.guestName ?? "Khách",
       seedTier: row.seedTier as SeedTier,
+      goalkeeperAvailable: row.goalkeeperAvailable,
       recentMatchCount: stat?.matchCount ?? 0,
       recentLossCount: stat?.lossCount ?? 0,
       recentLossRate: stat?.lossRate ?? null,
@@ -228,6 +238,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
       desiredPositions: (row.desiredPositions ?? []) as PlayerPosition[],
       playerStrength: (row.playerStrength ?? null) as PlayerStrength | null,
       lockedTeamIndex: lockedMap.get(row.id),
+      lockedAsGoalkeeper: lockedGoalkeeperMap.get(row.id),
     };
   });
 
@@ -263,6 +274,8 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
         memberId: member.memberId,
         displayNameSnapshot: member.name,
         seedTierSnapshot: member.seedTier,
+        goalkeeperAvailableSnapshot: member.goalkeeperAvailable,
+        assignedAsGoalkeeper: Boolean(member.assignedAsGoalkeeper),
         recentMatchCountSnapshot: member.recentMatchCount,
         recentLossCountSnapshot: member.recentLossCount,
         recentLossRateSnapshot: member.recentLossRate,
@@ -284,6 +297,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
           memberId: member.memberId,
           name: member.name,
           seedTier: member.seedTier,
+          assignedAsGoalkeeper: Boolean(member.assignedAsGoalkeeper),
           isLocked: Boolean(member.lockedTeamIndex),
         })),
       });
@@ -348,8 +362,8 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
       const teamRows = assignments.filter((assignment) => assignment.teamId === team.id).map((assignment) => assignment.row);
       await tx.update(matchTeams).set({
         memberCount: teamRows.length,
-        goalkeeperCount: teamRows.filter((row) => row.seedTierSnapshot === "GOALKEEPER").length,
-        outfieldSkillScore: teamRows.reduce((sum, row) => sum + ({ TIER_1: 4, TIER_2: 3, TIER_3: 2, TIER_4: 1, GOALKEEPER: 0 }[row.seedTierSnapshot]), 0),
+        goalkeeperCount: teamRows.filter((row) => row.assignedAsGoalkeeper).length,
+        outfieldSkillScore: Math.round(teamRows.reduce((sum, row) => sum + (isActiveSeedTier(row.seedTierSnapshot) ? SEED_WEIGHT[row.seedTierSnapshot] * (row.assignedAsGoalkeeper ? 0.15 : 1) : 0), 0)),
         recentLossScore: teamRows.reduce((sum, row) => sum + (10_000 - row.formScoreSnapshot), 0),
         formScoreTotal: teamRows.reduce((sum, row) => sum + row.formScoreSnapshot, 0),
         lowFormCount: teamRows.filter((row) => row.recentMatchCountSnapshot >= FORM_SCORE_MIN_SAMPLE && row.formScoreSnapshot < FORM_SCORE_LOW_THRESHOLD).length,
@@ -389,8 +403,8 @@ export async function confirmMatchTeamsAction(formData: FormData): Promise<Mutat
   if (sizes.some((size) => size < 1) || Math.max(...sizes) - Math.min(...sizes) > 1) {
     return { ok: false, message: "Mỗi đội phải có người và quân số chênh tối đa 1." };
   }
-  if (Math.max(...goalkeeperCounts) - Math.min(...goalkeeperCounts) > 1) {
-    return { ok: false, message: "Số thủ môn giữa các đội không được chênh quá 1." };
+  if (goalkeeperCounts.some((count) => count !== 1)) {
+    return { ok: false, message: "Mỗi đội phải có đúng một thủ môn." };
   }
 
   const now = new Date();
