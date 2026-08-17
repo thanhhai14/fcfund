@@ -3851,6 +3851,16 @@ label>textarea {
   font-size: 9px;
 }
 
+.seed-table .seed-goalkeeper-heading,
+.seed-table .seed-goalkeeper-cell {
+  width: 72px;
+  text-align: center;
+}
+
+.seed-table .seed-goalkeeper-cell input {
+  margin: 0;
+}
+
 .seed-table tr.missing-seed {
   background: #fff7f8;
 }

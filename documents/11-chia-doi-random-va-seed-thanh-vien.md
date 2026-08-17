@@ -126,7 +126,7 @@ Xem | Sửa | Xóa | Tạo đội
 
 Trang tạo đội tải toàn bộ người đã được check tham gia trận và hiển thị:
 
-| Thành viên | Seed trận này | Có thể bắt gôn | Số trận | Hạng nhất | Phong độ |
+| Thành viên | Seed trận này | Thủ môn? | Số trận | Hạng nhất | Phong độ |
 |---|---|---:|---:|---:|---:|
 
 - Seed Tier 1–7 và checkbox có thể bắt gôn có thể nhập nhanh ngay trong bảng. Checkbox mặc định lấy từ vị trí mong muốn trong CV và vẫn được phép chỉnh riêng cho trận.
