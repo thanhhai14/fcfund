@@ -134,6 +134,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       index: team.teamIndex,
       name: team.name,
       color: team.color ?? "#526170",
+      goalkeeperCount: team.goalkeeperCount,
       members: teamMemberRows.filter((member) => member.teamId === team.id && member.participantId).map((member) => ({
         participantId: member.participantId!,
         memberId: member.memberId,
@@ -156,7 +157,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
 
       <section className="team-builder-summary">
         <article><small>Người tham gia</small><strong>{participants.length}</strong><span>{participants.length >= 10 ? "Đủ điều kiện tạo đội" : `Cần thêm ${10 - participants.length} người`}</span></article>
-        <article><small>Thủ môn</small><strong>{goalkeeperCount}</strong><span>Được phân bổ đều giữa các đội</span></article>
+        <article><small>Thủ môn</small><strong>{goalkeeperCount}</strong><span>{goalkeeperCount >= 2 ? "Đội thiếu sẽ mượn từ đội nghỉ" : "Cần ít nhất 2 người"}</span></article>
         <article><small>Hồ sơ chiến thuật</small><strong>{participants.length - missingRoleProfiles}/{participants.length}</strong><span>{missingRoleProfiles ? `${missingRoleProfiles} người dùng thiết lập trung lập` : "Đã đủ vị trí và thế mạnh"}</span></article>
         <article><small>Phiên bản hiển thị</small><strong>{displayedVersion ? `v${displayedVersion.version}` : "—"}</strong><span>{displayedVersion?.status === "DRAFT" ? "Bản nháp" : displayedVersion?.status === "CONFIRMED" ? "Đã xác nhận" : "Chưa tạo đội"}</span></article>
       </section>
@@ -209,7 +210,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
         <section className="panel team-config-panel">
           <div className="panel-heading"><div><span className="eyebrow">Bước 2</span><h2>Cấu hình và tạo đội</h2></div></div>
           {participants.length < 10 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 10 người tham gia để tạo đội.</p>}
-          {goalkeeperCount < (draft.teamCount ?? 2) && <p className="team-warning"><Icon name="triangle-exclamation" /> Chưa đủ người có thể bắt gôn. Hệ thống sẽ không tạo đội nếu số ứng viên ít hơn số đội.</p>}
+          {goalkeeperCount < 2 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 2 người được chọn làm thủ môn để có thể luân phiên cho mượn.</p>}
           {missingRoleProfiles > 0 && <p className="team-warning neutral"><Icon name="info" /> {missingRoleProfiles} người chưa khai báo đủ vị trí mong muốn và thế mạnh; hệ thống vẫn chia như cầu thủ linh hoạt/trung lập.</p>}
           <TeamDrawExperience
             action={generateMatchTeamsAction}
@@ -248,7 +249,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               <div className="team-columns">
                 {teamRows.map((team) => {
                   const rows = teamMemberRows.filter((row) => row.teamId === team.id);
-                  return <TeamCard key={team.id} team={team} rows={rows} allTeams={teamRows} editable showSeed={canViewSeeds} showForm={canViewFormReport} />;
+                  return <TeamCard key={team.id} team={team} rows={rows} allRows={teamMemberRows} allTeams={teamRows} editable showSeed={canViewSeeds} showForm={canViewFormReport} />;
                 })}
               </div>
               <div className="team-draft-actions">
@@ -258,7 +259,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
             </MutationForm>
           ) : (
             <div className="team-columns">
-              {teamRows.map((team) => <TeamCard key={team.id} team={team} rows={teamMemberRows.filter((row) => row.teamId === team.id)} allTeams={teamRows} showSeed={canViewSeeds} showForm={canViewFormReport} />)}
+              {teamRows.map((team) => <TeamCard key={team.id} team={team} rows={teamMemberRows.filter((row) => row.teamId === team.id)} allRows={teamMemberRows} allTeams={teamRows} showSeed={canViewSeeds} showForm={canViewFormReport} />)}
             </div>
           )}
 
@@ -286,6 +287,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
 function TeamCard({
   team,
   rows,
+  allRows,
   allTeams,
   editable = false,
   showSeed = true,
@@ -293,20 +295,27 @@ function TeamCard({
 }: {
   team: typeof matchTeams.$inferSelect;
   rows: Array<typeof matchTeamMembers.$inferSelect & { avatarUpdatedAt: Date | null }>;
+  allRows: Array<typeof matchTeamMembers.$inferSelect & { avatarUpdatedAt: Date | null }>;
   allTeams: Array<typeof matchTeams.$inferSelect>;
   editable?: boolean;
   showSeed?: boolean;
   showForm?: boolean;
 }) {
-  const weightedMemberCount = rows.reduce((sum, row) => sum + (row.assignedAsGoalkeeper ? 0.15 : 1), 0);
-  const averageFormScore = weightedMemberCount ? Math.round(team.formScoreTotal / weightedMemberCount) : 5000;
   const goalkeeper = rows.find((row) => row.assignedAsGoalkeeper);
+  const sharedGoalkeepers = allRows.filter((row) => row.assignedAsGoalkeeper && isActiveSeedTier(row.seedTierSnapshot));
+  const borrowedGoalkeeper = !goalkeeper && sharedGoalkeepers.length ? {
+    seedWeight: sharedGoalkeepers.reduce((sum, row) => sum + SEED_WEIGHT[row.seedTierSnapshot as SeedTier], 0) / sharedGoalkeepers.length,
+    formScore: sharedGoalkeepers.reduce((sum, row) => sum + row.formScoreSnapshot, 0) / sharedGoalkeepers.length,
+  } : null;
+  const weightedMemberCount = rows.reduce((sum, row) => sum + (row.assignedAsGoalkeeper ? 0.15 : 1), 0) + (borrowedGoalkeeper ? 0.15 : 0);
+  const weightedFormTotal = team.formScoreTotal + (borrowedGoalkeeper ? borrowedGoalkeeper.formScore * 0.15 : 0);
+  const averageFormScore = weightedMemberCount ? Math.round(weightedFormTotal / weightedMemberCount) : 5000;
   const startingOutfield = rows.filter((row) => !row.assignedAsGoalkeeper && isActiveSeedTier(row.seedTierSnapshot))
     .sort((first, second) => SEED_WEIGHT[second.seedTierSnapshot as SeedTier] - SEED_WEIGHT[first.seedTierSnapshot as SeedTier]
       || second.formScoreSnapshot - first.formScoreSnapshot)
     .slice(0, 4);
   const lineupSkillScore = startingOutfield.reduce((sum, row) => sum + SEED_WEIGHT[row.seedTierSnapshot as SeedTier], 0)
-    + (goalkeeper && isActiveSeedTier(goalkeeper.seedTierSnapshot) ? SEED_WEIGHT[goalkeeper.seedTierSnapshot] * 0.15 : 0);
+    + (goalkeeper && isActiveSeedTier(goalkeeper.seedTierSnapshot) ? SEED_WEIGHT[goalkeeper.seedTierSnapshot] * 0.1 : borrowedGoalkeeper ? borrowedGoalkeeper.seedWeight * 0.1 : 0);
   const attackCount = rows.filter((row) => !row.assignedAsGoalkeeper && row.playerStrengthSnapshot === "ATTACK").length;
   const defenseCount = rows.filter((row) => !row.assignedAsGoalkeeper && row.playerStrengthSnapshot === "DEFENSE").length;
   const positionCounts = {
@@ -321,7 +330,7 @@ function TeamCard({
         <strong>{team.memberCount} người</strong>
       </header>
       <div className="team-metrics">
-        <span><small>Thủ môn</small><b>{team.goalkeeperCount}</b></span>
+        <span><small>Thủ môn</small><b>{team.goalkeeperCount ? team.goalkeeperCount : "Mượn"}</b></span>
         <span><small>Seed đội hình 5</small><b>{Math.round(lineupSkillScore * 100) / 100}</b></span>
         <span><small>Điểm phong độ</small><b>{showForm ? formScore(averageFormScore) : "Ẩn"}</b></span>
         <span><small>Công / thủ</small><b>{attackCount} / {defenseCount}</b></span>

@@ -201,14 +201,15 @@ Hệ thống có ba vai trò:
 - Admin nhập tay số đội và số đội luôn lớn hơn hoặc bằng 2.
 - Phải có ít nhất 10 người tham gia mới được tạo hoặc xác nhận đội hình.
 - Số đội không được vượt quá số người tham gia và không được có đội rỗng.
-- Đội dưới 5 người chỉ hiển thị cảnh báo, không chặn thao tác.
+- Đội 4 người chỉ hợp lệ khi không có thủ môn riêng và sẽ mượn thủ môn; mọi đội phải có ít nhất 4 cầu thủ sân.
 - Quân số giữa các đội chênh nhau không quá 1.
 
 ## BR-33 — Cân bằng thủ môn
 
-- Mỗi đội phải có đúng một người được xếp làm thủ môn.
-- Số người có thể bắt gôn phải lớn hơn hoặc bằng số đội, nếu thiếu hệ thống chặn chia đội.
-- Cầu thủ sân được chia trước và thủ môn được xếp sau cùng. Tier và Điểm phong độ của người được xếp bắt gôn chỉ tính 15% so với cầu thủ sân.
+- Mỗi đội có tối đa một thủ môn riêng. Đội chưa có thủ môn được đánh dấu mượn thủ môn từ đội đang nghỉ.
+- Toàn đội hình cần ít nhất 2 thủ môn thật và mỗi đội cần tối thiểu 4 cầu thủ sân.
+- Quân số tối thiểu được tính bằng `4 × số đội + số thủ môn được phân công`.
+- Cầu thủ sân được chia trước và thủ môn được xếp sau cùng. Tier của người được xếp bắt gôn chỉ tính 10%, còn Điểm phong độ tính 15% so với cầu thủ sân.
 
 ## BR-34 — Workflow tạo đội
 

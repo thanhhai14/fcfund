@@ -221,6 +221,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     index: team.teamIndex,
     color: team.color,
     place: placements[team.name] ?? null,
+    goalkeeperCount: team.goalkeeperCount,
   }));
   const totalAmount = chargeRows.reduce((sum, charge) => sum + charge.amount, 0);
   const resultContent = canManageTeams && confirmedVersion && teamRows.length > 0 ? (

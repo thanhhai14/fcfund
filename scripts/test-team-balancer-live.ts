@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { calculateAdjustedFormScore, isLowForm } from "../src/lib/form-score";
 import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "../src/lib/team-balancer";
 import type { PlayerPosition, PlayerStrength } from "../src/lib/player-profile";
+import { minimumParticipantsForTeams, plannedGoalkeeperCount } from "../src/lib/team-roster-rules";
 
 type TestMode = "auto" | "match";
 type ClubRow = { id: string; name: string };
@@ -91,12 +92,13 @@ function buildParticipants(input: {
   } else {
     const eligible = input.source.filter((member) => isSeed(member.latest_seed));
     const goalkeepers = eligible.filter((member) => member.goalkeeper_available);
-    if (goalkeepers.length < input.teamCount) {
-      throw new Error(`Database chỉ có ${goalkeepers.length} thành viên có Seed hợp lệ và được đánh dấu có thể bắt gôn; case ${input.teamCount} đội cần ${input.teamCount}.`);
+    if (goalkeepers.length < 2) {
+      throw new Error(`Database chỉ có ${goalkeepers.length} thành viên có Seed hợp lệ và được đánh dấu có thể bắt gôn; cần ít nhất 2.`);
     }
-    const selectedGoalkeepers = goalkeepers.slice(0, input.teamCount);
+    const goalkeeperCapacity = Math.max(2, input.memberCount - input.teamCount * 4);
+    const selectedGoalkeepers = goalkeepers.slice(0, Math.min(input.teamCount, goalkeepers.length, goalkeeperCapacity));
     const selectedIds = new Set(selectedGoalkeepers.map((member) => member.id));
-    selected = [...selectedGoalkeepers, ...eligible.filter((member) => !selectedIds.has(member.id))].slice(0, input.memberCount);
+    selected = [...selectedGoalkeepers, ...eligible.filter((member) => !member.goalkeeper_available && !selectedIds.has(member.id))].slice(0, input.memberCount);
     if (selected.length < input.memberCount) {
       throw new Error(`Database chỉ có ${selected.length}/${input.memberCount} thành viên hoạt động với Seed Tier 1–7 đã lưu.`);
     }
@@ -107,8 +109,12 @@ function buildParticipants(input: {
     throw new Error(`Thiếu Seed Tier 1–7 trong DB: ${missingSeeds.map((member) => member.full_name).join(", ")}.`);
   }
   const goalkeeperCount = selected.filter((member) => member.goalkeeper_available).length;
-  if (goalkeeperCount < input.teamCount) {
-    throw new Error(`Trận chỉ có ${goalkeeperCount} người được đánh dấu có thể bắt gôn; case ${input.teamCount} đội cần ${input.teamCount}.`);
+  if (goalkeeperCount < 2) {
+    throw new Error(`Trận chỉ có ${goalkeeperCount} người được đánh dấu có thể bắt gôn; cần ít nhất 2.`);
+  }
+  const minimumParticipants = minimumParticipantsForTeams(input.teamCount, goalkeeperCount);
+  if (selected.length < minimumParticipants) {
+    throw new Error(`${input.teamCount} đội với ${plannedGoalkeeperCount(input.teamCount, goalkeeperCount)} thủ môn cần ít nhất ${minimumParticipants} người; danh sách hiện có ${selected.length}.`);
   }
 
   const participants = selected.map((member): BalanceParticipant => {
@@ -145,7 +151,7 @@ function validate(result: ReturnType<typeof generateBalancedTeams>, expectedMemb
   if (ids.length !== expectedMembers) throw new Error(`Thiếu người: nhận ${ids.length}/${expectedMembers}.`);
   if (new Set(ids).size !== ids.length) throw new Error("Có cầu thủ bị xếp trùng đội.");
   if (Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số giữa các đội chênh quá 1.");
-  if (goalkeepers.some((count) => count !== 1)) throw new Error("Mỗi đội phải có đúng một thủ môn.");
+  if (goalkeepers.some((count) => count > 1) || goalkeepers.reduce((sum, count) => sum + count, 0) < 2) throw new Error("Phân bổ thủ môn thật không hợp lệ.");
 }
 
 function printResult(label: string, result: ReturnType<typeof generateBalancedTeams>) {
@@ -153,7 +159,7 @@ function printResult(label: string, result: ReturnType<typeof generateBalancedTe
   console.log("Dùng hoàn toàn dữ liệu đã lưu trong database; không bổ sung dữ liệu mô phỏng.");
   for (const team of result.teams) {
     const role = team.positionCounts;
-    console.log(`\n${team.index}. ĐỘI ${String.fromCharCode(64 + team.index)} · ${team.memberCount} người · TM ${team.goalkeeperCount} · Đội hình 5: Seed ${team.lineupSkillScore}, phong độ ${Math.round(team.lineupFormScore / 100)} · Toàn đội: Seed ${team.skillScore} · Công/Thủ ${team.strengthCounts.ATTACK}/${team.strengthCounts.DEFENSE} · HV/TV/TĐ ${role.DEFENDER}/${role.MIDFIELDER}/${role.FORWARD}`);
+    console.log(`\n${team.index}. ĐỘI ${String.fromCharCode(64 + team.index)} · ${team.memberCount} người · ${team.usesBorrowedGoalkeeper ? "TM mượn" : `TM ${team.goalkeeperCount}`} · Đội hình 5: Seed ${team.lineupSkillScore}, phong độ ${Math.round(team.lineupFormScore / 100)} · Toàn đội: Seed ${team.skillScore} · Công/Thủ ${team.strengthCounts.ATTACK}/${team.strengthCounts.DEFENSE} · HV/TV/TĐ ${role.DEFENDER}/${role.MIDFIELDER}/${role.FORWARD}`);
     console.table(team.members.map((member, index) => ({
       STT: index + 1,
       "Thành viên": member.name,

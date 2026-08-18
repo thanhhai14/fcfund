@@ -8,7 +8,7 @@
 - Đánh giá lại seed của từng người tham gia theo Tier 1–7 ở mỗi trận; khả năng bắt gôn được đánh dấu riêng.
 - Chia từ 2 đội trở lên từ danh sách người tham gia trận.
 - Cho phép chia đội khi có ít nhất 10 người; đội thiếu người được cảnh báo nhưng không bị chặn.
-- Quân số và thủ môn được phân bổ đều, chênh lệch giữa các đội không quá 1.
+- Quân số được phân bổ chênh lệch tối đa 1; đội chưa có thủ môn riêng được mượn thủ môn từ đội đang nghỉ.
 - Cân bằng đồng thời trình độ và phong độ gần đây nhưng vẫn giữ tính ngẫu nhiên.
 - Cho Admin chỉnh đội hình nháp rồi xác nhận bản cuối.
 - Lưu phiên bản đã xác nhận để có lịch sử và tracking khi đội hình thay đổi.
@@ -31,7 +31,7 @@ Mỗi người tham gia có đúng một seed trong phạm vi **một trận**:
 | Tier 6 | | 2 |
 | Tier 7 | Thấp nhất | 1 |
 
-Tier càng nhỏ thì trình độ tổng quát càng cao, bao gồm năng lực ở các vị trí người đó có thể chơi. Thủ môn không còn là một Tier: người được chọn bắt gôn vẫn có Tier 1–7, nhưng đóng góp của Tier và Điểm phong độ vào điểm cân bằng đội chỉ bằng **15%** cầu thủ sân.
+Tier càng nhỏ thì trình độ tổng quát càng cao, bao gồm năng lực ở các vị trí người đó có thể chơi. Thủ môn không còn là một Tier: người được chọn bắt gôn vẫn có Tier 1–7, nhưng đóng góp của Tier chỉ bằng **10%** và Điểm phong độ bằng **15%** cầu thủ sân.
 
 Seed không được lưu như thuộc tính cố định của hồ sơ thành viên. Khi tạo trận mới, Admin phải đánh giá lại seed cho danh sách tham gia của chính trận đó. Seed của trận gần nhất có thể hiển thị ở một cột tham khảo, nhưng không được tự động điền hoặc tự động xác nhận cho trận mới.
 
@@ -99,16 +99,18 @@ Hệ thống chỉ cho bấm **Tạo đội** khi đồng thời thỏa mãn:
 2. Số đội do người thao tác nhập là số nguyên và lớn hơn hoặc bằng 2.
 3. Có ít nhất 10 người tham gia và số đội không vượt quá số người.
 4. Tất cả người tham gia đều đã có Seed Tier 1–7.
-5. Có ít nhất một ứng viên bắt gôn cho mỗi đội.
+5. Có ít nhất 2 ứng viên bắt gôn; mỗi đội có ít nhất 4 cầu thủ sân.
 6. Tier và khả năng bắt gôn đã được lưu, khóa cho phiên bản đội hình đang chuẩn bị.
 
 Nếu thiếu seed, hệ thống không tự gán Tier 3. UI hiển thị danh sách cụ thể những người còn thiếu và đưa con trỏ đến ô seed đầu tiên cần nhập.
 
-Quân số các đội phải chênh nhau không quá 1. Mỗi đội phải có đúng một thủ môn.
+Quân số các đội phải chênh nhau không quá 1. Mỗi đội có tối đa một thủ môn riêng. Với từ 3 đội trở lên, đội không có thủ môn riêng được mượn thủ môn từ đội đang nghỉ.
 
-Hệ thống không còn chặn theo chuẩn 5 người mỗi đội. Nếu có đội dưới 5 người, UI hiển thị phân bổ dự kiến và cảnh báo để người tổ chức cân nhắc, nhưng vẫn cho phép tạo và xác nhận đội hình.
+Quân số tối thiểu được tính bằng `4 × số đội + min(số ứng viên thủ môn, số đội)`. Ví dụ 14 người/3 đội/2 thủ môn được chia `5–5–4`; 19 người/4 đội/3 thủ môn được chia `5–5–5–4`.
 
-Nếu số người được đánh dấu có thể bắt gôn ít hơn số đội, hệ thống chặn thao tác và báo số người còn thiếu.
+Đội không có thủ môn riêng có thể chỉ chứa 4 người vì người thứ năm là thủ môn mượn. Mọi đội vẫn phải có đủ 4 cầu thủ sân; người dư được phân bổ làm dự bị.
+
+Nếu có ít hơn 2 người được đánh dấu có thể bắt gôn, hệ thống chặn thao tác. Hai đội vẫn bắt buộc có đủ 2 thủ môn; từ 3 đội trở lên cho phép mượn thủ môn vì các trận diễn ra lần lượt.
 
 ## 4. Workflow giao diện
 
@@ -202,7 +204,8 @@ Quy ước này đáp ứng đồng thời:
 - Số đội từ 2 trở lên.
 - Số đội không vượt quá số người và không có đội rỗng.
 - Chênh lệch quân số tối đa 1.
-- Chênh lệch số thủ môn tối đa 1.
+- Mỗi đội có 0 hoặc 1 thủ môn riêng; tổng số thủ môn thật tối thiểu là 2.
+- Mỗi đội có ít nhất 4 cầu thủ sân sau khi loại người được phân công bắt gôn.
 - Một người chỉ thuộc một đội trong một phiên bản.
 - Người bị khóa đội không được thuật toán chuyển sang đội khác.
 
@@ -212,24 +215,29 @@ Không có phương án thỏa ràng buộc cứng thì phải dừng và thông
 
 Trong các phương án hợp lệ, hệ thống tối thiểu hóa hàm chi phí khái niệm:
 
+Sau khi thỏa các ràng buộc cứng, điểm so sánh phương án được chuẩn hóa theo tỷ lệ:
+
 ```text
-cost = W_skill × chênh_lệch_điểm_kỹ_năng
-     + W_tier  × chênh_lệch_phân_bổ_từng_tier
-     + W_low   × chênh_lệch_số_người_phong_độ_thấp
-     + W_form  × chênh_lệch_điểm_phong_độ_trung_bình
+Điểm mềm = 75% × chênh lệch sức mạnh Tier
+          + 20% × chênh lệch vị trí/thế mạnh
+          +  5% × chênh lệch Điểm phong độ
 ```
+
+Sức mạnh Tier của một đội được tính trên đội hình thực tế sân 5: **4 cầu thủ sân mạnh nhất phù hợp công/thủ + 1 thủ môn**. Tier thủ môn chỉ tính 10%. Đội mượn thủ môn dùng Tier và phong độ trung bình của các thủ môn thật làm giá trị đại diện, nhưng không tạo hoặc nhân đôi thành viên. Các cầu thủ dự bị thực sự ngoài nhóm năm người chỉ đóng góp 25%.
+
+Mỗi cầu thủ đa vị trí chỉ được gán một vai trò ảo trong lúc chấm phương án, tránh một người đồng thời bị đếm là hậu vệ, tiền vệ và tiền đạo. Vị trí và thế mạnh được ưu tiên trên đội hình chính (80% điểm chiến thuật), phần dự bị chỉ chiếm 20%.
 
 Không cố xếp tất cả người từng thua nhiều vào cùng đội. Chỉ số thua nên dùng tỷ lệ trong **10 trận tham gia gần nhất** thay vì tổng thua trọn đời, tránh bất lợi cho người đã tham gia club lâu hơn.
 
-Trọng số `W_skill`, `W_tier`, `W_loss` là cấu hình kỹ thuật ban đầu. Chưa mở UI cho Admin chỉnh để tránh cấu hình khó hiểu; có thể bổ sung sau khi có dữ liệu thực tế.
+Các tỷ lệ là cấu hình kỹ thuật ban đầu. Chưa mở UI cho Admin chỉnh để tránh cấu hình khó hiểu; có thể bổ sung sau khi có dữ liệu thực tế.
 
 ### 5.3. Các bước thực thi đề xuất
 
 1. Sinh `random_key` và xáo người trong các nhóm tương đương.
-2. Chọn đủ số thủ môn từ các ứng viên, ưu tiên người chỉ khai báo vị trí thủ môn; không ưu tiên Tier thấp hơn.
-3. Giữ một chỗ thủ môn cho mỗi đội, nhóm cầu thủ sân theo Tier 1–7 và chia cầu thủ sân trước.
-4. Xếp thủ môn sau cùng; Tier và Điểm phong độ của thủ môn nhân hệ số 0,15.
-5. Với bóng đá sân 5, đội hình chính dùng đúng 1 thủ môn và 4 cầu thủ sân mạnh nhất theo Tier; phong độ dùng để phân định người cùng Tier.
+2. Chọn tối đa một thủ môn riêng cho mỗi đội từ các ứng viên; toàn đội hình cần ít nhất 2 thủ môn thật.
+3. Giữ một chỗ cho đội có thủ môn riêng; đội còn lại nhận đủ 4 cầu thủ sân và được đánh dấu mượn thủ môn.
+4. Xếp thủ môn sau cùng; Tier thủ môn nhân hệ số 0,10 và Điểm phong độ thủ môn nhân hệ số 0,15.
+5. Với bóng đá sân 5, đội hình chính dùng đúng 1 thủ môn và 4 cầu thủ sân có tổng Tier tốt nhất trong các phương án vẫn bảo đảm khả năng tấn công lẫn phòng thủ; phong độ chỉ dùng để phân định nhẹ giữa các phương án gần nhau.
 6. Số lượng của từng Tier giữa các đội chênh tối đa 1. Ví dụ có 4 cầu thủ Tier 1 và 2 đội thì bắt buộc chia 2–2, không cho tổng điểm toàn đội bù lại thành 1–3.
 7. Cân bằng sức mạnh và phong độ của đội hình chính trước; phần cầu thủ dự bị chỉ mang trọng số 25% trong điểm cân bằng tổng.
 8. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
@@ -369,7 +377,7 @@ Mỗi dòng là kết quả của một thành viên trong một trận. Bảng 
 - Dữ liệu mới chỉ nhận Seed Tier 1–7; `GOALKEEPER` chỉ được đọc để tương thích lịch sử.
 - `team_count >= 2`, `lookback_matches > 0`.
 - Không xác nhận nếu tổng người dưới 10 hoặc quân số giữa các đội chênh quá 1.
-- Không xác nhận nếu có đội không có đúng một thủ môn.
+- Không xác nhận nếu có đội có hơn một thủ môn, toàn đội hình có ít hơn 2 thủ môn hoặc có đội dưới 4 cầu thủ sân.
 - Xóa mềm trận làm ẩn đội hình nhưng không xóa audit/version.
 - Chia đội không tự tạo, sửa hoặc xóa khoản thu tài chính.
 
@@ -401,7 +409,8 @@ Activity log tối thiểu ghi: đánh giá/thay đổi seed của trận, khóa
 
 - 9 người, 2 đội: chặn vì tổng danh sách chưa đủ 10 người.
 - 16 người, 3 đội: hợp lệ với quân số 6–5–5.
-- 2 ứng viên thủ môn, 3 đội: chặn và báo thiếu 1 người có thể bắt gôn.
+- 2 ứng viên thủ môn, 3 đội, 14 người: chia `5–5–4`; một đội mượn thủ môn.
+- 3 ứng viên thủ môn, 4 đội, 19 người: chia `5–5–5–4`; một đội mượn thủ môn.
 - 4 ứng viên thủ môn, 3 đội: chọn 3 người làm thủ môn, mỗi đội đúng 1 người; người còn lại vẫn có thể được chia như cầu thủ sân.
 - Có người thiếu seed: chặn và liệt kê đúng người cần nhập.
 - Tất cả cầu thủ sân cùng tier: cân bằng theo quân số và phong độ, random quyết định giữa các phương án tương đương.
@@ -411,7 +420,7 @@ Activity log tối thiểu ghi: đánh giá/thay đổi seed của trận, khóa
 
 ## 11. Tiêu chí nghiệm thu chính
 
-1. Không thể chia đội khi thiếu seed, số đội dưới 2 hoặc có đội dự kiến dưới 5 người.
+1. Không thể chia đội khi thiếu seed, số đội dưới 2, có dưới 2 thủ môn thật hoặc có đội dưới 4 cầu thủ sân.
 2. Thủ môn luôn được phân bổ với chênh lệch không quá 1.
 3. Mọi thành viên tham gia xuất hiện đúng một lần trong kết quả.
 4. Cùng đầu vào và `random_key` tái hiện cùng đội hình.

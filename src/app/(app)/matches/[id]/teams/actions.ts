@@ -30,6 +30,7 @@ type TeamDrawResult = MutationResult & {
       index: number;
       name: string;
       color: string;
+      goalkeeperCount: number;
       members: Array<{
         participantId: string;
         memberId: string | null;
@@ -262,7 +263,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
         color,
         memberCount: team.memberCount,
         goalkeeperCount: team.goalkeeperCount,
-        outfieldSkillScore: team.skillScore,
+        outfieldSkillScore: Math.round(team.skillScore),
         recentLossScore: team.recentLossScore,
         formScoreTotal: team.formScoreTotal,
         lowFormCount: team.lowFormCount,
@@ -292,6 +293,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
         index: team.index,
         name: createdTeam.name,
         color,
+        goalkeeperCount: team.goalkeeperCount,
         members: team.members.map((member) => ({
           participantId: member.participantId,
           memberId: member.memberId,
@@ -363,7 +365,7 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
       await tx.update(matchTeams).set({
         memberCount: teamRows.length,
         goalkeeperCount: teamRows.filter((row) => row.assignedAsGoalkeeper).length,
-        outfieldSkillScore: Math.round(teamRows.reduce((sum, row) => sum + (isActiveSeedTier(row.seedTierSnapshot) ? SEED_WEIGHT[row.seedTierSnapshot] * (row.assignedAsGoalkeeper ? 0.15 : 1) : 0), 0)),
+        outfieldSkillScore: Math.round(teamRows.reduce((sum, row) => sum + (isActiveSeedTier(row.seedTierSnapshot) ? SEED_WEIGHT[row.seedTierSnapshot] * (row.assignedAsGoalkeeper ? 0.1 : 1) : 0), 0)),
         recentLossScore: teamRows.reduce((sum, row) => sum + (10_000 - row.formScoreSnapshot), 0),
         formScoreTotal: teamRows.reduce((sum, row) => sum + row.formScoreSnapshot, 0),
         lowFormCount: teamRows.filter((row) => row.recentMatchCountSnapshot >= FORM_SCORE_MIN_SAMPLE && row.formScoreSnapshot < FORM_SCORE_LOW_THRESHOLD).length,
@@ -403,8 +405,15 @@ export async function confirmMatchTeamsAction(formData: FormData): Promise<Mutat
   if (sizes.some((size) => size < 1) || Math.max(...sizes) - Math.min(...sizes) > 1) {
     return { ok: false, message: "Mỗi đội phải có người và quân số chênh tối đa 1." };
   }
-  if (goalkeeperCounts.some((count) => count !== 1)) {
-    return { ok: false, message: "Mỗi đội phải có đúng một thủ môn." };
+  const totalGoalkeepers = goalkeeperCounts.reduce((sum, count) => sum + count, 0);
+  if (goalkeeperCounts.some((count) => count > 1) || totalGoalkeepers < 2) {
+    return { ok: false, message: "Mỗi đội chỉ có tối đa một thủ môn và toàn đội hình cần ít nhất hai thủ môn để luân phiên." };
+  }
+  if (participants.length < teams.length * 4 + totalGoalkeepers) {
+    return { ok: false, message: `Đội hình ${teams.length} đội với ${totalGoalkeepers} thủ môn cần ít nhất ${teams.length * 4 + totalGoalkeepers} người.` };
+  }
+  if (teams.some((team) => team.memberCount - team.goalkeeperCount < 4)) {
+    return { ok: false, message: "Mỗi đội cần ít nhất 4 cầu thủ sân; đội không có thủ môn sẽ mượn từ đội nghỉ." };
   }
 
   const now = new Date();

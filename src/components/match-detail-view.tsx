@@ -41,6 +41,7 @@ export type MatchTeamView = {
   index: number;
   color: string | null;
   place: number | null;
+  goalkeeperCount: number;
 };
 
 const SEED_LABELS: Record<string, string> = {
@@ -228,7 +229,7 @@ export function MatchDetailView({
                 style={{ borderTopColor: team.color ?? undefined }}
                 key={team.id}
               >
-                <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người</span></div><div className="match-team-card-heading-actions">{canManageTeams && confirmedVersionId && <MatchLateMemberAddition matchId={matchId} versionId={confirmedVersionId} team={team} options={replacementMembers} penaltyQuantity={penaltyQuantityByTeam[team.id] ?? 0} penaltyUnitAmount={penaltyUnitAmount} />}<Icon name="people-group" /></div></header>
+                <header><div><h2>{team.name}</h2><span className={team.place === 1 ? "won" : team.place ? "lost" : ""}>{team.place ? `${resultLabel(team.place)} · ` : ""}{members.length} người{team.goalkeeperCount === 0 ? " · Mượn thủ môn" : ""}</span></div><div className="match-team-card-heading-actions">{canManageTeams && confirmedVersionId && <MatchLateMemberAddition matchId={matchId} versionId={confirmedVersionId} team={team} options={replacementMembers} penaltyQuantity={penaltyQuantityByTeam[team.id] ?? 0} penaltyUnitAmount={penaltyUnitAmount} />}<Icon name="people-group" /></div></header>
                 <div className="match-team-view-members">
                   {members.map((member) => (
                     <div key={member.id}>

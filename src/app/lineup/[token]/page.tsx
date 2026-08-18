@@ -116,7 +116,7 @@ export default async function PublicLineupPage({ params }: { params: Promise<{ t
       {teams.map((team) => {
         const teamMembers = members.filter((member) => member.teamId === team.id);
         return <article className="public-lineup-team" style={{ borderTopColor: team.color ?? undefined }} key={team.id}>
-          <header><span className="team-color" style={{ background: team.color ?? undefined }} /><div><h2>{team.name}</h2><small>{teamMembers.length} cầu thủ</small></div></header>
+          <header><span className="team-color" style={{ background: team.color ?? undefined }} /><div><h2>{team.name}</h2><small>{teamMembers.length} cầu thủ{team.goalkeeperCount === 0 ? " · Mượn thủ môn" : ""}</small></div></header>
           <ol>
             {teamMembers.map((member) => <li key={member.id}>
               <MemberIdentity

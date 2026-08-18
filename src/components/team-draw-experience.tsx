@@ -17,6 +17,7 @@ export type TeamDrawData = {
     index: number;
     name: string;
     color: string;
+    goalkeeperCount: number;
     members: Array<{
       participantId: string;
       memberId: string | null;
@@ -296,7 +297,7 @@ export function TeamDrawExperience({
 
         {draw && <div className="team-draw-destinations" style={{ "--draw-team-count": draw.teams.length } as React.CSSProperties}>
           {draw.teams.map((team) => <article className="team-draw-destination" style={{ "--team-color": team.color } as React.CSSProperties} ref={(node) => { if (node) teamRefs.current.set(team.id, node); else teamRefs.current.delete(team.id); }} key={team.id}>
-            <header><strong>{team.name}</strong><span>{team.members.filter((member) => revealedSet.has(member.participantId)).length}/{team.members.length}</span></header>
+            <header><strong>{team.name}{team.goalkeeperCount === 0 && <small> · Mượn TM</small>}</strong><span>{team.members.filter((member) => revealedSet.has(member.participantId)).length}/{team.members.length}</span></header>
             <ol>
               {team.members.map((member) => {
                 const memberDetail = participantMap.get(member.participantId);
@@ -327,7 +328,7 @@ export function TeamDrawExperience({
     <form action={formAction} className="team-config-form" onSubmit={beginGeneration}>
       <input type="hidden" name="matchId" value={matchId} />
       <div className="team-config-fields">
-        <TeamCountField memberCount={participants.length} defaultValue={defaultTeamCount} />
+        <TeamCountField memberCount={participants.length} goalkeeperCandidates={participants.filter((participant) => participant.goalkeeperAvailable).length} defaultValue={defaultTeamCount} />
         <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={defaultLookbackMatches} required /></label>
       </div>
       <div className="team-config-actions">

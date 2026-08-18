@@ -30,30 +30,56 @@ function participants(count: number): BalanceParticipant[] {
   }));
 }
 
-for (const [memberCount, teamCount] of [[10, 2], [11, 3], [18, 4], [19, 4], [20, 2], [30, 5]] as const) {
-  const input = participants(memberCount);
+for (const [memberCount, teamCount] of [[10, 2], [14, 3], [18, 4], [19, 4], [20, 2], [30, 5]] as const) {
+  const goalkeeperCount = Math.max(2, Math.min(teamCount, memberCount - teamCount * 4));
+  const input = participants(memberCount).map((participant, index) => ({ ...participant, goalkeeperAvailable: index < goalkeeperCount }));
   const first = generateBalancedTeams(input, teamCount, `test-${memberCount}-${teamCount}`);
   const repeated = generateBalancedTeams(input, teamCount, `test-${memberCount}-${teamCount}`);
   if (JSON.stringify(first) !== JSON.stringify(repeated)) throw new Error("Random key không tái hiện kết quả.");
   const sizes = first.teams.map((team) => team.memberCount);
   const goalkeepers = first.teams.map((team) => team.goalkeeperCount);
   const lowFormCounts = first.teams.map((team) => team.lowFormCount);
-  const attackCounts = first.teams.map((team) => team.strengthCounts.ATTACK);
-  const defenseCounts = first.teams.map((team) => team.strengthCounts.DEFENSE);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
   if (Math.min(...sizes) < 1 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
-  if (goalkeepers.some((count) => count !== 1)) throw new Error("Mỗi đội phải có đúng một thủ môn.");
+  if (goalkeepers.some((count) => count > 1) || goalkeepers.reduce((sum, count) => sum + count, 0) < 2) {
+    throw new Error("Phân bổ thủ môn thật không hợp lệ.");
+  }
   for (const tier of ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6", "TIER_7"] as const) {
     const counts = first.teams.map((team) => team.tierCounts[tier]);
     if (Math.max(...counts) - Math.min(...counts) > 1) throw new Error(`${tier} bị gom quá nhiều vào một đội.`);
   }
   if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
-  if (Math.max(...attackCounts) - Math.min(...attackCounts) > 1) throw new Error(`Cầu thủ thiên công chưa đều ở case ${memberCount}/${teamCount}.`);
-  if (Math.max(...defenseCounts) - Math.min(...defenseCounts) > 1) throw new Error(`Cầu thủ thiên thủ chưa đều ở case ${memberCount}/${teamCount}.`);
-  for (const position of ["DEFENDER", "MIDFIELDER", "FORWARD"] as const) {
-    const counts = first.teams.map((team) => team.positionCounts[position]);
-    if (Math.max(...counts) - Math.min(...counts) > 1) throw new Error(`Vị trí ${position} chưa đều ở case ${memberCount}/${teamCount}: ${counts.join("-")}.`);
+  if (first.teams.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) {
+    throw new Error(`Đội hình chính chưa đủ khả năng công/thủ ở case ${memberCount}/${teamCount}.`);
   }
+}
+
+for (const testCase of [
+  { memberCount: 14, teamCount: 3, goalkeeperCount: 2, expectedSizes: "5-5-4" },
+  { memberCount: 19, teamCount: 4, goalkeeperCount: 3, expectedSizes: "5-5-5-4" },
+] as const) {
+  const input = participants(testCase.memberCount).map((participant, index) => ({
+    ...participant,
+    goalkeeperAvailable: index < testCase.goalkeeperCount,
+  }));
+  const result = generateBalancedTeams(input, testCase.teamCount, `borrowed-goalkeeper-${testCase.teamCount}`);
+  const sizes = result.teams.map((team) => team.memberCount).sort((first, second) => second - first).join("-");
+  const borrowedTeams = result.teams.filter((team) => team.usesBorrowedGoalkeeper);
+  if (sizes !== testCase.expectedSizes) throw new Error(`Quân số mượn thủ môn sai: ${sizes}.`);
+  if (borrowedTeams.length !== testCase.teamCount - testCase.goalkeeperCount) {
+    throw new Error("Số đội mượn thủ môn không đúng.");
+  }
+  if (borrowedTeams.some((team) => team.lineupMemberCount !== 5)) {
+    throw new Error("Đội mượn thủ môn phải được chấm như đội hình đủ 5 người.");
+  }
+}
+
+try {
+  const insufficientForThreeKeepers = participants(18).map((participant, index) => ({ ...participant, goalkeeperAvailable: index < 3 }));
+  generateBalancedTeams(insufficientForThreeKeepers, 4, "insufficient-for-three-goalkeepers");
+  throw new Error("18 người/4 đội/3 thủ môn phải bị từ chối vì cần tối thiểu 19 người.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("ít nhất 19 người")) throw error;
 }
 
 const concentratedTopTier = participants(13).map((participant, index) => ({
@@ -69,6 +95,18 @@ if (tierOneCounts.some((count) => count !== 2)) {
 if (Math.max(...fivePlayerResult.teams.map((team) => team.lineupSkillScore))
   - Math.min(...fivePlayerResult.teams.map((team) => team.lineupSkillScore)) > 2) {
   throw new Error("Sức mạnh đội hình chính 1 thủ môn + 4 cầu thủ sân còn chênh quá lớn.");
+}
+
+const goalkeeperWeightInput = participants(10).map((participant, index) => ({
+  ...participant,
+  seedTier: (index === 0 ? "TIER_1" : index === 1 ? "TIER_7" : "TIER_4") as SeedTier,
+  goalkeeperAvailable: index < 2,
+}));
+const goalkeeperWeightResult = generateBalancedTeams(goalkeeperWeightInput, 2, "goalkeeper-ten-percent-regression");
+const goalkeeperLineupGap = Math.max(...goalkeeperWeightResult.teams.map((team) => team.lineupSkillScore))
+  - Math.min(...goalkeeperWeightResult.teams.map((team) => team.lineupSkillScore));
+if (Math.abs(goalkeeperLineupGap - 0.6) > 0.001) {
+  throw new Error(`Tier thủ môn chưa được tính đúng 10%: chênh lệch ${goalkeeperLineupGap}.`);
 }
 
 try {

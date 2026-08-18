@@ -134,7 +134,7 @@ Script mở transaction PostgreSQL với `READ ONLY = ON` trước khi truy vấ
 
 Menu có hai nguồn danh sách:
 
-1. **Chọn một trận có sẵn:** hiển thị 20 trận gần đây, lấy đúng người tham gia, Seed và cờ có thể bắt gôn của trận; điểm phong độ chỉ tính từ các trận trước ngày diễn ra trận được chọn. Cùng danh sách này được thử với 2, 3 và 4 đội. Case thiếu Seed hoặc thiếu ứng viên thủ môn sẽ bị bỏ qua kèm lý do, không tự bổ sung dữ liệu.
+1. **Chọn một trận có sẵn:** hiển thị 20 trận gần đây, lấy đúng người tham gia, Seed và cờ có thể bắt gôn của trận; điểm phong độ chỉ tính từ các trận trước ngày diễn ra trận được chọn. Cùng danh sách này được thử với 2, 3 và 4 đội. Case thiếu Seed, có dưới 2 thủ môn hoặc không đủ `4 × số đội + số thủ môn được phân công` sẽ bị bỏ qua kèm lý do, không tự bổ sung dữ liệu.
 2. **Tự động:** dùng thành viên đang hoạt động cùng lần đánh giá Seed/cờ thủ môn gần nhất trong DB để tạo ba case 10 người/2 đội, 15 người/3 đội và 19 người/4 đội. Case không đủ dữ liệu thật sẽ bị bỏ qua.
 
 Có thể bỏ qua menu bằng tham số:

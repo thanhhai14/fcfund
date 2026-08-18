@@ -501,7 +501,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     if (!penaltyType) return { ok: false, message: "Không tìm thấy loại thu phạt đã dùng cho kết quả trận." };
   }
   const now = new Date();
-  const tierWeight = SEED_WEIGHT[seedTier] * (assignedAsGoalkeeper ? 0.15 : 1);
+  const tierWeight = SEED_WEIGHT[seedTier] * (assignedAsGoalkeeper ? 0.1 : 1);
 
   await db.transaction(async (tx) => {
     let participantId = participant?.id;
