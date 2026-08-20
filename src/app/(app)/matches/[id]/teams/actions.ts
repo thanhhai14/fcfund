@@ -81,6 +81,45 @@ async function draftForMatch(matchId: string) {
   return draft;
 }
 
+export async function createMatchTeamVersionAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_SEED_MANAGE);
+  const matchId = str(formData, "matchId");
+  const match = await getManagedMatch(matchId, actor.clubId);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const existingDraft = await draftForMatch(matchId);
+  if (existingDraft) return { ok: true, message: `Phiên bản nháp ${existingDraft.version} đã tồn tại.` };
+
+  const [latest] = await db.select().from(matchTeamVersions)
+    .where(eq(matchTeamVersions.matchId, matchId))
+    .orderBy(desc(matchTeamVersions.version))
+    .limit(1);
+  if (!latest || latest.status !== "CONFIRMED") {
+    return { ok: false, message: "Chỉ tạo phiên bản mới sau khi đã xác nhận đội hình hiện tại." };
+  }
+
+  const [created] = await db.insert(matchTeamVersions).values({
+    matchId,
+    version: latest.version + 1,
+    status: "DRAFT",
+    teamCount: latest.teamCount,
+    lookbackMatches: latest.lookbackMatches,
+    createdBy: actor.id,
+  }).returning();
+
+  await db.insert(activityLogs).values({
+    clubId: actor.clubId,
+    entityType: "match_team_version",
+    entityId: created.id,
+    action: "CREATE",
+    actorId: actor.id,
+    message: `Tạo phiên bản đội hình ${created.version} từ phiên bản ${latest.version}`,
+  });
+
+  revalidatePath(`/matches/${matchId}/teams`);
+  return { ok: true, message: `Đã tạo phiên bản ${created.version}. Hãy đánh giá và khóa Seed.` };
+}
+
 export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<MutationResult> {
   const actor = await requirePermission(PERMISSIONS.MATCH_SEED_MANAGE);
   const matchId = str(formData, "matchId");

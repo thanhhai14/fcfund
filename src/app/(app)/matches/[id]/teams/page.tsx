@@ -27,6 +27,7 @@ import { playerPositionsLabel, playerStrengthLabel } from "@/lib/player-profile"
 import { isActiveSeedTier, SEED_LABELS, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import {
   confirmMatchTeamsAction,
+  createMatchTeamVersionAction,
   generateMatchTeamsAction,
   saveAndLockMatchSeedsAction,
   saveManualTeamsAction,
@@ -162,7 +163,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
         <article><small>Phiên bản hiển thị</small><strong>{displayedVersion ? `v${displayedVersion.version}` : "—"}</strong><span>{displayedVersion?.status === "DRAFT" ? "Bản nháp" : displayedVersion?.status === "CONFIRMED" ? "Đã xác nhận" : "Chưa tạo đội"}</span></article>
       </section>
 
-      {canManageSeeds && (!draft || !isDraftLocked) && (
+      {canManageSeeds && (!confirmed || Boolean(draft)) && (!draft || !isDraftLocked) && (
         <section className="panel seed-panel">
           <div className="panel-heading">
             <div><span className="eyebrow">Bước 1</span><h2>Đánh giá Seed của trận</h2></div>
@@ -192,6 +193,20 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               };
             })} />
             <div className="form-actions"><SubmitButton><Icon name="shield" /> Lưu và khóa Seed</SubmitButton></div>
+          </MutationForm>
+        </section>
+      )}
+
+      {canManageSeeds && confirmed && !draft && (
+        <section className="panel seed-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Bước 1</span><h2>Đánh giá Seed của trận</h2></div>
+            <span className="validation-badge valid">Đội hình đã xác nhận</span>
+          </div>
+          <p className="panel-note">Seed và đội hình phiên bản {confirmed.version} đang được giữ nguyên. Chỉ tạo phiên bản mới khi bạn thực sự cần đánh giá lại và chia lại đội.</p>
+          <MutationForm action={createMatchTeamVersionAction}>
+            <input type="hidden" name="matchId" value={match.id} />
+            <SubmitButton><Icon name="plus" /> Tạo phiên bản mới</SubmitButton>
           </MutationForm>
         </section>
       )}
@@ -277,7 +292,29 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
 
       {confirmed && canManageTeams && !draft && (
         <section className="new-version-callout">
-          <div><strong>Cần thay đổi đội hình?</strong><span>Đánh giá lại Seed ở bảng phía trên để tạo phiên bản {confirmed.version + 1}.</span></div>
+          <div><strong>Cần xem lại đội hình?</strong><span>Trình chiếu lại kết quả bốc thăm của phiên bản {confirmed.version} mà không thay đổi dữ liệu.</span></div>
+          {currentDraw && <TeamDrawExperience
+            action={generateMatchTeamsAction}
+            matchId={match.id}
+            matchLabel={`Trận ngày ${formatDate(match.playedOn)}`}
+            participants={participants.map((participant) => ({
+              participantId: participant.id,
+              memberId: participant.memberId,
+              name: participant.name,
+              avatarVersion: participant.avatarUpdatedAt?.getTime() ?? null,
+              seedTier: effectiveSeed(participant)!,
+              goalkeeperAvailable: participant.goalkeeperAvailable,
+              formScore: participant.memberId ? stats.get(participant.memberId)?.formScore ?? 5000 : 5000,
+              desiredPositions: participant.desiredPositions ?? [],
+              playerStrength: participant.playerStrength ?? null,
+            }))}
+            defaultTeamCount={confirmed.teamCount}
+            defaultLookbackMatches={confirmed.lookbackMatches}
+            disabled
+            hasTeams
+            initialDraw={currentDraw}
+            replayOnly
+          />}
         </section>
       )}
     </>

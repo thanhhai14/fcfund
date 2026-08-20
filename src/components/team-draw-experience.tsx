@@ -61,6 +61,7 @@ export function TeamDrawExperience({
   disabled,
   hasTeams,
   initialDraw,
+  replayOnly = false,
 }: {
   action: (formData: FormData) => Promise<DrawResult>;
   matchId: string;
@@ -71,6 +72,7 @@ export function TeamDrawExperience({
   disabled: boolean;
   hasTeams: boolean;
   initialDraw?: TeamDrawData | null;
+  replayOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -323,6 +325,11 @@ export function TeamDrawExperience({
     </section>,
     document.body,
   ) : null;
+
+  if (replayOnly) return <>
+    {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> Xem lại bốc thăm</button>}
+    {stage}
+  </>;
 
   return <>
     <form action={formAction} className="team-config-form" onSubmit={beginGeneration}>

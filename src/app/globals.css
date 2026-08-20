@@ -4884,6 +4884,10 @@ label>textarea {
 }
 
 .new-version-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-top: 16px;
   padding: 14px;
   color: var(--forest-800);
@@ -4895,6 +4899,10 @@ label>textarea {
 .new-version-callout strong,
 .new-version-callout span {
   display: block;
+}
+
+.new-version-callout > .button {
+  flex: 0 0 auto;
 }
 
 .new-version-callout span {
@@ -7355,6 +7363,16 @@ label {
 @media (max-width: 560px) {
   .collection-filters {
     grid-template-columns: 1fr;
+  }
+
+  .new-version-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .new-version-callout > .button {
+    width: 100%;
+    justify-content: center;
   }
 
   .member-finance-grid {
