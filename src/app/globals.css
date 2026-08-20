@@ -3869,6 +3869,54 @@ label>textarea {
   background: #fffaf1;
 }
 
+.seed-table tbody tr[data-seed-tier] {
+  --seed-row-accent: var(--brand-primary);
+  --seed-row-background: #fff3f7;
+}
+
+.seed-table tbody tr[data-seed-tier="2"] {
+  --seed-row-accent: #df6c2f;
+  --seed-row-background: #fff5ee;
+}
+
+.seed-table tbody tr[data-seed-tier="3"] {
+  --seed-row-accent: #b58a13;
+  --seed-row-background: #fff9e8;
+}
+
+.seed-table tbody tr[data-seed-tier="4"] {
+  --seed-row-accent: #2d8a60;
+  --seed-row-background: #eef9f3;
+}
+
+.seed-table tbody tr[data-seed-tier="5"] {
+  --seed-row-accent: #25869b;
+  --seed-row-background: #eef9fb;
+}
+
+.seed-table tbody tr[data-seed-tier="6"] {
+  --seed-row-accent: #4166b5;
+  --seed-row-background: #f0f4ff;
+}
+
+.seed-table tbody tr[data-seed-tier="7"] {
+  --seed-row-accent: #7655a4;
+  --seed-row-background: #f6f1fc;
+}
+
+.seed-table tbody tr[data-seed-tier] > td {
+  background: var(--seed-row-background);
+  transition: background-color 160ms ease;
+}
+
+.seed-table tbody tr[data-seed-tier] > td:first-child {
+  border-left: 4px solid var(--seed-row-accent);
+}
+
+.seed-table tbody tr[data-seed-tier] select {
+  border-color: var(--seed-row-accent);
+}
+
 .seed-table .form-score {
   display: inline-grid;
   min-width: 38px;
