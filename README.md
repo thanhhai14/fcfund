@@ -146,6 +146,12 @@ npm run test:teams:live -- --mode=match --match=11/08/2026
 npm run test:teams:live -- --mode=match --match=<UUID_TRẬN>
 ```
 
+Mỗi lượt live test tự sinh `random key`, vì vậy các phương án gần tối ưu có thể cho đội hình khác nhau. Script luôn in key đã dùng; truyền lại key để tái hiện chính xác một lượt:
+
+```bash
+npm run test:teams:live -- --mode=match --match=20/08/2026 --random-key=<KEY_ĐÃ_IN>
+```
+
 Nếu database có nhiều club, chỉ định club cần kiểm tra:
 
 ```bash

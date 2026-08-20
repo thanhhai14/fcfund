@@ -31,7 +31,9 @@ const GOALKEEPER_SEED_FACTOR = 0.1;
 const GOALKEEPER_FORM_FACTOR = 0.15;
 const BENCH_SEED_FACTOR = 0.25;
 const STARTING_OUTFIELD_COUNT = OUTFIELD_STARTERS_PER_TEAM;
-const INITIAL_CANDIDATE_COUNT = 12;
+const INITIAL_CANDIDATE_COUNT = 128;
+const ACCEPTABLE_LINEUP_SEED_GAP = 1;
+const RANDOM_VARIETY_COST_DELTA = 2_000_000;
 
 function emptyRoleCounts(): RoleCounts { return { DEFENDER: 0, MIDFIELDER: 0, FORWARD: 0 }; }
 function emptyStrengthCounts(): StrengthCounts { return { DEFENSE: 0, ATTACK: 0 }; }
@@ -164,17 +166,38 @@ function summarizeTeams(teams: BalanceParticipant[][]) {
   ));
 }
 
+function lineupSeedGap(teams: BalanceParticipant[][]) {
+  return spread(summarizeTeams(teams).map((team) => team.lineupSkillScore));
+}
+
+function isValidFinalCandidate(teams: BalanceParticipant[][], assignedGoalkeeperCount: number) {
+  const summaries = summarizeTeams(teams);
+  if (summaries.some((team) => team.goalkeeperCount > 1)
+    || summaries.reduce((sum, team) => sum + team.goalkeeperCount, 0) !== assignedGoalkeeperCount) return false;
+  if (summaries.some((team) => team.memberCount - team.goalkeeperCount < STARTING_OUTFIELD_COUNT)) return false;
+  if (spread(summaries.map((team) => team.tierCounts.TIER_1)) > 1) return false;
+  return summaries.every((team) => team.lineupHasDefense && team.lineupHasAttack);
+}
+
+function canonicalTeamsKey(teams: BalanceParticipant[][]) {
+  return teams.map((team) => team.map((member) => member.participantId).sort().join("|")).sort().join("||");
+}
+
 export function balanceCost(teams: BalanceParticipant[][]) {
   const summaries = summarizeTeams(teams);
   const sizeGap = spread(summaries.map((team) => team.memberCount));
   const goalkeeperGap = spread(summaries.map((team) => team.goalkeeperCount));
-  const tierSpreads = ACTIVE_SEED_TIERS.map((tier) => spread(summaries.map((team) => team.tierCounts[tier])));
-  const tierExcess = tierSpreads.reduce((sum, gap) => sum + Math.max(0, gap - 1), 0);
+  const topTierExcess = Math.max(0, spread(summaries.map((team) => team.tierCounts.TIER_1)) - 1);
   const lineupSizeGap = spread(summaries.map((team) => team.lineupMemberCount));
+  const lineupSeedGap = spread(summaries.map((team) => team.lineupSkillScore));
+  const lineupSeedExcess = Math.max(0, lineupSeedGap - ACCEPTABLE_LINEUP_SEED_GAP);
   const missingCoverage = summaries.reduce((sum, team) => sum + Number(!team.lineupHasDefense) + Number(!team.lineupHasAttack), 0);
 
   const maxTierPower = Math.max(1, ...summaries.map((team) => team.tierPower));
-  const tierDifference = spread(summaries.map((team) => team.tierPower)) / maxTierPower;
+  const maxLineupSeed = Math.max(1, ...summaries.map((team) => team.lineupSkillScore));
+  const lineupTierDifference = lineupSeedGap / maxLineupSeed;
+  const rosterTierDifference = spread(summaries.map((team) => team.tierPower)) / maxTierPower;
+  const tierDifference = 0.9 * lineupTierDifference + 0.1 * rosterTierDifference;
   const roleDifference = Math.min(1, (["DEFENDER", "MIDFIELDER", "FORWARD"] as const)
     .reduce((sum, position) => sum + spread(summaries.map((team) => team.positionCounts[position])), 0) / 12);
   const strengthDifference = Math.min(1, (["DEFENSE", "ATTACK"] as const)
@@ -190,8 +213,9 @@ export function balanceCost(teams: BalanceParticipant[][]) {
 
   return sizeGap * 1e13
     + goalkeeperGap * 1e12
-    + tierExcess * 1e11
+    + topTierExcess * 1e11
     + lineupSizeGap * 1e10
+    + lineupSeedExcess * 5e9
     + missingCoverage * 1e9
     + softCost;
 }
@@ -245,7 +269,7 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
   }
   if (lockedTeams.some((team, index) => team.length > targetSizes[index])) throw new Error("Số người bị khóa khiến quân số hoặc phương án mượn thủ môn không thể cân bằng.");
 
-  const candidates: Array<{ teams: BalanceParticipant[][]; cost: number }> = [];
+  const candidates: Array<{ teams: BalanceParticipant[][]; cost: number; lineupSeedGap: number }> = [];
   for (let run = 0; run < INITIAL_CANDIDATE_COUNT; run += 1) {
     const teams = lockedTeams.map((team) => [...team]);
     const selectedKeepers = shuffled(availableKeepers, random).slice(0, keeperSlots);
@@ -272,19 +296,25 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
       if (!options.length) { valid = false; break; }
       teams[options[0].index].push(options[0].player);
     }
-    if (valid) candidates.push({ teams, cost: balanceCost(teams) });
+    if (valid && isValidFinalCandidate(teams, assignedGoalkeeperCount)) {
+      candidates.push({ teams, cost: balanceCost(teams), lineupSeedGap: lineupSeedGap(teams) });
+    }
   }
   if (!candidates.length) throw new Error("Không thể tạo đội hình hợp lệ từ dữ liệu hiện tại.");
-  candidates.sort((first, second) => first.cost - second.cost);
-  const bestCost = candidates[0].cost;
-  const nearBest = candidates.filter((candidate) => candidate.cost <= bestCost * 1.005 + 1);
-  const selected = nearBest[Math.floor(random() * nearBest.length)] ?? candidates[0];
+  const bestSeedGap = Math.min(...candidates.map((candidate) => candidate.lineupSeedGap));
+  const seedQualified = candidates.filter((candidate) => candidate.lineupSeedGap <= Math.max(ACCEPTABLE_LINEUP_SEED_GAP, bestSeedGap + 0.1));
+  const bestQualifiedCost = Math.min(...seedQualified.map((candidate) => candidate.cost));
+  const uniqueCandidates = [...new Map(seedQualified
+    .filter((candidate) => candidate.cost <= bestQualifiedCost + RANDOM_VARIETY_COST_DELTA)
+    .map((candidate) => [canonicalTeamsKey(candidate.teams), candidate])).values()];
+  const selected = uniqueCandidates[Math.floor(random() * uniqueCandidates.length)] ?? seedQualified.sort((first, second) => first.cost - second.cost)[0];
   const teams = selected.teams.map((team) => [...team]);
 
   let currentCost = balanceCost(teams);
-  for (let iteration = 0; iteration < 12; iteration += 1) {
+  const requiresSeedRepair = selected.lineupSeedGap > ACCEPTABLE_LINEUP_SEED_GAP;
+  for (let iteration = 0; iteration < (requiresSeedRepair ? 18 : 0); iteration += 1) {
     let best: { proposal: BalanceParticipant[][]; cost: number } | null = null;
-    for (let attempt = 0; attempt < 120; attempt += 1) {
+    for (let attempt = 0; attempt < 240; attempt += 1) {
       const firstTeam = Math.floor(random() * teams.length);
       let secondTeam = Math.floor(random() * (teams.length - 1)); if (secondTeam >= firstTeam) secondTeam += 1;
       const firstIndex = Math.floor(random() * teams[firstTeam].length);
@@ -295,7 +325,25 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
       [proposal[firstTeam][firstIndex], proposal[secondTeam][secondIndex]] = [proposal[secondTeam][secondIndex], proposal[firstTeam][firstIndex]];
       const cost = balanceCost(proposal); if (cost < currentCost && (!best || cost < best.cost)) best = { proposal, cost };
     }
-    if (teams.length >= 3) for (let attempt = 0; attempt < 36; attempt += 1) {
+    for (let attempt = 0; attempt < 180; attempt += 1) {
+      const firstTeam = Math.floor(random() * teams.length);
+      let secondTeam = Math.floor(random() * (teams.length - 1)); if (secondTeam >= firstTeam) secondTeam += 1;
+      const firstIndexes = shuffled(teams[firstTeam].map((_, index) => index)
+        .filter((index) => !teams[firstTeam][index].lockedTeamIndex && !teams[firstTeam][index].assignedAsGoalkeeper), random).slice(0, 2);
+      const secondIndexes = shuffled(teams[secondTeam].map((_, index) => index)
+        .filter((index) => !teams[secondTeam][index].lockedTeamIndex && !teams[secondTeam][index].assignedAsGoalkeeper), random).slice(0, 2);
+      if (firstIndexes.length < 2 || secondIndexes.length < 2) continue;
+      for (const reverse of [false, true]) {
+        const proposal = teams.map((team) => [...team]);
+        const incoming = reverse ? [...secondIndexes].reverse() : secondIndexes;
+        const firstRows = firstIndexes.map((index) => teams[firstTeam][index]);
+        const secondRows = incoming.map((index) => teams[secondTeam][index]);
+        firstIndexes.forEach((index, pairIndex) => { proposal[firstTeam][index] = secondRows[pairIndex]; });
+        incoming.forEach((index, pairIndex) => { proposal[secondTeam][index] = firstRows[pairIndex]; });
+        const cost = balanceCost(proposal); if (cost < currentCost && (!best || cost < best.cost)) best = { proposal, cost };
+      }
+    }
+    if (teams.length >= 3) for (let attempt = 0; attempt < 72; attempt += 1) {
       const teamIndexes = shuffled(teams.map((_, index) => index), random).slice(0, 3);
       const memberIndexes = teamIndexes.map((teamIndex) => Math.floor(random() * teams[teamIndex].length));
       const rows = teamIndexes.map((teamIndex, index) => teams[teamIndex][memberIndexes[index]]);
@@ -318,8 +366,9 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
   if (summaries.some((team) => team.memberCount - team.goalkeeperCount < STARTING_OUTFIELD_COUNT)) {
     throw new Error("Mỗi đội cần ít nhất 4 cầu thủ sân; đội thiếu thủ môn sẽ mượn từ đội nghỉ.");
   }
-  const unevenTier = ACTIVE_SEED_TIERS.find((tier) => spread(summaries.map((team) => team.tierCounts[tier])) > 1);
-  if (unevenTier) throw new Error(`Không thể phân bổ đều ${unevenTier.replace("TIER_", "Tier ")}; hãy mở khóa các cầu thủ đã giữ đội và thử lại.`);
+  if (spread(summaries.map((team) => team.tierCounts.TIER_1)) > 1) {
+    throw new Error("Không thể phân bổ đều Tier 1; hãy mở khóa các cầu thủ đã giữ đội và thử lại.");
+  }
   if (summaries.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) throw new Error("Không thể tạo đội hình chính có đủ khả năng tấn công và phòng thủ cho mọi đội.");
   return { teams: summaries, cost: currentCost };
 }

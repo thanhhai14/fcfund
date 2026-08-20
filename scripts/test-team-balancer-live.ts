@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createInterface, type Interface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import postgres from "postgres";
@@ -55,7 +56,7 @@ function parseArgs() {
   }
   const mode = values.get("mode");
   if (mode && mode !== "auto" && mode !== "match") throw new Error("--mode chỉ nhận auto hoặc match.");
-  return { mode: mode as TestMode | undefined, match: values.get("match") };
+  return { mode: mode as TestMode | undefined, match: values.get("match"), randomKey: values.get("random-key") };
 }
 
 function normalizeDate(value: string) {
@@ -360,6 +361,8 @@ async function main() {
         ? `Nguồn: trận ${dateLabel(selectedMatch.played_on)} · ${members.length} người · phong độ tính trước ngày trận`
         : `Nguồn: tự động · ${members.length} thành viên hoạt động từ production`);
       console.log("Nguồn kiểm thử chỉ sử dụng dữ liệu đã lưu trong DB; transaction không cho phép ghi.");
+      const runRandomKey = args.randomKey ?? randomUUID();
+      console.log(`Random key lượt test: ${runRandomKey}${args.randomKey ? " (được chỉ định)" : " (tự sinh)"}`);
 
       const cases = selectedMatch
         ? [2, 3, 4].map((teamCount) => ({ label: `${teamCount} đội · danh sách trận ${dateLabel(selectedMatch.played_on)}`, teamCount, memberCount: members.length }))
@@ -368,8 +371,8 @@ async function main() {
       for (const testCase of cases) {
         try {
           const participants = buildParticipants({ source: members, stats, memberCount: testCase.memberCount, teamCount: testCase.teamCount, mode });
-          const key = selectedMatch?.id ?? club.id;
-          const result = generateBalancedTeams(participants, testCase.teamCount, `live-readonly-${key}-${testCase.teamCount}-${testCase.memberCount}`);
+          const sourceKey = selectedMatch?.id ?? club.id;
+          const result = generateBalancedTeams(participants, testCase.teamCount, `live-readonly-${runRandomKey}-${sourceKey}-${testCase.teamCount}-${testCase.memberCount}`);
           validate(result, participants.length);
           printResult(`CASE ${testCase.label}`, result);
           completedCases += 1;

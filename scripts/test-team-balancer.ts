@@ -44,10 +44,8 @@ for (const [memberCount, teamCount] of [[10, 2], [14, 3], [18, 4], [19, 4], [20,
   if (goalkeepers.some((count) => count > 1) || goalkeepers.reduce((sum, count) => sum + count, 0) < 2) {
     throw new Error("Phân bổ thủ môn thật không hợp lệ.");
   }
-  for (const tier of ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6", "TIER_7"] as const) {
-    const counts = first.teams.map((team) => team.tierCounts[tier]);
-    if (Math.max(...counts) - Math.min(...counts) > 1) throw new Error(`${tier} bị gom quá nhiều vào một đội.`);
-  }
+  const tierOneDistribution = first.teams.map((team) => team.tierCounts.TIER_1);
+  if (Math.max(...tierOneDistribution) - Math.min(...tierOneDistribution) > 1) throw new Error("TIER_1 bị gom quá nhiều vào một đội.");
   if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
   if (first.teams.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) {
     throw new Error(`Đội hình chính chưa đủ khả năng công/thủ ở case ${memberCount}/${teamCount}.`);
@@ -107,6 +105,18 @@ const goalkeeperLineupGap = Math.max(...goalkeeperWeightResult.teams.map((team) 
   - Math.min(...goalkeeperWeightResult.teams.map((team) => team.lineupSkillScore));
 if (Math.abs(goalkeeperLineupGap - 0.6) > 0.001) {
   throw new Error(`Tier thủ môn chưa được tính đúng 10%: chênh lệch ${goalkeeperLineupGap}.`);
+}
+
+const accumulatedOddTiers = participants(12).map((participant, index) => ({
+  ...participant,
+  seedTier: (["TIER_1", "TIER_2", "TIER_3", "TIER_5", "TIER_6", "TIER_3", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6", "TIER_2"] as SeedTier[])[index],
+  goalkeeperAvailable: index === 5 || index === 11,
+}));
+const accumulatedOddTierResult = generateBalancedTeams(accumulatedOddTiers, 2, "accumulated-odd-tiers-regression");
+const accumulatedOddTierGap = Math.max(...accumulatedOddTierResult.teams.map((team) => team.lineupSkillScore))
+  - Math.min(...accumulatedOddTierResult.teams.map((team) => team.lineupSkillScore));
+if (accumulatedOddTierGap > 1) {
+  throw new Error(`Các Tier lẻ đang dồn lợi thế vào một đội: chênh Seed đội hình 5 là ${accumulatedOddTierGap}.`);
 }
 
 try {

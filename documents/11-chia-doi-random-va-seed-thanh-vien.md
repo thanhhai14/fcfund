@@ -223,6 +223,8 @@ Sau khi thỏa các ràng buộc cứng, điểm so sánh phương án được 
           +  5% × chênh lệch Điểm phong độ
 ```
 
+Trước khi so điểm mềm, chênh lệch Seed của đội hình ra sân năm người được ưu tiên mạnh: phần chênh vượt quá **1 điểm Seed** chịu hệ số phạt lớn và không được vị trí hoặc phong độ bù lại. Tier 1 vẫn phải được rải với chênh lệch số lượng tối đa 1; Tier 2–7 được phép lệch số lượng khi cần bù cho một Tier mạnh hiếm và làm tổng Seed công bằng hơn. Bên trong thành phần Tier, đội hình năm người chiếm 90%, sức mạnh toàn bộ danh sách kể cả dự bị chiếm 10%.
+
 Sức mạnh Tier của một đội được tính trên đội hình thực tế sân 5: **4 cầu thủ sân mạnh nhất phù hợp công/thủ + 1 thủ môn**. Tier thủ môn chỉ tính 10%. Đội mượn thủ môn dùng Tier và phong độ trung bình của các thủ môn thật làm giá trị đại diện, nhưng không tạo hoặc nhân đôi thành viên. Các cầu thủ dự bị thực sự ngoài nhóm năm người chỉ đóng góp 25%.
 
 Mỗi cầu thủ đa vị trí chỉ được gán một vai trò ảo trong lúc chấm phương án, tránh một người đồng thời bị đếm là hậu vệ, tiền vệ và tiền đạo. Vị trí và thế mạnh được ưu tiên trên đội hình chính (80% điểm chiến thuật), phần dự bị chỉ chiếm 20%.
@@ -233,16 +235,16 @@ Các tỷ lệ là cấu hình kỹ thuật ban đầu. Chưa mở UI cho Admin 
 
 ### 5.3. Các bước thực thi đề xuất
 
-1. Sinh `random_key` và xáo người trong các nhóm tương đương.
+1. Sinh `random_key`, tạo 128 phương án đầu vào và xáo người trong các nhóm tương đương.
 2. Chọn tối đa một thủ môn riêng cho mỗi đội từ các ứng viên; toàn đội hình cần ít nhất 2 thủ môn thật.
 3. Giữ một chỗ cho đội có thủ môn riêng; đội còn lại nhận đủ 4 cầu thủ sân và được đánh dấu mượn thủ môn.
 4. Xếp thủ môn sau cùng; Tier thủ môn nhân hệ số 0,10 và Điểm phong độ thủ môn nhân hệ số 0,15.
 5. Với bóng đá sân 5, đội hình chính dùng đúng 1 thủ môn và 4 cầu thủ sân có tổng Tier tốt nhất trong các phương án vẫn bảo đảm khả năng tấn công lẫn phòng thủ; phong độ chỉ dùng để phân định nhẹ giữa các phương án gần nhau.
-6. Số lượng của từng Tier giữa các đội chênh tối đa 1. Ví dụ có 4 cầu thủ Tier 1 và 2 đội thì bắt buộc chia 2–2, không cho tổng điểm toàn đội bù lại thành 1–3.
+6. Tier 1 giữa các đội chênh tối đa 1. Ví dụ có 4 cầu thủ Tier 1 và 2 đội thì bắt buộc chia 2–2; các Tier còn lại được dùng để bù tổng sức mạnh đội hình thay vì bắt buộc chia đều riêng từng Tier.
 7. Cân bằng sức mạnh và phong độ của đội hình chính trước; phần cầu thủ dự bị chỉ mang trọng số 25% trong điểm cân bằng tổng.
-8. Thử hoán đổi cặp người giữa các đội bằng local search/hill climbing.
-9. Chỉ nhận phép đổi làm giảm `cost` và không phá ràng buộc cứng.
-10. Dừng khi không còn cải thiện hoặc đạt giới hạn vòng lặp.
+8. Lọc các phương án có chênh Seed đội hình năm người tốt nhất, ưu tiên ngưỡng tối đa 1 điểm.
+9. Trong nhóm phương án có chi phí gần tối ưu, random chọn giữa các cấu trúc đội thực sự khác nhau; việc chỉ đảo tên Đội A/B không được tính là một phương án mới.
+10. Khi chưa tìm được phương án trong ngưỡng Seed, tiếp tục hoán đổi cặp hoặc vòng ba người để giảm chênh lệch mà không phá ràng buộc cứng.
 
 Đây là bài toán nhiều mục tiêu: quân số, kỹ năng, tier, thủ môn và lịch sử thua có thể cạnh tranh nhau. Vì vậy UI nên hiển thị các chỉ số cân bằng, không tuyên bố kết quả là “công bằng tuyệt đối”.
 
