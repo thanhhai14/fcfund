@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, type CollectionColumn } from "./collection-controls";
 import { MemberIdentity } from "./member-identity";
+import { comparePlacementRanking } from "@/lib/placement-ranking";
 
 type SeedRow = {
   id: string;
@@ -33,6 +34,7 @@ export function SeedEvaluationTable({ rows }: { rows: SeedRow[] }) {
   const ordered = useMemo(() => [...rows].sort((a, b) => {
     if (sort === "SEED") return (SEED_ORDER[seeds[a.id]] ?? 99) - (SEED_ORDER[seeds[b.id]] ?? 99) || a.name.localeCompare(b.name, "vi");
     if (sort === "MATCHES") return b.matchCount - a.matchCount || a.name.localeCompare(b.name, "vi");
+    if (sort === "PLACEMENT_RANKING") return comparePlacementRanking(a, b);
     if (sort === "FORM_ASC") return a.formScore - b.formScore || a.name.localeCompare(b.name, "vi");
     if (sort === "FORM_DESC") return b.formScore - a.formScore || a.name.localeCompare(b.name, "vi");
     return a.name.localeCompare(b.name, "vi");
@@ -43,7 +45,7 @@ export function SeedEvaluationTable({ rows }: { rows: SeedRow[] }) {
   return <>
     <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên..." count={visibleCount}>
       <select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">Mọi Seed</option><option value="MISSING">Chưa có Seed</option>{[1,2,3,4,5,6,7].map((tier) => <option key={tier} value={`TIER_${tier}`}>Tier {tier}</option>)}</select>
-      <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="NAME">Tên A–Z</option><option value="SEED">Theo Seed</option><option value="MATCHES">Nhiều trận trước</option><option value="FORM_ASC">Phong độ thấp trước</option><option value="FORM_DESC">Phong độ cao trước</option></select>
+      <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="NAME">Tên A–Z</option><option value="SEED">Theo Seed</option><option value="PLACEMENT_RANKING">Thành tích thứ hạng</option><option value="MATCHES">Nhiều trận trước</option><option value="FORM_ASC">Phong độ thấp trước</option><option value="FORM_DESC">Phong độ cao trước</option></select>
       <ColumnVisibilityMenu columns={SEED_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />
     </CollectionToolbar>
     <div className="seed-table-wrap"><table className="seed-table"><thead><tr><th>Thành viên</th><th>Seed trận này</th><th className="seed-goalkeeper-heading">Thủ môn?</th>{columns.isVisible("matches") && <th>Số trận</th>}{columns.isVisible("placements") && <th>{maxPlacement ? `Thứ hạng 1→${maxPlacement}` : "Thứ hạng"}</th>}{columns.isVisible("formScore") && <th>Phong độ</th>}</tr></thead><tbody>{ordered.map((row) => {

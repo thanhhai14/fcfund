@@ -9,6 +9,7 @@ import { InfoTooltip } from "./info-tooltip";
 import { preferredFootLabel } from "@/lib/member-profile";
 import { PreferredFootIcon } from "./preferred-foot-icon";
 import { playerPositionsLabel, playerStrengthLabel, type PlayerPosition, type PlayerStrength } from "@/lib/player-profile";
+import { comparePlacementRanking } from "@/lib/placement-ranking";
 
 export type MemberCollectionRow = {
   id: string;
@@ -100,6 +101,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
       if (sort === "FORM_DESC") return b.formScore - a.formScore || a.name.localeCompare(b.name, "vi");
       if (sort === "MATCHES_DESC") return b.matchCount - a.matchCount || a.name.localeCompare(b.name, "vi");
       if (sort === "WIN_RATE_DESC") return (b.winRate ?? -1) - (a.winRate ?? -1) || a.name.localeCompare(b.name, "vi");
+      if (sort === "PLACEMENT_RANKING") return comparePlacementRanking(a, b);
       return a.name.localeCompare(b.name, "vi");
     });
     return result;
@@ -111,7 +113,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
         <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Trạng thái"><option value="ALL">Mọi trạng thái</option><option value="ACTIVE">Đang hoạt động</option><option value="INACTIVE">Đã nghỉ</option></select>
         <select value={account} onChange={(event) => setAccount(event.target.value)} aria-label="Tài khoản"><option value="ALL">Mọi tài khoản</option><option value="HAS">Có tài khoản</option><option value="NONE">Chưa có tài khoản</option></select>
         <select value={balance} onChange={(event) => setBalance(event.target.value)} aria-label="Công nợ"><option value="ALL">Mọi công nợ</option><option value="DEBT">Đang nợ</option><option value="CREDIT">Đóng dư</option><option value="EVEN">Cân bằng</option></select>
-        <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sắp xếp"><option value="NAME_ASC">Tên A–Z</option><option value="NAME_DESC">Tên Z–A</option><option value="CODE">Mã thành viên</option>{showForm && <><option value="MATCHES_DESC">Thi đấu nhiều nhất</option><option value="WIN_RATE_DESC">Tỷ lệ thắng cao nhất</option><option value="FORM_DESC">Phong độ cao nhất</option><option value="FORM_ASC">Phong độ thấp nhất</option></>}<option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option></select>
+        <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sắp xếp"><option value="NAME_ASC">Tên A–Z</option><option value="NAME_DESC">Tên Z–A</option><option value="CODE">Mã thành viên</option>{showForm && <><option value="PLACEMENT_RANKING">Thành tích thứ hạng</option><option value="MATCHES_DESC">Thi đấu nhiều nhất</option><option value="WIN_RATE_DESC">Tỷ lệ thắng cao nhất</option><option value="FORM_DESC">Phong độ cao nhất</option><option value="FORM_ASC">Phong độ thấp nhất</option></>}<option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option></select>
         {view === "list" && <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />}
       </CollectionToolbar>
 
