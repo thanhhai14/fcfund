@@ -22,6 +22,7 @@ export type MemberCareerStats = {
   winCount: number;
   lossCount: number;
   winRate: number | null;
+  placementCounts: number[];
 };
 
 type FormEvent = {
@@ -71,7 +72,11 @@ function calculateFormStat(events: FormEvent[], lookbackMatches: number): MatchF
 }
 
 export async function getMemberCareerStats(input: { clubId: string; memberId: string }): Promise<MemberCareerStats> {
-  const rows = await db.select({ result: memberMatchStats.result })
+  const rows = await db.select({
+    result: memberMatchStats.result,
+    placement: memberMatchStats.placement,
+    teamCount: memberMatchStats.teamCount,
+  })
     .from(memberMatchStats)
     .innerJoin(matches, eq(memberMatchStats.matchId, matches.id))
     .where(and(
@@ -82,22 +87,26 @@ export async function getMemberCareerStats(input: { clubId: string; memberId: st
   const winCount = rows.filter((row) => row.result === "WIN").length;
   const lossCount = rows.filter((row) => row.result === "LOSS").length;
   const matchCount = winCount + lossCount;
+  const maxTeamCount = Math.max(0, ...rows.map((row) => row.teamCount ?? row.placement ?? 0));
   return {
     matchCount,
     winCount,
     lossCount,
     winRate: matchCount ? Math.round((winCount / matchCount) * 1_000) / 10 : null,
+    placementCounts: Array.from({ length: maxTeamCount }, (_, index) => rows.filter((row) => row.placement === index + 1).length),
   };
 }
 
 export async function getMembersCareerStats(input: { clubId: string; memberIds: string[] }) {
   const result = new Map<string, MemberCareerStats>();
-  for (const memberId of input.memberIds) result.set(memberId, { matchCount: 0, winCount: 0, lossCount: 0, winRate: null });
+  for (const memberId of input.memberIds) result.set(memberId, { matchCount: 0, winCount: 0, lossCount: 0, winRate: null, placementCounts: [] });
   if (!input.memberIds.length) return result;
 
   const rows = await db.select({
     memberId: memberMatchStats.memberId,
     result: memberMatchStats.result,
+    placement: memberMatchStats.placement,
+    teamCount: memberMatchStats.teamCount,
   }).from(memberMatchStats)
     .innerJoin(matches, eq(memberMatchStats.matchId, matches.id))
     .where(and(
@@ -106,6 +115,7 @@ export async function getMembersCareerStats(input: { clubId: string; memberIds: 
       isNull(matches.deletedAt),
     ));
 
+  const maxTeamCount = Math.max(0, ...rows.map((row) => row.teamCount ?? row.placement ?? 0));
   for (const memberId of input.memberIds) {
     const memberRows = rows.filter((row) => row.memberId === memberId);
     const winCount = memberRows.filter((row) => row.result === "WIN").length;
@@ -116,6 +126,7 @@ export async function getMembersCareerStats(input: { clubId: string; memberIds: 
       winCount,
       lossCount,
       winRate: matchCount ? Math.round((winCount / matchCount) * 1_000) / 10 : null,
+      placementCounts: Array.from({ length: maxTeamCount }, (_, index) => memberRows.filter((row) => row.placement === index + 1).length),
     });
   }
   return result;

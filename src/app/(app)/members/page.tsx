@@ -132,6 +132,7 @@ export default async function MembersPage() {
         winCount: careerStats.get(member.id)?.winCount ?? 0,
         lossCount: careerStats.get(member.id)?.lossCount ?? 0,
         winRate: careerStats.get(member.id)?.winRate ?? null,
+        placementCounts: careerStats.get(member.id)?.placementCounts ?? [],
       }))} />
     </>
   );

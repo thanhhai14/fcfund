@@ -32,6 +32,7 @@ export type MemberCollectionRow = {
   winCount: number;
   lossCount: number;
   winRate: number | null;
+  placementCounts: number[];
 };
 
 export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRow[]; showForm: boolean }) {
@@ -41,6 +42,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
   const [balance, setBalance] = useState("ALL");
   const [sort, setSort] = useState("NAME_ASC");
   const [view, setView] = useResponsiveView("fcfund:members:view");
+  const maxPlacement = Math.max(0, ...rows.map((row) => row.placementCounts.length));
   const columnDefinitions = useMemo<CollectionColumn[]>(() => [
     { id: "rank", label: "Hạng" },
     { id: "member", label: "Thành viên", required: true },
@@ -53,13 +55,14 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
       { id: "matches", label: "Số trận" },
       { id: "record", label: "Thắng / Thua" },
       { id: "winRate", label: "Tỷ lệ thắng" },
+      { id: "placements", label: maxPlacement ? `Thứ hạng 1→${maxPlacement}` : "Thứ hạng" },
     ] : []),
     { id: "phone", label: "Điện thoại", defaultVisible: false },
     { id: "status", label: "Trạng thái", defaultVisible: false },
     { id: "account", label: "Tài khoản", defaultVisible: false },
     ...(showForm ? [{ id: "form", label: "Phong độ" }] : []),
     { id: "balance", label: "Công nợ" },
-  ], [showForm]);
+  ], [maxPlacement, showForm]);
   const columns = useColumnVisibility("fcfund:members:columns:v2", columnDefinitions);
   const columnWidths: Record<string, { track: string; minimum: number }> = {
     rank: { track: "52px", minimum: 52 }, member: { track: "minmax(200px, 2fr)", minimum: 220 },
@@ -67,6 +70,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
     position: { track: "minmax(105px, 1fr)", minimum: 120 }, foot: { track: "90px", minimum: 90 },
     bio: { track: "70px", minimum: 70 }, matches: { track: "75px", minimum: 75 },
     record: { track: "100px", minimum: 100 }, winRate: { track: "90px", minimum: 90 },
+    placements: { track: `${Math.max(110, maxPlacement * 22 + 24)}px`, minimum: Math.max(110, maxPlacement * 22 + 24) },
     phone: { track: "130px", minimum: 130 }, status: { track: "110px", minimum: 110 },
     account: { track: "120px", minimum: 120 }, form: { track: "95px", minimum: 95 },
     balance: { track: "120px", minimum: 120 },
@@ -113,7 +117,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
 
       {view === "list" ? (
         <div className="member-list-view">
-          <div className="member-list-head" style={{ gridTemplateColumns, minWidth: gridMinWidth }}>{columns.isVisible("rank") && <span className="member-rank-column">Hạng</span>}{columns.isVisible("member") && <span>Thành viên</span>}{columns.isVisible("shirt") && <span className="member-centered-column">Số áo</span>}{columns.isVisible("nickname") && <span>Biệt danh</span>}{columns.isVisible("position") && <span>Vị trí</span>}{columns.isVisible("foot") && <span>Chân thuận</span>}{columns.isVisible("bio") && <span className="member-centered-column">Giới thiệu</span>}{showForm && columns.isVisible("matches") && <span className="member-centered-column">Số trận</span>}{showForm && columns.isVisible("record") && <span className="member-centered-column">Thắng / Thua</span>}{showForm && columns.isVisible("winRate") && <span className="member-centered-column">Tỷ lệ thắng</span>}{columns.isVisible("phone") && <span>Điện thoại</span>}{columns.isVisible("status") && <span>Trạng thái</span>}{columns.isVisible("account") && <span>Tài khoản</span>}{showForm && columns.isVisible("form") && <span className="member-form-column">Phong độ</span>}{columns.isVisible("balance") && <span>Công nợ</span>}</div>
+          <div className="member-list-head" style={{ gridTemplateColumns, minWidth: gridMinWidth }}>{columns.isVisible("rank") && <span className="member-rank-column">Hạng</span>}{columns.isVisible("member") && <span>Thành viên</span>}{columns.isVisible("shirt") && <span className="member-centered-column">Số áo</span>}{columns.isVisible("nickname") && <span>Biệt danh</span>}{columns.isVisible("position") && <span>Vị trí</span>}{columns.isVisible("foot") && <span>Chân thuận</span>}{columns.isVisible("bio") && <span className="member-centered-column">Giới thiệu</span>}{showForm && columns.isVisible("matches") && <span className="member-centered-column">Số trận</span>}{showForm && columns.isVisible("record") && <span className="member-centered-column">Thắng / Thua</span>}{showForm && columns.isVisible("winRate") && <span className="member-centered-column">Tỷ lệ thắng</span>}{showForm && columns.isVisible("placements") && <span className="member-centered-column">{maxPlacement ? `Thứ hạng 1→${maxPlacement}` : "Thứ hạng"}</span>}{columns.isVisible("phone") && <span>Điện thoại</span>}{columns.isVisible("status") && <span>Trạng thái</span>}{columns.isVisible("account") && <span>Tài khoản</span>}{showForm && columns.isVisible("form") && <span className="member-form-column">Phong độ</span>}{columns.isVisible("balance") && <span>Công nợ</span>}</div>
           {visible.map((member, index) => <Link href={`/members/${member.id}`} className="member-list-row" style={{ gridTemplateColumns, minWidth: gridMinWidth }} key={member.id}>
             {columns.isVisible("rank") && <strong className="member-rank-column">#{index + 1}</strong>}
             <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} />
@@ -125,6 +129,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
             {showForm && columns.isVisible("matches") && <strong className="member-centered-column">{member.matchCount}</strong>}
             {showForm && columns.isVisible("record") && <span className="member-record member-centered-column"><b>{member.winCount} T</b><i>{member.lossCount} B</i></span>}
             {showForm && columns.isVisible("winRate") && <strong className="member-win-rate member-centered-column">{member.winRate !== null ? `${member.winRate}%` : "—"}</strong>}
+            {showForm && columns.isVisible("placements") && <strong className="member-placement-record member-centered-column" title={member.placementCounts.map((count, position) => `Hạng ${position + 1}: ${count} lần`).join(" · ")}>{member.placementCounts.length ? member.placementCounts.join("/") : "—"}</strong>}
             {columns.isVisible("phone") && <span>{member.phone}</span>}
             {columns.isVisible("status") && <span className="member-status-cell"><i className={`status-dot ${member.status.toLowerCase()}`} />{member.status === "ACTIVE" ? "Hoạt động" : "Đã nghỉ"}</span>}
             {columns.isVisible("account") && <span>{member.accountLabel}</span>}
@@ -137,7 +142,7 @@ export function MembersCollection({ rows, showForm }: { rows: MemberCollectionRo
           {visible.map((member, index) => <Link href={`/members/${member.id}`} className={`member-card ${member.status === "INACTIVE" ? "inactive" : ""}`} key={member.id}>
             <div className="member-card-top"><span className="report-rank-badge member-card-rank">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} secondary={[member.nickname, playerPositionsLabel(member.desiredPositions), playerStrengthLabel(member.playerStrength)].filter(Boolean).join(" · ")} /><InfoTooltip content={member.bio} label={`Giới thiệu của ${member.name}`} /></div>
             <div className="member-card-cv">{member.shirtNumber !== null && <span>#{member.shirtNumber}</span>}{member.preferredFoot && <span className="preferred-foot-value"><PreferredFootIcon value={member.preferredFoot} />{preferredFootLabel(member.preferredFoot)}</span>}{member.shirtNumber === null && !member.preferredFoot && <span>Chưa cập nhật CV</span>}</div>
-            <div className="member-card-meta">{showForm && <><div><small>Số trận</small><strong>{member.matchCount}</strong></div><div><small>Thắng / Thua</small><strong><span className="won">{member.winCount}</span> / <span className="lost">{member.lossCount}</span></strong></div><div><small>Tỷ lệ thắng</small><strong>{member.winRate !== null ? `${member.winRate}%` : "—"}</strong></div><div><small>Phong độ</small><strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong></div></>}<div><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
+            <div className="member-card-meta">{showForm && <><div><small>Số trận</small><strong>{member.matchCount}</strong></div><div><small>Thắng / Thua</small><strong><span className="won">{member.winCount}</span> / <span className="lost">{member.lossCount}</span></strong></div><div><small>Tỷ lệ thắng</small><strong>{member.winRate !== null ? `${member.winRate}%` : "—"}</strong></div><div><small>{maxPlacement ? `Hạng 1→${maxPlacement}` : "Thứ hạng"}</small><strong className="member-placement-record" title={member.placementCounts.map((count, position) => `Hạng ${position + 1}: ${count} lần`).join(" · ")}>{member.placementCounts.length ? member.placementCounts.join("/") : "—"}</strong></div><div><small>Phong độ</small><strong className="member-form-score">{Math.round(member.formScore / 100)} điểm</strong></div></>}<div><small>{member.balance < 0 ? "Còn nợ" : "Số dư"}</small><strong className={member.balance < 0 ? "money-out" : "money-in"}>{formatMoney(Math.abs(member.balance))}</strong></div></div>
           </Link>)}
         </section>
       )}

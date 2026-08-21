@@ -6885,6 +6885,13 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.member-placement-record {
+  color: var(--brand-primary-strong);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
 .info-tooltip-trigger {
   display: inline-grid;
   width: 24px;
