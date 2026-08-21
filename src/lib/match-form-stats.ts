@@ -15,6 +15,7 @@ export type MatchFormStat = {
   formConfidence: number;
   inferredMatchCount: number;
   lowForm: boolean;
+  placementCounts: number[];
 };
 
 export type MemberCareerStats = {
@@ -32,6 +33,8 @@ type FormEvent = {
   score: number;
   result: "WIN" | "LOSS";
   inferred: boolean;
+  placement: number | null;
+  teamCount: number | null;
 };
 
 function emptyFormStat(): MatchFormStat {
@@ -44,6 +47,7 @@ function emptyFormStat(): MatchFormStat {
     formConfidence: 0,
     inferredMatchCount: 0,
     lowForm: false,
+    placementCounts: [],
   };
 }
 
@@ -58,6 +62,7 @@ function calculateFormStat(events: FormEvent[], lookbackMatches: number): MatchF
   const winCount = selected.filter((event) => event.result === "WIN").length;
   const lossCount = selected.length - winCount;
   const { formScore, formConfidence } = calculateAdjustedFormScore(selected.map((event) => event.score));
+  const maxTeamCount = Math.max(0, ...selected.map((event) => event.teamCount ?? event.placement ?? 0));
 
   return {
     matchCount: selected.length,
@@ -68,6 +73,7 @@ function calculateFormStat(events: FormEvent[], lookbackMatches: number): MatchF
     formConfidence,
     inferredMatchCount: selected.filter((event) => event.inferred).length,
     lowForm: isLowForm(selected.length, formScore),
+    placementCounts: Array.from({ length: maxTeamCount }, (_, index) => selected.filter((event) => event.placement === index + 1).length),
   };
 }
 
@@ -149,6 +155,8 @@ export async function getMatchFormStats(input: {
     score: memberMatchStats.placementScore,
     result: memberMatchStats.result,
     source: memberMatchStats.source,
+    placement: memberMatchStats.placement,
+    teamCount: memberMatchStats.teamCount,
     createdAt: matches.createdAt,
   })
     .from(memberMatchStats)
@@ -175,6 +183,8 @@ export async function getMatchFormStats(input: {
       score: row.score,
       result: row.result,
       inferred: row.source === "PENALTY_INFERRED",
+      placement: row.placement,
+      teamCount: row.teamCount,
     });
     eventsByMember.set(row.memberId, events);
   }
@@ -232,6 +242,8 @@ export async function getMatchFormStats(input: {
         score: lost ? 0 : 10_000,
         result: lost ? "LOSS" : "WIN",
         inferred: true,
+        placement: null,
+        teamCount: null,
       });
       eventsByMember.set(row.memberId, events);
     }

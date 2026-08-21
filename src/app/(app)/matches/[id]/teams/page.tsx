@@ -186,7 +186,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
                 suggestedSeedTier: participant.memberId ? previousSeeds.get(participant.memberId) ?? null : null,
                 goalkeeperAvailable: participant.seedEvaluatedAt ? participant.goalkeeperAvailable : Boolean(participant.desiredPositions?.includes("GOALKEEPER")),
                 matchCount: stat?.matchCount ?? 0,
-                winCount: stat?.winCount ?? 0,
+                placementCounts: stat?.placementCounts ?? [],
                 formScore: stat?.formScore ?? 5000,
                 inferredMatchCount: stat?.inferredMatchCount ?? 0,
                 lowForm: stat?.lowForm ?? false,
