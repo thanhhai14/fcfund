@@ -5073,6 +5073,32 @@ label>textarea {
   text-transform: capitalize;
 }
 
+.balance-period-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  white-space: nowrap;
+}
+
+.balance-period-cell>strong {
+  color: var(--forest-900);
+}
+
+.balance-period-cell>small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.balance-period-cell>small svg {
+  width: 11px;
+  height: 11px;
+}
+
 .balance-period-table th[rowspan] {
   vertical-align: middle;
 }
