@@ -33,6 +33,7 @@ export function ReportImageExporter({
   logoUrl,
   filename,
   width,
+  iconOnly = false,
   children,
 }: {
   title: string;
@@ -41,6 +42,7 @@ export function ReportImageExporter({
   logoUrl: string | null;
   filename: string;
   width: number;
+  iconOnly?: boolean;
   children: React.ReactNode;
 }) {
   const exportRef = useRef<HTMLDivElement>(null);
@@ -126,7 +128,7 @@ export function ReportImageExporter({
 
   return <>
     <div className="report-export-trigger">
-      <button type="button" className="button secondary small" onClick={() => void capture()} disabled={busy}><Icon name="camera" /> {busy ? "Đang tạo ảnh..." : "Chụp báo cáo"}</button>
+      <button type="button" className={`button secondary small ${iconOnly ? "report-export-icon-button" : ""}`} onClick={() => void capture()} disabled={busy} aria-label={busy ? "Đang tạo ảnh báo cáo" : "Chụp báo cáo"} title={busy ? "Đang tạo ảnh..." : "Chụp báo cáo"}><Icon name="camera" />{!iconOnly && <span>{busy ? "Đang tạo ảnh..." : "Chụp báo cáo"}</span>}</button>
       {error && <small role="alert">{error}</small>}
     </div>
     <div className="report-export-source" aria-hidden="true">
