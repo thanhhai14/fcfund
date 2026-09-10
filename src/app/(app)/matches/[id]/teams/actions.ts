@@ -14,7 +14,7 @@ import {
   memberProfiles,
   members,
 } from "@/db/schema";
-import { PERMISSIONS } from "@/lib/constants";
+import { PERMISSIONS, teamColorForIndex } from "@/lib/constants";
 import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant } from "@/lib/team-balancer";
@@ -294,7 +294,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
     await tx.delete(matchTeams).where(eq(matchTeams.versionId, draft.id));
     const payload: NonNullable<TeamDrawResult["draw"]>["teams"] = [];
     for (const team of result.teams) {
-      const color = ["#073b5c", "#c93f68", "#d68b2c", "#2e7d58"][team.index - 1] ?? "#526170";
+      const color = teamColorForIndex(team.index);
       const [createdTeam] = await tx.insert(matchTeams).values({
         versionId: draft.id,
         teamIndex: team.index,

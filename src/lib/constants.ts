@@ -2,6 +2,13 @@ export const DEFAULT_PASSWORD = "Trailang123";
 export const APP_NAME = "Trai Làng FC";
 export const APP_TIMEZONE = "Asia/Ho_Chi_Minh";
 
+export const TEAM_COLOR_PALETTE = ["#FFA500", "#09a9a1", "#FFFF00", "#C93F68"] as const;
+export const TEAM_COLOR_FALLBACK = "#073B5C";
+
+export function teamColorForIndex(teamIndex: number) {
+  return TEAM_COLOR_PALETTE[teamIndex - 1] ?? TEAM_COLOR_FALLBACK;
+}
+
 export const PERMISSIONS = {
   DASHBOARD_VIEW: "dashboard.view",
   MEMBERS_VIEW: "members.view",

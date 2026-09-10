@@ -19,7 +19,7 @@ import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
 import { TeamDrawExperience, type TeamDrawData } from "@/components/team-draw-experience";
 import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
-import { PERMISSIONS } from "@/lib/constants";
+import { PERMISSIONS, teamColorForIndex } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
@@ -134,7 +134,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       id: team.id,
       index: team.teamIndex,
       name: team.name,
-      color: team.color ?? "#526170",
+      color: team.color ?? teamColorForIndex(team.teamIndex),
       goalkeeperCount: team.goalkeeperCount,
       members: teamMemberRows.filter((member) => member.teamId === team.id && member.participantId).map((member) => ({
         participantId: member.participantId!,
