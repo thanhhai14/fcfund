@@ -11,7 +11,7 @@ import {
 } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatDate, formatMoney, shiftDate, todayInTimezone } from "@/lib/format";
+import { formatDate, shiftDate, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
 import { TransactionsCollection } from "@/components/transactions-collection";
@@ -52,9 +52,6 @@ export default async function TransactionsPage() {
     .where(and(eq(fundCategories.clubId, user.clubId), eq(fundCategories.isActive, true))).orderBy(fundCategories.direction, fundCategories.name) : [];
   const matchRows = canManage ? await db.select().from(matches)
     .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt))).orderBy(desc(matches.playedOn)).limit(30) : [];
-  const income = rows.filter((row) => row.direction === "IN").reduce((sum, row) => sum + row.amount, 0);
-  const expense = rows.filter((row) => row.direction === "OUT").reduce((sum, row) => sum + row.amount, 0);
-
   return (
     <>
       <PageHeader
@@ -81,12 +78,6 @@ export default async function TransactionsPage() {
           </Disclosure>
         ) : undefined}
       />
-
-      <section className="mini-stat-grid">
-        <article><span className="stat-icon green"><Icon name="money-bill-wave" /></span><div><small>Tổng thực thu</small><strong>{formatMoney(income)}</strong></div></article>
-        <article><span className="stat-icon orange"><Icon name="transactions" /></span><div><small>Tổng thực chi</small><strong>{formatMoney(expense)}</strong></div></article>
-        <article><span className="stat-icon green"><Icon name="wallet" /></span><div><small>Số dư quỹ</small><strong>{formatMoney(income - expense)}</strong></div></article>
-      </section>
 
       <TransactionsCollection rows={rows} canManage={canManage} defaultDateFrom={defaultDateFrom} defaultDateTo={today} />
     </>

@@ -70,8 +70,17 @@ export function TransactionsCollection({ rows, canManage, defaultDateFrom, defau
     });
     return result;
   }, [category, dateFrom, dateTo, direction, kind, member, query, rows, sort]);
+  const totals = useMemo(() => visible.reduce((result, row) => {
+    result[row.direction === "IN" ? "income" : "expense"] += row.amount;
+    return result;
+  }, { income: 0, expense: 0 }), [visible]);
 
   return <>
+    <section className="mini-stat-grid" aria-live="polite">
+      <article><span className="stat-icon green"><Icon name="money-bill-wave" /></span><div><small>Thực thu theo bộ lọc</small><strong>{formatMoney(totals.income)}</strong></div></article>
+      <article><span className="stat-icon orange"><Icon name="transactions" /></span><div><small>Thực chi theo bộ lọc</small><strong>{formatMoney(totals.expense)}</strong></div></article>
+      <article><span className="stat-icon green"><Icon name="wallet" /></span><div><small>Chênh lệch theo bộ lọc</small><strong className={totals.income - totals.expense < 0 ? "money-out" : "money-in"}>{formatMoney(totals.income - totals.expense)}</strong></div></article>
+    </section>
     <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm nội dung, thành viên, danh mục..." count={visible.length} view={view} onViewChange={setView}>
       <select value={direction} onChange={(event) => setDirection(event.target.value)}><option value="ALL">Tất cả Thu/Chi</option><option value="IN">Khoản thu</option><option value="OUT">Khoản chi</option></select>
       <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="ALL">Mọi loại giao dịch</option>{kinds.map((value) => <option value={value} key={value}>{KIND_LABELS[value] ?? value}</option>)}</select>
