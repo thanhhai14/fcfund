@@ -22,7 +22,13 @@ function CompactMonthInput({ name, value: initialValue, onChange, label }: { nam
   const [value, setValue] = useState(initialValue);
   return <label className="compact-month-picker" title={label}>
     <span>{shortMonth(value)}</span>
-    <input type="month" name={name} value={value} onChange={(event) => {
+    <input type="month" name={name} value={value} onClick={(event) => {
+      try {
+        event.currentTarget.showPicker();
+      } catch {
+        // Trình duyệt không hỗ trợ showPicker vẫn dùng bộ chọn native mặc định.
+      }
+    }} onChange={(event) => {
       setValue(event.target.value);
       onChange?.(event.target.value);
     }} aria-label={label} required />
