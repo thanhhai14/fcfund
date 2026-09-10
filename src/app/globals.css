@@ -7276,6 +7276,38 @@ label {
   font-size: 11px;
 }
 
+.monthly-payment-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--line);
+  background: #f8fafb;
+}
+
+.monthly-payment-summary>span {
+  min-width: 0;
+  padding: 11px 13px;
+  border-left: 1px solid var(--line);
+}
+
+.monthly-payment-summary>span:first-child {
+  border-left: 0;
+}
+
+.monthly-payment-summary small,
+.monthly-payment-summary strong {
+  display: block;
+}
+
+.monthly-payment-summary small {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.monthly-payment-summary strong {
+  font-size: 12px;
+}
+
 .balance-member-card>div {
   display: grid;
   grid-template-columns: 1fr 1fr;
