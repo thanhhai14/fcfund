@@ -7,6 +7,11 @@ import { Icon } from "./icon";
 
 const REPORT_TIMEZONE = "Asia/Ho_Chi_Minh";
 
+function needsSafariWarmup() {
+  const userAgent = window.navigator.userAgent;
+  return /AppleWebKit/i.test(userAgent) && !/(CriOS|FxiOS|EdgiOS|OPiOS|Chrome|Chromium|Android)/i.test(userAgent);
+}
+
 function capturedAtLabel() {
   return new Intl.DateTimeFormat("vi-VN", {
     dateStyle: "short",
@@ -33,49 +38,86 @@ async function waitForImages(node: HTMLElement) {
   }));
 }
 
-function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Không đọc được ảnh.")), { once: true });
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("Không đọc được ảnh.")), { once: true });
-    reader.readAsDataURL(blob);
-  });
+async function blobToThumbnailDataUrl(blob: Blob) {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = "sync";
+    image.src = objectUrl;
+    await new Promise<void>((resolve, reject) => {
+      image.addEventListener("load", () => resolve(), { once: true });
+      image.addEventListener("error", () => reject(new Error("Không giải mã được ảnh.")), { once: true });
+    });
+    if (typeof image.decode === "function") await image.decode().catch(() => undefined);
+    const maxDimension = 128;
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Không tạo được thumbnail avatar.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const item = items[nextIndex];
+      nextIndex += 1;
+      await worker(item);
+    }
+  }));
 }
 
 async function inlineImages(node: HTMLElement) {
   const images = Array.from(node.querySelectorAll("img"));
-  const cached = new Map<string, Promise<string | null>>();
   const originals = images.map((image) => ({
     image,
     src: image.getAttribute("src"),
     srcset: image.getAttribute("srcset"),
   }));
-
-  await Promise.all(images.map(async (image) => {
-    const source = image.currentSrc || image.src;
-    if (!source || source.startsWith("data:") || source.startsWith("blob:")) return;
-    let pending = cached.get(source);
-    if (!pending) {
-      pending = fetch(source, { credentials: "include", cache: "no-store" })
-        .then((response) => response.ok ? response.blob() : Promise.reject(new Error(`Không tải được ảnh (${response.status}).`)))
-        .then(blobToDataUrl)
-        .catch(() => null);
-      cached.set(source, pending);
-    }
-    const dataUrl = await pending;
-    if (!dataUrl) return;
-    image.removeAttribute("srcset");
-    image.src = dataUrl;
-  }));
-
-  await waitForImages(node);
-  await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
-  return () => originals.forEach(({ image, src, srcset }) => {
+  const restore = () => originals.forEach(({ image, src, srcset }) => {
     if (src === null) image.removeAttribute("src");
     else image.setAttribute("src", src);
     if (srcset === null) image.removeAttribute("srcset");
     else image.setAttribute("srcset", srcset);
   });
+  const imagesBySource = new Map<string, HTMLImageElement[]>();
+
+  images.forEach((image) => {
+    const source = image.currentSrc || image.src;
+    if (!source || source.startsWith("data:") || source.startsWith("blob:")) return;
+    imagesBySource.set(source, [...(imagesBySource.get(source) ?? []), image]);
+  });
+
+  let failedImages = 0;
+  await runWithConcurrency(Array.from(imagesBySource.entries()), 3, async ([source, sourceImages]) => {
+    try {
+      const response = await fetch(source, { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error(`Không tải được ảnh (${response.status}).`);
+      const dataUrl = await blobToThumbnailDataUrl(await response.blob());
+      sourceImages.forEach((image) => {
+        image.removeAttribute("srcset");
+        image.src = dataUrl;
+      });
+    } catch {
+      failedImages += sourceImages.length;
+    }
+  });
+
+  if (failedImages > 0) {
+    restore();
+    throw new Error(`${failedImages} ảnh chưa tải được; đã dừng chụp để tránh báo cáo thiếu avatar.`);
+  }
+
+  await waitForImages(node);
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
+  return restore;
 }
 
 export function ReportImageExporter({
@@ -160,7 +202,7 @@ export function ReportImageExporter({
       const { toBlob } = await import("html-to-image");
       const imageArea = node.scrollWidth * node.scrollHeight;
       const pixelRatio = Math.max(1, Math.min(2, Math.sqrt(14_000_000 / Math.max(imageArea, 1))));
-      const blob = await toBlob(node, {
+      const renderOptions = {
         backgroundColor: "#f7f4f5",
         cacheBust: true,
         includeQueryParams: true,
@@ -168,7 +210,12 @@ export function ReportImageExporter({
         width: node.scrollWidth,
         height: node.scrollHeight,
         fetchRequestInit: { credentials: "include" },
-      });
+      } as const;
+      if (needsSafariWarmup()) {
+        await toBlob(node, renderOptions);
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
+      }
+      const blob = await toBlob(node, renderOptions);
       if (!blob) throw new Error("Không tạo được dữ liệu ảnh.");
       setPreview({ blob, url: URL.createObjectURL(blob) });
     } catch (captureError) {
