@@ -7633,7 +7633,11 @@ label {
 .report-export-source {
   position: fixed;
   top: 0;
-  left: -30000px;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: -1;
   pointer-events: none;
 }
 

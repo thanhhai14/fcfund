@@ -17,13 +17,65 @@ function capturedAtLabel() {
 
 async function waitForImages(node: HTMLElement) {
   await Promise.all(Array.from(node.querySelectorAll("img")).map(async (image) => {
-    if (image.complete) return;
-    await new Promise<void>((resolve) => {
-      image.addEventListener("load", () => resolve(), { once: true });
-      image.addEventListener("error", () => resolve(), { once: true });
-      window.setTimeout(resolve, 5000);
-    });
+    if (!image.complete) {
+      await new Promise<void>((resolve) => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener("error", () => resolve(), { once: true });
+        window.setTimeout(resolve, 8000);
+      });
+    }
+    if (image.naturalWidth > 0 && typeof image.decode === "function") {
+      await Promise.race([
+        image.decode().catch(() => undefined),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 3000)),
+      ]);
+    }
   }));
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Không đọc được ảnh.")), { once: true });
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Không đọc được ảnh.")), { once: true });
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineImages(node: HTMLElement) {
+  const images = Array.from(node.querySelectorAll("img"));
+  const cached = new Map<string, Promise<string | null>>();
+  const originals = images.map((image) => ({
+    image,
+    src: image.getAttribute("src"),
+    srcset: image.getAttribute("srcset"),
+  }));
+
+  await Promise.all(images.map(async (image) => {
+    const source = image.currentSrc || image.src;
+    if (!source || source.startsWith("data:") || source.startsWith("blob:")) return;
+    let pending = cached.get(source);
+    if (!pending) {
+      pending = fetch(source, { credentials: "include", cache: "no-store" })
+        .then((response) => response.ok ? response.blob() : Promise.reject(new Error(`Không tải được ảnh (${response.status}).`)))
+        .then(blobToDataUrl)
+        .catch(() => null);
+      cached.set(source, pending);
+    }
+    const dataUrl = await pending;
+    if (!dataUrl) return;
+    image.removeAttribute("srcset");
+    image.src = dataUrl;
+  }));
+
+  await waitForImages(node);
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
+  return () => originals.forEach(({ image, src, srcset }) => {
+    if (src === null) image.removeAttribute("src");
+    else image.setAttribute("src", src);
+    if (srcset === null) image.removeAttribute("srcset");
+    else image.setAttribute("srcset", srcset);
+  });
 }
 
 export function ReportImageExporter({
@@ -101,9 +153,10 @@ export function ReportImageExporter({
     closePreview();
     if (capturedAtRef.current) capturedAtRef.current.textContent = capturedAtLabel();
 
+    let restoreImages: (() => void) | undefined;
     try {
       await document.fonts?.ready;
-      await waitForImages(node);
+      restoreImages = await inlineImages(node);
       const { toBlob } = await import("html-to-image");
       const imageArea = node.scrollWidth * node.scrollHeight;
       const pixelRatio = Math.max(1, Math.min(2, Math.sqrt(14_000_000 / Math.max(imageArea, 1))));
@@ -122,6 +175,7 @@ export function ReportImageExporter({
       console.error(captureError);
       setError("Không thể tạo ảnh báo cáo. Vui lòng thử lại sau khi ảnh đại diện đã tải xong.");
     } finally {
+      restoreImages?.();
       setBusy(false);
     }
   }
