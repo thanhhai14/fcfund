@@ -5049,6 +5049,34 @@ label>textarea {
   width: 155px;
 }
 
+.balance-period-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.balance-charge-super-header {
+  color: var(--forest-900) !important;
+  background: var(--brand-surface) !important;
+  font-size: 11px !important;
+  letter-spacing: .5px;
+}
+
+.balance-month-header {
+  color: var(--forest-900) !important;
+  background: #eef3f6 !important;
+  font-size: 10px !important;
+  text-transform: capitalize;
+}
+
+.balance-period-table th[rowspan] {
+  vertical-align: middle;
+}
+
 .monthly-table-wrap {
   overflow-x: auto;
 }
@@ -5908,6 +5936,10 @@ label>textarea {
     min-width: 0;
   }
 
+  .balance-period-controls {
+    flex-wrap: wrap;
+  }
+
   .balance-period-controls form {
     flex: 1;
     flex-wrap: wrap;
@@ -5922,6 +5954,15 @@ label>textarea {
 
   .balance-period-controls .button {
     flex: 0 0 auto;
+  }
+
+  .balance-period-controls label {
+    flex: 1 1 145px;
+  }
+
+  .balance-period-controls label input[type="month"] {
+    width: 100%;
+    flex-basis: auto;
   }
 
   .icon-config-grid {
@@ -7368,6 +7409,133 @@ label {
 .balance-member-card>div b {
   margin-top: 4px;
   font-size: 12px;
+}
+
+.balance-card-months {
+  display: grid;
+}
+
+.balance-card-months>div {
+  border-top: 1px solid var(--line);
+}
+
+.balance-card-months h3 {
+  margin: 0;
+  padding: 9px 13px;
+  color: var(--forest-900);
+  background: #eef3f6;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.balance-card-months p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 13px;
+  border-top: 1px solid var(--line);
+}
+
+.balance-card-months p>span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.balance-card-months .balance-card-empty {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.balance-card-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--line);
+  background: #f8fafb;
+}
+
+.balance-card-summary>span {
+  min-width: 0;
+  padding: 11px 9px;
+  border-left: 1px solid var(--line);
+}
+
+.balance-card-summary>span:first-child {
+  border-left: 0;
+}
+
+.balance-card-summary small,
+.balance-card-summary b {
+  display: block;
+}
+
+.balance-card-summary small {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.balance-card-summary b {
+  font-size: 11px;
+}
+
+.balance-snapshot-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: white;
+}
+
+.balance-snapshot-table th,
+.balance-snapshot-table td {
+  height: 47px;
+  padding: 8px 10px;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid #d5dee5;
+  font-size: 11px;
+}
+
+.balance-snapshot-table th {
+  color: #52687a;
+  background: #eef3f6;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.balance-snapshot-table .snapshot-rank {
+  width: 55px;
+  color: #cf3f70;
+  font-weight: 900;
+}
+
+.balance-snapshot-table .snapshot-member {
+  width: 220px;
+  text-align: left;
+}
+
+.balance-snapshot-table .member-identity-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border: 0;
+  box-shadow: none;
+}
+
+.balance-snapshot-table .member-identity-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.balance-snapshot-table tfoot td {
+  color: #042f52;
+  background: #e8f0f4;
+  font-weight: 900;
 }
 
 .balance-collection {
