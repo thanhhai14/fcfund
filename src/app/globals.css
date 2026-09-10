@@ -5000,6 +5000,36 @@ label>textarea {
   padding: 7px 9px;
 }
 
+.balance-period-controls,
+.balance-period-controls form {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.balance-period-controls>a {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: var(--brand-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.balance-period-controls select,
+.balance-period-controls input[type="month"] {
+  height: 34px;
+  min-width: 0;
+  padding: 7px 9px;
+}
+
+.balance-period-controls input[type="month"] {
+  width: 155px;
+}
+
 .monthly-table-wrap {
   overflow-x: auto;
 }
@@ -5837,6 +5867,28 @@ label>textarea {
     width: 100%;
     min-width: 0;
     flex: 1;
+  }
+
+  .balance-period-controls,
+  .balance-period-controls form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .balance-period-controls form {
+    flex: 1;
+    flex-wrap: wrap;
+  }
+
+  .balance-period-controls select,
+  .balance-period-controls input[type="month"] {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 130px;
+  }
+
+  .balance-period-controls .button {
+    flex: 0 0 auto;
   }
 
   .icon-config-grid {

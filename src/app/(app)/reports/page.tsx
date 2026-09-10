@@ -22,7 +22,7 @@ function shiftMonth(month: string, offset: number) {
 export default async function ReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; tab?: string }>;
+  searchParams: Promise<{ month?: string; tab?: string; balancePeriod?: string; balanceMonth?: string }>;
 }) {
   const user = await requireUser();
   const viewAll = await can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW);
@@ -36,13 +36,23 @@ export default async function ReportsPage({
   const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth ?? "")
     ? requestedMonth!
     : todayInTimezone().slice(0, 7);
+  const balancePeriod = params.balancePeriod === "all" ? "all" : "month";
+  const balanceMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(params.balanceMonth ?? "")
+    ? params.balanceMonth!
+    : todayInTimezone().slice(0, 7);
   const monthStart = `${month}-01`;
   const nextMonthStart = `${shiftMonth(month, 1)}-01`;
+  const balanceNextMonthStart = `${shiftMonth(balanceMonth, 1)}-01`;
   const monthLabel = new Intl.DateTimeFormat("vi-VN", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${monthStart}T00:00:00Z`));
+  const balanceMonthLabel = new Intl.DateTimeFormat("vi-VN", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${balanceMonth}-01T00:00:00Z`));
 
   const memberRows = await db.select({
     id: members.id,
@@ -61,13 +71,22 @@ export default async function ReportsPage({
     memberId: memberCharges.memberId,
     total: sql<string>`SUM(${memberCharges.totalAmount})`,
   }).from(memberCharges)
-    .where(and(eq(memberCharges.clubId, user.clubId), isNull(memberCharges.deletedAt)))
+    .where(and(
+      eq(memberCharges.clubId, user.clubId),
+      isNull(memberCharges.deletedAt),
+      balancePeriod === "month" ? lt(memberCharges.chargeDate, balanceNextMonthStart) : undefined,
+    ))
     .groupBy(memberCharges.memberId);
   const paymentRows = await db.select({
     memberId: fundTransactions.memberId,
     total: sql<string>`SUM(${fundTransactions.amount})`,
   }).from(fundTransactions)
-    .where(and(eq(fundTransactions.clubId, user.clubId), eq(fundTransactions.kind, "MEMBER_PAYMENT"), isNull(fundTransactions.deletedAt)))
+    .where(and(
+      eq(fundTransactions.clubId, user.clubId),
+      eq(fundTransactions.kind, "MEMBER_PAYMENT"),
+      isNull(fundTransactions.deletedAt),
+      balancePeriod === "month" ? lt(fundTransactions.transactionDate, balanceNextMonthStart) : undefined,
+    ))
     .groupBy(fundTransactions.memberId);
   const typeRows = await db.select({
     id: chargeTypes.id,
@@ -130,17 +149,17 @@ export default async function ReportsPage({
     <>
       <PageHeader eyebrow="Phân tích" title="Báo cáo quỹ" description="Theo dõi phát sinh tháng và công nợ thành viên" />
       <section className="report-hero">
-        <div><small>Tổng công nợ</small><strong>{formatMoney(debt)}</strong><span>{balances.filter((row) => row.balance < 0).length} người còn nợ</span></div>
+        <div><small>Tổng công nợ</small><strong>{formatMoney(debt)}</strong><span>{balancePeriod === "all" ? "Toàn bộ thời gian" : `Đến hết ${balanceMonthLabel}`} · {balances.filter((row) => row.balance < 0).length} người còn nợ</span></div>
         <div><small>Tổng đóng dư</small><strong>{formatMoney(credit)}</strong><span>{balances.filter((row) => row.balance > 0).length} người có số dư</span></div>
         <div><small>Tỷ lệ hoàn thành</small><strong>{balances.length ? Math.round((balances.filter((row) => row.balance >= 0).length / balances.length) * 100) : 0}%</strong><span>thành viên không còn nợ</span></div>
       </section>
       <ReportTabs
         initialTab={initialTab}
         monthly={<MonthlyReportCollection
-          month={month}
-          monthLabel={monthLabel}
-          previousMonth={shiftMonth(month, -1)}
-          nextMonth={shiftMonth(month, 1)}
+          month={balanceMonth}
+          monthLabel={balanceMonthLabel}
+          previousMonth={shiftMonth(balanceMonth, -1)}
+          nextMonth={shiftMonth(balanceMonth, 1)}
           total={monthTotal}
           types={monthlyTypes.map((type) => ({
             id: type.id, name: type.name, iconName: type.iconName, color: type.color,
@@ -157,7 +176,14 @@ export default async function ReportsPage({
             }),
           }))}
         />}
-        balances={<BalanceCollection rows={balances.map((row) => ({ ...row, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))} />}
+        balances={<BalanceCollection
+          rows={balances.map((row) => ({ ...row, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))}
+          period={balancePeriod}
+          month={month}
+          monthLabel={monthLabel}
+          previousMonth={shiftMonth(month, -1)}
+          nextMonth={shiftMonth(month, 1)}
+        />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>
           <div className="type-report">
