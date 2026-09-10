@@ -1,7 +1,7 @@
 import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { avatars, chargeTypes, fundTransactions, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, clubs, fundTransactions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Icon } from "@/components/icon";
 import { can } from "@/lib/permissions";
@@ -53,6 +53,12 @@ export default async function ReportsPage({
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${balanceMonth}-01T00:00:00Z`));
+
+  const [club] = await db.select({
+    name: clubs.name,
+    logoUrl: clubs.logoUrl,
+    updatedAt: clubs.updatedAt,
+  }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
 
   const memberRows = await db.select({
     id: members.id,
@@ -172,6 +178,8 @@ export default async function ReportsPage({
       <ReportTabs
         initialTab={initialTab}
         monthly={<MonthlyReportCollection
+          clubName={club?.name ?? "Đội bóng"}
+          logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
           month={month}
           monthLabel={monthLabel}
           previousMonth={shiftMonth(month, -1)}

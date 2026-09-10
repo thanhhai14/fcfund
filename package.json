@@ -22,6 +22,7 @@
     "@vercel/blob": "latest",
     "bcryptjs": "latest",
     "drizzle-orm": "latest",
+    "html-to-image": "^1.11.13",
     "jose": "latest",
     "next": "latest",
     "postgres": "latest",

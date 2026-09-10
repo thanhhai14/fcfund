@@ -6,6 +6,7 @@ import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisi
 import { Icon } from "./icon";
 import { formatMoney } from "@/lib/format";
 import { MemberIdentity } from "./member-identity";
+import { ReportImageExporter } from "./report-image-exporter";
 
 type MonthlyType = { id: string; name: string; iconName: string; color: string | null; defaultAmount: number; reportAsIcon: boolean; total: number };
 type MonthlyCell = { typeId: string; quantity: number; total: number };
@@ -17,7 +18,35 @@ function MonthlyCellView({ type, cell }: { type: MonthlyType; cell?: MonthlyCell
   return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${cell.quantity} lần · ${formatMoney(cell.total)}`}>{Array.from({ length: cell.quantity }, (_, index) => <Icon name={type.iconName} key={index} className="report-charge-icon" />)}<small className="report-charge-quantity">({cell.quantity})</small></span>;
 }
 
-export function MonthlyReportCollection({ month, monthLabel, previousMonth, nextMonth, total, paidTotal, types, members }: { month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; paidTotal: number; types: MonthlyType[]; members: MonthlyMember[] }) {
+function MonthlyReportSnapshot({ members, types, isColumnVisible }: {
+  members: MonthlyMember[];
+  types: MonthlyType[];
+  isColumnVisible: (id: string) => boolean;
+}) {
+  const visibleTypes = types.filter((type) => isColumnVisible(`type:${type.id}`));
+  const total = members.reduce((sum, member) => sum + member.total, 0);
+  const paid = members.reduce((sum, member) => sum + member.paid, 0);
+  const remaining = paid - total;
+
+  return <main className="monthly-report-snapshot">
+    <section className="report-export-summary">
+      <div><small>THÀNH VIÊN</small><strong>{members.length}</strong></div>
+      <div><small>TỔNG PHẢI ĐÓNG</small><strong>{formatMoney(total)}</strong></div>
+      <div><small>ĐÃ ĐÓNG</small><strong>{formatMoney(paid)}</strong></div>
+      <div><small>CÒN LẠI</small><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></div>
+    </section>
+    <table>
+      <thead><tr>{isColumnVisible("rank") && <th className="snapshot-rank">Hạng</th>}<th className="snapshot-member">Thành viên</th>{visibleTypes.map((type) => <th key={type.id}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong></th>)}{isColumnVisible("total") && <th>Tổng tháng</th>}{isColumnVisible("paid") && <th>Đã đóng</th>}{isColumnVisible("remaining") && <th>Còn lại</th>}</tr></thead>
+      <tbody>{members.map((member, index) => {
+        const memberRemaining = member.paid - member.total;
+        return <tr key={member.id}>{isColumnVisible("rank") && <td className="snapshot-rank">#{index + 1}</td>}<td className="snapshot-member"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} compact /></td>{visibleTypes.map((type) => <td key={type.id}><MonthlyCellView type={type} cell={member.cells.find((cell) => cell.typeId === type.id)} /></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(member.total)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(member.paid)}</strong></td>}{isColumnVisible("remaining") && <td><strong className={memberRemaining < 0 ? "money-out" : "money-in"}>{memberRemaining > 0 ? "+" : ""}{formatMoney(memberRemaining)}</strong></td>}</tr>;
+      })}</tbody>
+      <tfoot><tr>{isColumnVisible("rank") && <td />}<td className="snapshot-member"><strong>Tổng danh sách</strong></td>{visibleTypes.map((type) => <td key={type.id}><strong>{formatMoney(members.reduce((sum, member) => sum + (member.cells.find((cell) => cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(total)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(paid)}</strong></td>}{isColumnVisible("remaining") && <td><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></td>}</tr></tfoot>
+    </table>
+  </main>;
+}
+
+export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, previousMonth, nextMonth, total, paidTotal, types, members }: { clubName: string; logoUrl: string | null; month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; paidTotal: number; types: MonthlyType[]; members: MonthlyMember[] }) {
   const [query, setQuery] = useState("");
   const [activity, setActivity] = useState("ALL");
   const [sort, setSort] = useState("NAME");
@@ -56,11 +85,21 @@ export function MonthlyReportCollection({ month, monthLabel, previousMonth, next
   }, [activity, members, query, sort, types]);
 
   const remainingTotal = paidTotal - total;
+  const exportWidth = Math.max(1080,
+    330
+    + types.filter((type) => columns.isVisible(`type:${type.id}`)).length * 145
+    + ["total", "paid", "remaining"].filter((id) => columns.isVisible(id)).length * 150,
+  );
 
   return <article className="panel monthly-report">
     <div className="monthly-report-heading">
       <div><span className="eyebrow">Phát sinh theo tháng</span><h2>{monthLabel}</h2><p>{formatMoney(total)} tổng khoản phải thu trong tháng</p></div>
-      <div className="month-controls"><Link href={`/reports?month=${previousMonth}`} aria-label="Tháng trước">‹</Link><form action="/reports" method="get"><input type="month" name="month" defaultValue={month} aria-label="Chọn tháng báo cáo" /><button className="button secondary small">Xem</button></form><Link href={`/reports?month=${nextMonth}`} aria-label="Tháng sau">›</Link></div>
+      <div className="monthly-report-actions">
+        <div className="month-controls"><Link href={`/reports?month=${previousMonth}`} aria-label="Tháng trước">‹</Link><form action="/reports" method="get"><input type="month" name="month" defaultValue={month} aria-label="Chọn tháng báo cáo" /><button className="button secondary small">Xem</button></form><Link href={`/reports?month=${nextMonth}`} aria-label="Tháng sau">›</Link></div>
+        <ReportImageExporter title={`Báo cáo phát sinh ${monthLabel}`} subtitle={`${visible.length} thành viên · Theo bộ lọc và thứ tự đang hiển thị`} clubName={clubName} logoUrl={logoUrl} filename={`bao-cao-phat-sinh-${month}.png`} width={exportWidth}>
+          <MonthlyReportSnapshot members={visible} types={types} isColumnVisible={columns.isVisible} />
+        </ReportImageExporter>
+      </div>
     </div>
     <div className="report-toolbar-pad">
       <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc mã..." count={visible.length} view={view} onViewChange={setView}>
