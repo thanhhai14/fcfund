@@ -7492,7 +7492,7 @@ label {
 
 .balance-card-months p {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(126px, auto);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   gap: 0;
   margin: 0;
@@ -7531,7 +7531,7 @@ label {
 
 .balance-card-summary>span {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(126px, auto);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   min-width: 0;
   padding: 0;
