@@ -40,7 +40,7 @@ export default async function ReportsPage({
   const validMonth = (value?: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value ?? "") ? value! : null;
   const balancePeriod = params.balancePeriod === "all" ? "all" : "range";
   const legacyBalanceMonth = validMonth(params.balanceMonth);
-  const requestedBalanceFrom = validMonth(params.balanceFromMonth) ?? legacyBalanceMonth ?? currentMonth;
+  const requestedBalanceFrom = validMonth(params.balanceFromMonth) ?? legacyBalanceMonth ?? shiftMonth(currentMonth, -1);
   const requestedBalanceTo = validMonth(params.balanceToMonth) ?? legacyBalanceMonth ?? currentMonth;
   const balanceFromMonth = requestedBalanceFrom <= requestedBalanceTo ? requestedBalanceFrom : requestedBalanceTo;
   const balanceToMonth = requestedBalanceFrom <= requestedBalanceTo ? requestedBalanceTo : requestedBalanceFrom;
@@ -114,6 +114,7 @@ export default async function ReportsPage({
     color: chargeTypes.color,
     defaultAmount: chargeTypes.defaultAmount,
     reportAsIcon: chargeTypes.reportAsIcon,
+    isLossPenalty: chargeTypes.isLossPenalty,
     isActive: chargeTypes.isActive,
     total: sql<string>`COALESCE(SUM(${memberCharges.totalAmount}), 0)`,
   }).from(chargeTypes)
@@ -198,6 +199,7 @@ export default async function ReportsPage({
         color: type.color,
         defaultAmount: type.defaultAmount,
         reportAsIcon: type.reportAsIcon,
+        isLossPenalty: type.isLossPenalty,
       })),
     }));
   const balances = visibleMembers
@@ -235,7 +237,7 @@ export default async function ReportsPage({
           paidTotal={monthPaidTotal}
           types={monthlyTypes.map((type) => ({
             id: type.id, name: type.name, iconName: type.iconName, color: type.color,
-            defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon,
+            defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon, isLossPenalty: type.isLossPenalty,
             total: typeMonthTotals.get(type.id) ?? 0,
           }))}
           members={visibleMembers.map((member) => ({
@@ -259,6 +261,7 @@ export default async function ReportsPage({
           toMonth={balanceToMonth}
           fromLabel={balanceFromLabel}
           toLabel={balanceToLabel}
+          currentMonth={currentMonth}
         />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>

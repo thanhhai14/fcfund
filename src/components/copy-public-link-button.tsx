@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Icon } from "./icon";
 
-export function CopyPublicLinkButton({ path }: { path: string }) {
+export function CopyPublicLinkButton({ path, label = "Sao chép liên kết", iconOnly = false }: { path: string; label?: string; iconOnly?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -13,5 +13,6 @@ export function CopyPublicLinkButton({ path }: { path: string }) {
     window.setTimeout(() => setCopied(false), 1800);
   }
 
-  return <button type="button" className="button secondary" onClick={copy}><Icon name={copied ? "check" : "copy"} /> {copied ? "Đã sao chép" : "Sao chép liên kết"}</button>;
+  const text = copied ? "Đã sao chép" : label;
+  return <button type="button" className={`button secondary small ${iconOnly ? "report-share-icon-button" : ""}`} onClick={copy} aria-label={text} title={text}><Icon name={copied ? "check" : "copy"} />{!iconOnly && <span>{text}</span>}</button>;
 }
