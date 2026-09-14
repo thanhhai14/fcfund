@@ -160,6 +160,13 @@ type BalanceCell = MonthlyCell & { month: string };
 export type BalanceGroup = { month: string; label: string; types: ChargeDisplayType[] };
 export type BalanceRow = { id: string; name: string; code: string; avatarVersion: number | null; charged: number; paid: number; balance: number; cells: Array<BalanceCell & { typeId: string }> };
 
+function visibleBalanceCharged(row: BalanceRow, groups: BalanceGroup[], isColumnVisible: (id: string) => boolean) {
+  return groups.reduce((total, group) => total + group.types.reduce((groupTotal, type) => {
+    if (!isColumnVisible(`cell:${group.month}:${type.id}`)) return groupTotal;
+    return groupTotal + (row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)?.total ?? 0);
+  }, 0), 0);
+}
+
 function BalanceReportTable({ rows, groups, isColumnVisible, snapshot = false }: {
   rows: BalanceRow[];
   groups: BalanceGroup[];
@@ -171,7 +178,7 @@ function BalanceReportTable({ rows, groups, isColumnVisible, snapshot = false }:
     types: group.types.filter((type) => isColumnVisible(`cell:${group.month}:${type.id}`)),
   })).filter((group) => group.types.length);
   const cellColumnCount = visibleGroups.reduce((sum, group) => sum + group.types.length, 0);
-  const totalCharged = rows.reduce((sum, row) => sum + row.charged, 0);
+  const totalCharged = rows.reduce((sum, row) => sum + visibleBalanceCharged(row, groups, isColumnVisible), 0);
   const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
   const totalBalance = totalPaid - totalCharged;
 
@@ -181,13 +188,17 @@ function BalanceReportTable({ rows, groups, isColumnVisible, snapshot = false }:
       {cellColumnCount > 0 && <tr>{visibleGroups.map((group) => <th colSpan={group.types.length} className="balance-month-header" key={group.month}>{group.label}</th>)}</tr>}
       {cellColumnCount > 0 && <tr>{visibleGroups.flatMap((group) => group.types.map((type) => <th key={`${group.month}-${type.id}`}><span className="monthly-type-icon" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong></th>))}</tr>}
     </thead>
-    <tbody>{rows.map((row, index) => <tr key={row.id}>{isColumnVisible("rank") && <td className={snapshot ? "snapshot-rank" : "report-rank-cell"}>#{index + 1}</td>}<td className={snapshot ? "snapshot-member" : "report-member-column"}><MemberIdentity memberId={row.id} name={row.name} avatarVersion={row.avatarVersion} compact /></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><BalanceCellView type={type} cell={row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)} /></td>))}{isColumnVisible("charged") && <td className="align-right"><strong>{formatMoney(row.charged)}</strong></td>}{isColumnVisible("paid") && <td className="align-right"><strong>{formatMoney(row.paid)}</strong></td>}{isColumnVisible("balance") && <td className="align-right"><strong className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</strong></td>}</tr>)}</tbody>
-    <tfoot><tr>{isColumnVisible("rank") && <td />}<td className={snapshot ? "snapshot-member" : "report-member-column"}><strong>Tổng danh sách</strong></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><strong>{formatMoney(rows.reduce((sum, row) => sum + (row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>))}{isColumnVisible("charged") && <td className="align-right"><strong>{formatMoney(totalCharged)}</strong></td>}{isColumnVisible("paid") && <td className="align-right"><strong>{formatMoney(totalPaid)}</strong></td>}{isColumnVisible("balance") && <td className="align-right"><strong className={totalBalance < 0 ? "money-out" : "money-in"}>{totalBalance > 0 ? "+" : ""}{formatMoney(totalBalance)}</strong></td>}</tr></tfoot>
+    <tbody>{rows.map((row, index) => {
+      const charged = visibleBalanceCharged(row, groups, isColumnVisible);
+      const balance = row.paid - charged;
+      return <tr key={row.id}>{isColumnVisible("rank") && <td className={snapshot ? "snapshot-rank" : "report-rank-cell"}>#{index + 1}</td>}<td className={snapshot ? "snapshot-member" : "report-member-column"}><MemberIdentity memberId={row.id} name={row.name} avatarVersion={row.avatarVersion} compact /></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><BalanceCellView type={type} cell={row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)} /></td>))}{isColumnVisible("charged") && <td className="align-right"><strong>{formatMoney(charged)}</strong></td>}{isColumnVisible("paid") && <td className="align-right" title="Tổng tiền đã đóng trong kỳ, không phân bổ theo loại thu"><strong>{formatMoney(row.paid)}</strong></td>}{isColumnVisible("balance") && <td className="align-right"><strong className={balance < 0 ? "money-out" : "money-in"}>{balance > 0 ? "+" : ""}{formatMoney(balance)}</strong></td>}</tr>;
+    })}</tbody>
+    <tfoot><tr>{isColumnVisible("rank") && <td />}<td className={snapshot ? "snapshot-member" : "report-member-column"}><strong>Tổng danh sách</strong></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><strong>{formatMoney(rows.reduce((sum, row) => sum + (row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>))}{isColumnVisible("charged") && <td className="align-right"><strong>{formatMoney(totalCharged)}</strong></td>}{isColumnVisible("paid") && <td className="align-right" title="Tổng tiền đã đóng trong kỳ, không phân bổ theo loại thu"><strong>{formatMoney(totalPaid)}</strong></td>}{isColumnVisible("balance") && <td className="align-right"><strong className={totalBalance < 0 ? "money-out" : "money-in"}>{totalBalance > 0 ? "+" : ""}{formatMoney(totalBalance)}</strong></td>}</tr></tfoot>
   </table>;
 }
 
 function BalanceReportSnapshot({ rows, groups, isColumnVisible }: { rows: BalanceRow[]; groups: BalanceGroup[]; isColumnVisible: (id: string) => boolean }) {
-  const charged = rows.reduce((sum, row) => sum + row.charged, 0);
+  const charged = rows.reduce((sum, row) => sum + visibleBalanceCharged(row, groups, isColumnVisible), 0);
   const paid = rows.reduce((sum, row) => sum + row.paid, 0);
   const balance = paid - charged;
   return <main className="monthly-report-snapshot balance-report-snapshot"><section className="report-export-summary"><div><small>THÀNH VIÊN</small><strong>{rows.length}</strong></div><div><small>TỔNG PHÁT SINH</small><strong>{formatMoney(charged)}</strong></div><div><small>ĐÃ ĐÓNG</small><strong>{formatMoney(paid)}</strong></div><div><small>CÒN LẠI</small><strong className={balance < 0 ? "money-out" : "money-in"}>{balance > 0 ? "+" : ""}{formatMoney(balance)}</strong></div></section><BalanceReportTable rows={rows} groups={groups} isColumnVisible={isColumnVisible} snapshot /></main>;
@@ -220,29 +231,37 @@ export function BalanceCollection({ clubName, logoUrl, rows, groups, period, fro
   const columns = useColumnVisibility("fcfund:report-balance:columns:v2", columnDefinitions);
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
+    const useVisibleTypes = view === "list";
+    const isTypeVisible = (id: string) => !columns.hidden.includes(id);
+    const metrics = (row: BalanceRow) => {
+      const charged = useVisibleTypes ? visibleBalanceCharged(row, groups, isTypeVisible) : row.charged;
+      return { charged, balance: row.paid - charged };
+    };
     const result = rows.filter((row) => {
       if (search && !normalizeSearch(`${row.name} ${row.code}`).includes(search)) return false;
-      if (state === "DEBT" && row.balance >= 0) return false;
-      if (state === "CREDIT" && row.balance <= 0) return false;
-      if (state === "EVEN" && row.balance !== 0) return false;
+      const { balance } = metrics(row);
+      if (state === "DEBT" && balance >= 0) return false;
+      if (state === "CREDIT" && balance <= 0) return false;
+      if (state === "EVEN" && balance !== 0) return false;
       return true;
     });
     result.sort((a, b) => {
       if (sort === "NAME") return a.name.localeCompare(b.name, "vi");
-      if (sort === "CHARGED") return b.charged - a.charged || a.name.localeCompare(b.name, "vi");
+      if (sort === "CHARGED") return metrics(b).charged - metrics(a).charged || a.name.localeCompare(b.name, "vi");
       if (sort === "PAID") return b.paid - a.paid || a.name.localeCompare(b.name, "vi");
-      if (sort === "BALANCE_DESC") return b.balance - a.balance || a.name.localeCompare(b.name, "vi");
-      return a.balance - b.balance || a.name.localeCompare(b.name, "vi");
+      if (sort === "BALANCE_DESC") return metrics(b).balance - metrics(a).balance || a.name.localeCompare(b.name, "vi");
+      return metrics(a).balance - metrics(b).balance || a.name.localeCompare(b.name, "vi");
     });
     return result;
-  }, [query, rows, sort, state]);
+  }, [columns.hidden, groups, query, rows, sort, state, view]);
   const periodLabel = period === "all" ? "Toàn bộ thời gian" : fromMonth === toMonth ? fromLabel : `${fromLabel} – ${toLabel}`;
   const visibleCellCount = groups.reduce((sum, group) => sum + group.types.filter((type) => columns.isVisible(`cell:${group.month}:${type.id}`)).length, 0);
+  const totalCellCount = groups.reduce((sum, group) => sum + group.types.length, 0);
   const exportWidth = Math.max(1080, 330 + visibleCellCount * 145 + ["charged", "paid", "balance"].filter((id) => columns.isVisible(id)).length * 150);
 
   return <article className="panel table-panel balance-collection">
     <div className="monthly-report-heading balance-report-heading"><div><span className="eyebrow">Công nợ theo khoảng tháng</span><h2>{periodLabel}</h2><p>Các khoản phát sinh và tiền đã đóng trong cùng khoảng thời gian</p></div><div className="monthly-report-actions"><form action="/reports" method="get" className="balance-period-controls"><input type="hidden" name="tab" value="balances" /><select name="balancePeriod" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value as "range" | "all")} aria-label="Phạm vi công nợ"><option value="range">Khoảng tháng</option><option value="all">Toàn bộ</option></select>{selectedPeriod === "range" && <><CompactMonthInput name="balanceFromMonth" value={selectedFromMonth} onChange={setSelectedFromMonth} label="Từ tháng" /><span className="month-range-arrow" aria-hidden="true">→</span><CompactMonthInput name="balanceToMonth" value={selectedToMonth} onChange={setSelectedToMonth} label="Đến tháng" /></>}<button className="button small report-view-button">Xem</button></form><ReportImageExporter iconOnly title={`Báo cáo công nợ · ${periodLabel}`} subtitle={`${visible.length} thành viên · Theo bộ lọc và thứ tự đang hiển thị`} clubName={clubName} logoUrl={logoUrl} filename={`bao-cao-cong-no-${period === "all" ? "toan-bo" : `${fromMonth}_${toMonth}`}.png`} width={exportWidth}><BalanceReportSnapshot rows={visible} groups={groups} isColumnVisible={columns.isVisible} /></ReportImageExporter></div></div>
-    <div className="report-toolbar-pad"><CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc mã..." count={visible.length} view={view} onViewChange={setView}><select value={state} onChange={(event) => setState(event.target.value)}><option value="ALL">Mọi công nợ</option><option value="DEBT">Đang nợ</option><option value="EVEN">Cân bằng</option><option value="CREDIT">Đóng dư</option></select><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option><option value="NAME">Tên A–Z</option><option value="CHARGED">Tổng phát sinh cao nhất</option><option value="PAID">Đã đóng cao nhất</option></select>{view === "list" && <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />}</CollectionToolbar></div>
+    <div className="report-toolbar-pad"><CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc mã..." count={visible.length} view={view} onViewChange={setView}><select value={state} onChange={(event) => setState(event.target.value)}><option value="ALL">Mọi công nợ</option><option value="DEBT">Đang nợ</option><option value="EVEN">Cân bằng</option><option value="CREDIT">Đóng dư</option></select><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option><option value="NAME">Tên A–Z</option><option value="CHARGED">Tổng phát sinh cao nhất</option><option value="PAID">Đã đóng cao nhất</option></select>{view === "list" && <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />}</CollectionToolbar>{view === "list" && visibleCellCount < totalCellCount && <p className="panel-note balance-visibility-note">Tổng và Còn lại đang tính theo loại thu đang hiển thị. Đã đóng là tổng tiền thực nộp trong kỳ.</p>}</div>
     {view === "list" ? <div className="monthly-table-wrap"><BalanceReportTable rows={visible} groups={groups} isColumnVisible={columns.isVisible} /></div> : <div className="balance-card-grid">{visible.map((row, index) => <article className="balance-member-card balance-period-card" key={row.id}><header><span className="report-rank-badge">#{index + 1}</span><MemberIdentity memberId={row.id} name={row.name} avatarVersion={row.avatarVersion} /><strong className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</strong></header><section className="balance-card-months">{groups.map((group) => { const groupCells = group.types.flatMap((type) => { const cell = row.cells.find((item) => item.month === group.month && item.typeId === type.id); return cell ? [{ type, cell }] : []; }); return groupCells.length ? <div key={group.month}><h3>{group.label}</h3>{groupCells.map(({ type, cell }) => <p key={type.id}><span><b>{type.name}</b></span><BalanceCellView type={type} cell={cell} /></p>)}</div> : null; })}{!row.cells.length && <p className="balance-card-empty">Không có khoản phát sinh trong kỳ.</p>}</section><footer className="balance-card-summary"><span><small>Tổng</small><b>{formatMoney(row.charged)}</b></span><span><small>Đã đóng</small><b>{formatMoney(row.paid)}</b></span><span><small>Còn lại</small><b className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</b></span></footer></article>)}</div>}
     {!visible.length && <div className="collection-empty">Không tìm thấy công nợ phù hợp.</div>}
   </article>;
