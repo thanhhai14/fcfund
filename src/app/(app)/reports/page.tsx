@@ -8,6 +8,7 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
 import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
 import { ReportTabs, type ReportTab } from "@/components/report-tabs";
 
@@ -47,6 +48,7 @@ export default async function ReportsPage({
   const monthStart = `${month}-01`;
   const nextMonthStart = `${shiftMonth(month, 1)}-01`;
   const balanceRangeStart = `${balanceFromMonth}-01`;
+  const balanceChargeQueryStart = `${shiftMonth(balanceFromMonth, -1)}-01`;
   const balanceRangeEnd = `${shiftMonth(balanceToMonth, 1)}-01`;
   const monthLabel = new Intl.DateTimeFormat("vi-VN", {
     month: "long",
@@ -89,11 +91,12 @@ export default async function ReportsPage({
     chargeDate: memberCharges.chargeDate,
     quantity: memberCharges.quantity,
     totalAmount: memberCharges.totalAmount,
+    isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot,
   }).from(memberCharges)
     .where(and(
       eq(memberCharges.clubId, user.clubId),
       isNull(memberCharges.deletedAt),
-      balancePeriod === "range" ? gte(memberCharges.chargeDate, balanceRangeStart) : undefined,
+      balancePeriod === "range" ? gte(memberCharges.chargeDate, balanceChargeQueryStart) : undefined,
       balancePeriod === "range" ? lt(memberCharges.chargeDate, balanceRangeEnd) : undefined,
     ));
   const paymentRows = await db.select({
@@ -173,8 +176,16 @@ export default async function ReportsPage({
   const balanceCharges = new Map<string, number>();
   const balancePayments = new Map<string, number>();
   const balanceMonthTypeIds = new Map<string, Set<string>>();
-  chargeRows.filter((row) => visibleMemberIds.has(row.memberId)).forEach((row) => {
-    const rowMonth = row.chargeDate.slice(0, 7);
+  chargeRows.filter((row) => {
+    if (!visibleMemberIds.has(row.memberId)) return false;
+    if (balancePeriod === "all") return true;
+    return isBalanceReportMonthInRange(
+      getBalanceReportMonth(row.chargeDate, row.isLossPenaltySnapshot),
+      balanceFromMonth,
+      balanceToMonth,
+    );
+  }).forEach((row) => {
+    const rowMonth = getBalanceReportMonth(row.chargeDate, row.isLossPenaltySnapshot);
     const key = `${row.memberId}|${rowMonth}|${row.chargeTypeId}`;
     const current = balanceCells.get(key) ?? { quantity: 0, total: 0 };
     balanceCells.set(key, { quantity: current.quantity + row.quantity, total: current.total + row.totalAmount });
@@ -261,7 +272,6 @@ export default async function ReportsPage({
           toMonth={balanceToMonth}
           fromLabel={balanceFromLabel}
           toLabel={balanceToLabel}
-          currentMonth={currentMonth}
         />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>

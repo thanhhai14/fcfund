@@ -7,7 +7,7 @@ import { ReportImageExporter } from "./report-image-exporter";
 import { CollectionToolbar, ColumnVisibilityMenu, CompactMonthInput, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { formatMoney, initials } from "@/lib/format";
 
-export type PublicReportType = { id: string; name: string; iconName: string; color: string | null; isLossPenalty: boolean };
+export type PublicReportType = { id: string; name: string; iconName: string; color: string | null };
 export type PublicReportGroup = { month: string; label: string; types: PublicReportType[] };
 export type PublicReportCell = { memberId: string; month: string; typeId: string; quantity: number; total: number };
 export type PublicReportRow = { id: string; name: string; avatarVersion: number | null; charged: number; paid: number; balance: number; cells: PublicReportCell[] };
@@ -83,14 +83,13 @@ function PublicPeriodForm({ period, fromMonth, toMonth }: { period: "range" | "a
   return <form action="/public/report" method="get" className="balance-period-controls"><input type="hidden" name="tab" value="balances" /><select name="period" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value as "range" | "all")} aria-label="Phạm vi thời gian"><option value="range">Khoảng tháng</option><option value="all">Toàn bộ</option></select>{selectedPeriod === "range" && <><CompactMonthInput name="fromMonth" value={selectedFromMonth} onChange={setSelectedFromMonth} label="Từ tháng" /><span className="month-range-arrow" aria-hidden="true">→</span><CompactMonthInput name="toMonth" value={selectedToMonth} onChange={setSelectedToMonth} label="Đến tháng" /></>}<button className="button small report-view-button" type="submit">Xem</button></form>;
 }
 
-export function PublicReportCollection({ clubName, appName, logoUrl, rows, groups, period, currentMonth, fromMonth, toMonth, fromLabel, toLabel }: {
+export function PublicReportCollection({ clubName, appName, logoUrl, rows, groups, period, fromMonth, toMonth, fromLabel, toLabel }: {
   clubName: string;
   appName: string;
   logoUrl: string | null;
   rows: PublicReportRow[];
   groups: PublicReportGroup[];
   period: "range" | "all";
-  currentMonth: string;
   fromMonth: string;
   toMonth: string;
   fromLabel: string;
@@ -105,13 +104,12 @@ export function PublicReportCollection({ clubName, appName, logoUrl, rows, group
     ...groups.flatMap((group) => group.types.map((type) => ({
       id: `cell:${group.month}:${type.id}`,
       label: `${group.label} · ${type.name}`,
-      defaultVisible: !(group.month === currentMonth && type.isLossPenalty),
     }))),
     { id: "charged", label: "Tổng" },
     { id: "paid", label: "Đã đóng" },
     { id: "balance", label: "Còn lại" },
-  ], [currentMonth, groups]);
-  const columns = useColumnVisibility(`fcfund:public-report:columns:v2:${currentMonth}`, columnDefinitions);
+  ], [groups]);
+  const columns = useColumnVisibility("fcfund:public-report:columns:v3", columnDefinitions);
   const displayGroups = useMemo(() => groups.map((group) => ({
     ...group,
     types: group.types.filter((type) => !columns.hidden.includes(`cell:${group.month}:${type.id}`)),
@@ -140,7 +138,7 @@ export function PublicReportCollection({ clubName, appName, logoUrl, rows, group
       <div className="public-report-hero-actions"><ReportImageExporter iconOnly title={captureTitle} subtitle={`${visible.length} thành viên · Theo bộ lọc và thứ tự đang hiển thị`} clubName={clubName} logoUrl={logoUrl} filename={`bao-cao-cong-no-${period === "all" ? "toan-bo" : `${fromMonth}_${toMonth}`}.png`} width={exportWidth}><PublicReportSnapshot rows={visible} groups={groups} isColumnVisible={columns.isVisible} /></ReportImageExporter></div>
     </header>
     <section className="public-report-summary"><div><small>THÀNH VIÊN</small><strong>{visible.length}</strong></div><div><small>TỔNG PHÁT SINH</small><strong>{formatMoney(visible.reduce((sum, row) => sum + row.charged, 0))}</strong></div><div><small>ĐÃ ĐÓNG</small><strong>{formatMoney(visible.reduce((sum, row) => sum + row.paid, 0))}</strong></div><div><small>CÒN LẠI</small><strong className={visible.reduce((sum, row) => sum + row.balance, 0) < 0 ? "money-out" : "money-in"}>{formatMoney(visible.reduce((sum, row) => sum + row.balance, 0))}</strong></div></section>
-    <p className="public-report-note"><Icon name="info" /> Đã đóng là tổng tiền thực nộp trong kỳ; các khoản phát sinh được nhóm theo từng tháng.</p>
+    <p className="public-report-note"><Icon name="info" /> Khoản phạt được tổng kết vào tháng kế tiếp; tiền đã đóng tính theo ngày nộp thực tế.</p>
     <div className="report-toolbar-pad"><CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên..." count={visible.length} view={view} onViewChange={setView}>
         <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sắp xếp"><option value="BALANCE_ASC">Nợ nhiều trước</option><option value="BALANCE_DESC">Dư nhiều trước</option><option value="NAME">Tên A–Z</option><option value="CHARGED">Phát sinh cao nhất</option><option value="PAID">Đã đóng cao nhất</option></select>
         <PublicPeriodForm key={`${period}-${fromMonth}-${toMonth}`} period={period} fromMonth={fromMonth} toMonth={toMonth} />

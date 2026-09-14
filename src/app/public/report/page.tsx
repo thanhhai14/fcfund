@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { avatars, chargeTypes, clubs, fundTransactions, memberCharges, members } from "@/db/schema";
 import { APP_NAME } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/format";
+import { getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
 import { PublicReportCollection, type PublicReportGroup, type PublicReportRow } from "@/components/public-report-collection";
 
 export const dynamic = "force-dynamic";
@@ -49,12 +50,13 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
   const fromMonth = requestedFrom <= requestedTo ? requestedFrom : requestedTo;
   const toMonth = requestedFrom <= requestedTo ? requestedTo : requestedFrom;
   const rangeStart = `${fromMonth}-01`;
+  const chargeQueryStart = `${shiftMonth(fromMonth, -1)}-01`;
   const rangeEnd = `${shiftMonth(toMonth, 1)}-01`;
 
   const [club] = await db.select({ id: clubs.id, name: clubs.name, logoUrl: clubs.logoUrl, updatedAt: clubs.updatedAt }).from(clubs).limit(1);
   if (!club) notFound();
 
-  const chargeDateFilters = period === "range" ? [gte(memberCharges.chargeDate, rangeStart), lt(memberCharges.chargeDate, rangeEnd)] : [];
+  const chargeDateFilters = period === "range" ? [gte(memberCharges.chargeDate, chargeQueryStart), lt(memberCharges.chargeDate, rangeEnd)] : [];
   const paymentDateFilters = period === "range" ? [gte(fundTransactions.transactionDate, rangeStart), lt(fundTransactions.transactionDate, rangeEnd)] : [];
   const [memberRows, chargeRows, paymentRows, typeRows] = await Promise.all([
     db.select({ id: members.id, name: members.fullName, avatarUpdatedAt: avatars.updatedAt })
@@ -62,13 +64,13 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
       .leftJoin(avatars, eq(members.id, avatars.memberId))
       .where(and(eq(members.clubId, club.id), eq(members.status, "ACTIVE")))
       .orderBy(members.fullName),
-    db.select({ memberId: memberCharges.memberId, chargeTypeId: memberCharges.chargeTypeId, chargeDate: memberCharges.chargeDate, quantity: memberCharges.quantity, totalAmount: memberCharges.totalAmount })
+    db.select({ memberId: memberCharges.memberId, chargeTypeId: memberCharges.chargeTypeId, chargeDate: memberCharges.chargeDate, quantity: memberCharges.quantity, totalAmount: memberCharges.totalAmount, isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot })
       .from(memberCharges)
       .where(and(eq(memberCharges.clubId, club.id), isNull(memberCharges.deletedAt), ...chargeDateFilters)),
     db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
       .from(fundTransactions)
       .where(and(eq(fundTransactions.clubId, club.id), eq(fundTransactions.kind, "MEMBER_PAYMENT"), isNull(fundTransactions.deletedAt), ...paymentDateFilters)),
-    db.select({ id: chargeTypes.id, name: chargeTypes.name, iconName: chargeTypes.iconName, color: chargeTypes.color, isLossPenalty: chargeTypes.isLossPenalty })
+    db.select({ id: chargeTypes.id, name: chargeTypes.name, iconName: chargeTypes.iconName, color: chargeTypes.color })
       .from(chargeTypes)
       .where(eq(chargeTypes.clubId, club.id)),
   ]);
@@ -76,8 +78,12 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
   const typesById = new Map(typeRows.map((type) => [type.id, type]));
   const cells = new Map<string, { memberId: string; month: string; typeId: string; quantity: number; total: number }>();
   const monthTypeIds = new Map<string, Set<string>>();
-  chargeRows.forEach((charge) => {
-    const month = charge.chargeDate.slice(0, 7);
+  chargeRows.filter((charge) => period === "all" || isBalanceReportMonthInRange(
+    getBalanceReportMonth(charge.chargeDate, charge.isLossPenaltySnapshot),
+    fromMonth,
+    toMonth,
+  )).forEach((charge) => {
+    const month = getBalanceReportMonth(charge.chargeDate, charge.isLossPenaltySnapshot);
     const key = `${charge.memberId}|${month}|${charge.chargeTypeId}`;
     const current = cells.get(key) ?? { memberId: charge.memberId, month, typeId: charge.chargeTypeId, quantity: 0, total: 0 };
     cells.set(key, { ...current, quantity: current.quantity + charge.quantity, total: current.total + charge.totalAmount });
@@ -115,7 +121,6 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
     rows={rows}
     groups={groups}
     period={period}
-    currentMonth={currentMonth}
     fromMonth={fromMonth}
     toMonth={toMonth}
     fromLabel={monthLabel(fromMonth)}

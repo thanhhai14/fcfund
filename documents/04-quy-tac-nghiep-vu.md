@@ -268,3 +268,11 @@ Hệ thống có ba vai trò:
 - Các đội đồng hạng nhận cùng số lần phạt. Ví dụ hai đội cùng hạng 3 thì thành viên của cả hai đội đều nhận 2 lần phạt.
 - Ghi lại kết quả thay thế các khoản phạt do kết quả trước sinh ra, nhưng không thay đổi loại khoản thu khác của trận.
 - Kết quả, loại thu phạt, thời điểm và người thao tác được lưu cùng phiên bản đội hình; thao tác phải có activity log.
+
+## BR-42 — Kỳ ghi nhận khoản phạt trong báo cáo công nợ
+
+- Riêng báo cáo `Công nợ lũy kế`, khoản phải thu có snapshot `is_loss_penalty_snapshot = true` được tổng kết vào tháng kế tiếp tháng phát sinh.
+- Các khoản phải thu khác vẫn được ghi nhận đúng tháng của `charge_date`.
+- Ngày phát sinh gốc không bị thay đổi và không tạo thêm bản ghi khoản phải thu khi chuyển kỳ báo cáo.
+- Tiền thành viên đã đóng được tính theo ngày nộp thực tế. Vì vậy kỳ tháng mới có thể đối chiếu quỹ tháng mới và khoản phạt của tháng trước trong cùng một lần nộp.
+- Quy tắc áp dụng đồng nhất cho báo cáo nội bộ, báo cáo công khai, dạng danh sách, dạng thẻ và ảnh chụp báo cáo.
