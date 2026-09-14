@@ -9,8 +9,8 @@ import { MemberIdentity } from "./member-identity";
 import { ReportImageExporter } from "./report-image-exporter";
 import { CopyPublicLinkButton } from "./copy-public-link-button";
 
-type MonthlyType = { id: string; name: string; iconName: string; color: string | null; defaultAmount: number; reportAsIcon: boolean; isLossPenalty: boolean; total: number };
-type ChargeDisplayType = Pick<MonthlyType, "id" | "name" | "iconName" | "color" | "defaultAmount" | "reportAsIcon" | "isLossPenalty">;
+type MonthlyType = { id: string; name: string; iconName: string; color: string | null; defaultAmount: number; reportAsIcon: boolean; isLossPenalty: boolean; reportNextMonth: boolean; total: number };
+type ChargeDisplayType = Pick<MonthlyType, "id" | "name" | "iconName" | "color" | "defaultAmount" | "reportAsIcon" | "reportNextMonth">;
 type MonthlyCell = { typeId: string; quantity: number; total: number };
 type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" | "INACTIVE"; avatarVersion: number | null; total: number; paid: number; cells: MonthlyCell[] };
 

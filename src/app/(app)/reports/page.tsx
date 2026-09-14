@@ -91,7 +91,7 @@ export default async function ReportsPage({
     chargeDate: memberCharges.chargeDate,
     quantity: memberCharges.quantity,
     totalAmount: memberCharges.totalAmount,
-    isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot,
+    reportNextMonthSnapshot: memberCharges.reportNextMonthSnapshot,
   }).from(memberCharges)
     .where(and(
       eq(memberCharges.clubId, user.clubId),
@@ -118,6 +118,7 @@ export default async function ReportsPage({
     defaultAmount: chargeTypes.defaultAmount,
     reportAsIcon: chargeTypes.reportAsIcon,
     isLossPenalty: chargeTypes.isLossPenalty,
+    reportNextMonth: chargeTypes.reportNextMonth,
     isActive: chargeTypes.isActive,
     total: sql<string>`COALESCE(SUM(${memberCharges.totalAmount}), 0)`,
   }).from(chargeTypes)
@@ -180,12 +181,12 @@ export default async function ReportsPage({
     if (!visibleMemberIds.has(row.memberId)) return false;
     if (balancePeriod === "all") return true;
     return isBalanceReportMonthInRange(
-      getBalanceReportMonth(row.chargeDate, row.isLossPenaltySnapshot),
+    getBalanceReportMonth(row.chargeDate, row.reportNextMonthSnapshot),
       balanceFromMonth,
       balanceToMonth,
     );
   }).forEach((row) => {
-    const rowMonth = getBalanceReportMonth(row.chargeDate, row.isLossPenaltySnapshot);
+    const rowMonth = getBalanceReportMonth(row.chargeDate, row.reportNextMonthSnapshot);
     const key = `${row.memberId}|${rowMonth}|${row.chargeTypeId}`;
     const current = balanceCells.get(key) ?? { quantity: 0, total: 0 };
     balanceCells.set(key, { quantity: current.quantity + row.quantity, total: current.total + row.totalAmount });
@@ -210,7 +211,7 @@ export default async function ReportsPage({
         color: type.color,
         defaultAmount: type.defaultAmount,
         reportAsIcon: type.reportAsIcon,
-        isLossPenalty: type.isLossPenalty,
+        reportNextMonth: type.reportNextMonth,
       })),
     }));
   const balances = visibleMembers
@@ -249,6 +250,7 @@ export default async function ReportsPage({
           types={monthlyTypes.map((type) => ({
             id: type.id, name: type.name, iconName: type.iconName, color: type.color,
             defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon, isLossPenalty: type.isLossPenalty,
+            reportNextMonth: type.reportNextMonth,
             total: typeMonthTotals.get(type.id) ?? 0,
           }))}
           members={visibleMembers.map((member) => ({

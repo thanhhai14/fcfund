@@ -64,7 +64,7 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
       .leftJoin(avatars, eq(members.id, avatars.memberId))
       .where(and(eq(members.clubId, club.id), eq(members.status, "ACTIVE")))
       .orderBy(members.fullName),
-    db.select({ memberId: memberCharges.memberId, chargeTypeId: memberCharges.chargeTypeId, chargeDate: memberCharges.chargeDate, quantity: memberCharges.quantity, totalAmount: memberCharges.totalAmount, isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot })
+    db.select({ memberId: memberCharges.memberId, chargeTypeId: memberCharges.chargeTypeId, chargeDate: memberCharges.chargeDate, quantity: memberCharges.quantity, totalAmount: memberCharges.totalAmount, reportNextMonthSnapshot: memberCharges.reportNextMonthSnapshot })
       .from(memberCharges)
       .where(and(eq(memberCharges.clubId, club.id), isNull(memberCharges.deletedAt), ...chargeDateFilters)),
     db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
@@ -79,11 +79,11 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
   const cells = new Map<string, { memberId: string; month: string; typeId: string; quantity: number; total: number }>();
   const monthTypeIds = new Map<string, Set<string>>();
   chargeRows.filter((charge) => period === "all" || isBalanceReportMonthInRange(
-    getBalanceReportMonth(charge.chargeDate, charge.isLossPenaltySnapshot),
+    getBalanceReportMonth(charge.chargeDate, charge.reportNextMonthSnapshot),
     fromMonth,
     toMonth,
   )).forEach((charge) => {
-    const month = getBalanceReportMonth(charge.chargeDate, charge.isLossPenaltySnapshot);
+    const month = getBalanceReportMonth(charge.chargeDate, charge.reportNextMonthSnapshot);
     const key = `${charge.memberId}|${month}|${charge.chargeTypeId}`;
     const current = cells.get(key) ?? { memberId: charge.memberId, month, typeId: charge.chargeTypeId, quantity: 0, total: 0 };
     cells.set(key, { ...current, quantity: current.quantity + charge.quantity, total: current.total + charge.totalAmount });

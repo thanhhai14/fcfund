@@ -271,7 +271,7 @@ Hệ thống có ba vai trò:
 
 ## BR-42 — Kỳ ghi nhận khoản phạt trong báo cáo công nợ
 
-- Riêng báo cáo `Công nợ lũy kế`, khoản phải thu có snapshot `is_loss_penalty_snapshot = true` được tổng kết vào tháng kế tiếp tháng phát sinh.
+- Riêng báo cáo `Công nợ lũy kế`, khoản phải thu có snapshot `report_next_month_snapshot = true` được tổng kết vào tháng kế tiếp tháng phát sinh.
 - Các khoản phải thu khác vẫn được ghi nhận đúng tháng của `charge_date`.
 - Ngày phát sinh gốc không bị thay đổi và không tạo thêm bản ghi khoản phải thu khi chuyển kỳ báo cáo.
 - Tiền thành viên đã đóng được tính theo ngày nộp thực tế. Vì vậy kỳ tháng mới có thể đối chiếu quỹ tháng mới và khoản phạt của tháng trước trong cùng một lần nộp.

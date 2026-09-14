@@ -653,6 +653,7 @@ export async function createChargeTypeAction(formData: FormData): Promise<Mutati
         color,
         reportAsIcon: formData.get("reportAsIcon") === "on",
         isLossPenalty: formData.get("isLossPenalty") === "on",
+        reportNextMonth: formData.get("reportNextMonth") === "on",
       }).returning();
       await track(tx, {
         clubId: actor.clubId, entityType: "charge_type", entityId: record.id,
@@ -700,6 +701,7 @@ export async function updateChargeTypeAction(formData: FormData): Promise<Mutati
         color,
         reportAsIcon: formData.get("reportAsIcon") === "on",
         isLossPenalty: formData.get("isLossPenalty") === "on",
+        reportNextMonth: formData.get("reportNextMonth") === "on",
         isActive: formData.get("isActive") === "on",
         updatedAt: new Date(),
       }).where(eq(chargeTypes.id, id)).returning();
@@ -760,6 +762,8 @@ export async function createAssignmentAction(formData: FormData): Promise<Mutati
         clubId: actor.clubId, memberId, chargeTypeId, assignmentId: record.id,
         source: "AUTO_MONTHLY", chargeDate: currentMonth, periodMonth: currentMonth,
         quantity: 1, unitAmount: price, totalAmount: price, createdBy: actor.id,
+        isLossPenaltySnapshot: type.isLossPenalty,
+        reportNextMonthSnapshot: type.reportNextMonth,
         note: "Tạo ngay khi gán khoản thu",
       }).onConflictDoNothing();
     }
@@ -850,6 +854,7 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
       chargeDate: str(formData, "chargeDate") || todayInTimezone(),
       quantity, unitAmount, totalAmount: quantity * unitAmount,
       isLossPenaltySnapshot: type.isLossPenalty,
+      reportNextMonthSnapshot: type.reportNextMonth,
       note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
     await track(tx, {
@@ -1009,6 +1014,7 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
           source: "MATCH" as const, chargeDate: playedOn, quantity,
           unitAmount: type.defaultAmount, totalAmount: quantity * type.defaultAmount,
           isLossPenaltySnapshot: type.isLossPenalty,
+          reportNextMonthSnapshot: type.reportNextMonth,
           note: `Phát sinh từ trận ${playedOn}`, createdBy: actor.id,
         }] : [];
       }));
@@ -1059,16 +1065,18 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     typeId: memberCharges.chargeTypeId,
     unitAmount: memberCharges.unitAmount,
     isLossPenaltySnapshot: memberCharges.isLossPenaltySnapshot,
+    reportNextMonthSnapshot: memberCharges.reportNextMonthSnapshot,
   }).from(memberCharges)
     .where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)))
     .orderBy(desc(memberCharges.updatedAt));
-  const existingChargeSnapshots = new Map<string, { unitAmount: number; isLossPenaltySnapshot: boolean }>();
+  const existingChargeSnapshots = new Map<string, { unitAmount: number; isLossPenaltySnapshot: boolean; reportNextMonthSnapshot: boolean }>();
   for (const charge of existingCharges) {
     const key = `${charge.memberId}|${charge.typeId}`;
     if (!existingChargeSnapshots.has(key)) {
       existingChargeSnapshots.set(key, {
-        unitAmount: charge.unitAmount,
-        isLossPenaltySnapshot: charge.isLossPenaltySnapshot,
+      unitAmount: charge.unitAmount,
+      isLossPenaltySnapshot: charge.isLossPenaltySnapshot,
+      reportNextMonthSnapshot: charge.reportNextMonthSnapshot,
       });
     }
   }
@@ -1125,6 +1133,7 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
           unitAmount,
           totalAmount: quantity * unitAmount,
           isLossPenaltySnapshot: snapshot?.isLossPenaltySnapshot ?? type.isLossPenalty,
+          reportNextMonthSnapshot: snapshot?.reportNextMonthSnapshot ?? type.reportNextMonth,
           note: `Phát sinh từ trận ${playedOn}`,
           createdBy: actor.id,
         }] : [];

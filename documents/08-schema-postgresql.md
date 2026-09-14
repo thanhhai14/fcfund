@@ -205,7 +205,9 @@ ngược lại dùng role permission
 | icon_name | varchar(100) | NOT NULL |
 | icon_style | varchar(40) | NOT NULL |
 | color | varchar(20) | NULL |
+| report_as_icon | boolean | mặc định false |
 | is_loss_penalty | boolean | mặc định false |
+| report_next_month | boolean | mặc định false, tổng kết trong tháng kế tiếp ở báo cáo công nợ |
 | is_active | boolean | mặc định true |
 | created_at/updated_at | timestamptz | NOT NULL |
 
@@ -343,6 +345,7 @@ Khoản làm giảm số dư thành viên.
 | unit_amount | bigint | >= 0 |
 | total_amount | bigint | >= 0 |
 | is_loss_penalty_snapshot | boolean | mặc định false |
+| report_next_month_snapshot | boolean | mặc định false |
 | note | text | NULL |
 | created_by | uuid | FK users, NULL nếu job |
 | created_at/updated_at | timestamptz | NOT NULL |

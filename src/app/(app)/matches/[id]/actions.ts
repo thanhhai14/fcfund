@@ -185,6 +185,7 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       unitAmount: penaltyType.defaultAmount,
       totalAmount: quantity * penaltyType.defaultAmount,
       isLossPenaltySnapshot: true,
+      reportNextMonthSnapshot: penaltyType.reportNextMonth,
       note: `Kết quả hạng ${place} · phạt ${quantity} lần · trận ${match.playedOn}`,
       createdBy: actor.id,
     }];
@@ -555,6 +556,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
         clubId: actor.clubId, memberId, chargeTypeId: penaltyType.id, matchId, source: "MATCH",
         chargeDate: match.playedOn, quantity: penaltyQuantity, unitAmount: penaltyType.defaultAmount,
         totalAmount: penaltyQuantity * penaltyType.defaultAmount, isLossPenaltySnapshot: true,
+        reportNextMonthSnapshot: penaltyType.reportNextMonth,
         note: `Bổ sung sau trận · hạng ${placement} · phạt ${penaltyQuantity} lần · trận ${match.playedOn}`,
         createdBy: actor.id,
       });

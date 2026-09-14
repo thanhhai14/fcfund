@@ -48,6 +48,8 @@ export async function generateMonthlyCharges(options?: {
         chargeTypeId: memberChargeAssignments.chargeTypeId,
         customAmount: memberChargeAssignments.customAmount,
         defaultAmount: chargeTypes.defaultAmount,
+        isLossPenalty: chargeTypes.isLossPenalty,
+        reportNextMonth: chargeTypes.reportNextMonth,
         clubId: chargeTypes.clubId,
       })
       .from(memberChargeAssignments)
@@ -81,6 +83,8 @@ export async function generateMonthlyCharges(options?: {
           quantity: 1,
           unitAmount: amount,
           totalAmount: amount,
+          isLossPenaltySnapshot: assignment.isLossPenalty,
+          reportNextMonthSnapshot: assignment.reportNextMonth,
           note: `Khoản thu tự động tháng ${period.slice(5, 7)}/${period.slice(0, 4)}`,
         })
         .onConflictDoNothing()

@@ -11,6 +11,7 @@ export function ChargeTypeFields({
   color = "#ef7198",
   reportAsIcon = false,
   isLossPenalty = false,
+  reportNextMonth = false,
   includeStatus = false,
   isActive = true,
 }: {
@@ -20,6 +21,7 @@ export function ChargeTypeFields({
   color?: string | null;
   reportAsIcon?: boolean;
   isLossPenalty?: boolean;
+  reportNextMonth?: boolean;
   includeStatus?: boolean;
   isActive?: boolean;
 }) {
@@ -85,6 +87,13 @@ export function ChargeTypeFields({
         <span>
           <strong>Tính là phạt thua khi chia đội</strong>
           <small>Chỉ dùng làm dữ liệu phong độ dự phòng cho trận lịch sử chưa nhập kết quả.</small>
+        </span>
+      </label>
+      <label className="check-field report-next-month-field">
+        <input name="reportNextMonth" type="checkbox" defaultChecked={reportNextMonth} />
+        <span>
+          <strong>Tổng kết vào tháng kế tiếp</strong>
+          <small>Dùng cho khoản thu được chốt cuối tháng, nhưng hiển thị trong báo cáo công nợ của tháng sau.</small>
         </span>
       </label>
       {includeStatus && (
