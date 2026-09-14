@@ -68,7 +68,7 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
     db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
       .from(fundTransactions)
       .where(and(eq(fundTransactions.clubId, club.id), eq(fundTransactions.kind, "MEMBER_PAYMENT"), isNull(fundTransactions.deletedAt), ...paymentDateFilters)),
-    db.select({ id: chargeTypes.id, name: chargeTypes.name, iconName: chargeTypes.iconName, color: chargeTypes.color })
+    db.select({ id: chargeTypes.id, name: chargeTypes.name, iconName: chargeTypes.iconName, color: chargeTypes.color, isLossPenalty: chargeTypes.isLossPenalty })
       .from(chargeTypes)
       .where(eq(chargeTypes.clubId, club.id)),
   ]);
@@ -115,6 +115,7 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
     rows={rows}
     groups={groups}
     period={period}
+    currentMonth={currentMonth}
     fromMonth={fromMonth}
     toMonth={toMonth}
     fromLabel={monthLabel(fromMonth)}
