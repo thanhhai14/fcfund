@@ -8,7 +8,7 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
-import { getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
+import { getBalanceReportMonth, isBalanceReportMonthInRange, compareBalanceTypes } from "@/lib/balance-report";
 import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
 import { ReportTabs, type ReportTab } from "@/components/report-tabs";
 
@@ -113,6 +113,7 @@ export default async function ReportsPage({
   const typeRows = await db.select({
     id: chargeTypes.id,
     name: chargeTypes.name,
+    calculation: chargeTypes.calculation,
     iconName: chargeTypes.iconName,
     color: chargeTypes.color,
     defaultAmount: chargeTypes.defaultAmount,
@@ -176,43 +177,48 @@ export default async function ReportsPage({
   const balanceCells = new Map<string, { quantity: number; total: number }>();
   const balanceCharges = new Map<string, number>();
   const balancePayments = new Map<string, number>();
-  const balanceMonthTypeIds = new Map<string, Set<string>>();
+  const balanceMonthTypeIds = new Map<string, Map<string, Set<string>>>();
   chargeRows.filter((row) => {
     if (!visibleMemberIds.has(row.memberId)) return false;
     if (balancePeriod === "all") return true;
     return isBalanceReportMonthInRange(
-    getBalanceReportMonth(row.chargeDate, row.reportNextMonthSnapshot),
+      getBalanceReportMonth(row.chargeDate, row.reportNextMonthSnapshot),
       balanceFromMonth,
       balanceToMonth,
     );
   }).forEach((row) => {
     const rowMonth = getBalanceReportMonth(row.chargeDate, row.reportNextMonthSnapshot);
-    const key = `${row.memberId}|${rowMonth}|${row.chargeTypeId}`;
+    const sourceMonth = row.chargeDate.slice(0, 7);
+    const key = `${row.memberId}|${rowMonth}|${sourceMonth}|${row.chargeTypeId}`;
     const current = balanceCells.get(key) ?? { quantity: 0, total: 0 };
     balanceCells.set(key, { quantity: current.quantity + row.quantity, total: current.total + row.totalAmount });
     balanceCharges.set(row.memberId, (balanceCharges.get(row.memberId) ?? 0) + row.totalAmount);
-    const monthTypeIds = balanceMonthTypeIds.get(rowMonth) ?? new Set<string>();
+    const monthSources = balanceMonthTypeIds.get(rowMonth) ?? new Map<string, Set<string>>();
+    const monthTypeIds = monthSources.get(sourceMonth) ?? new Set<string>();
     monthTypeIds.add(row.chargeTypeId);
-    balanceMonthTypeIds.set(rowMonth, monthTypeIds);
+    monthSources.set(sourceMonth, monthTypeIds);
+    balanceMonthTypeIds.set(rowMonth, monthSources);
   });
   paymentRows.filter((row) => row.memberId && visibleMemberIds.has(row.memberId)).forEach((row) => {
     balancePayments.set(row.memberId!, (balancePayments.get(row.memberId!) ?? 0) + row.amount);
   });
   const balanceGroups = [...balanceMonthTypeIds.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([groupMonth, typeIds]) => ({
+    .map(([groupMonth, sourceTypes]) => ({
       month: groupMonth,
       label: new Intl.DateTimeFormat("vi-VN", { month: "long", year: "numeric", timeZone: "UTC" })
         .format(new Date(`${groupMonth}-01T00:00:00Z`)),
-      types: typeRows.filter((type) => typeIds.has(type.id)).map((type) => ({
+      types: [...sourceTypes.entries()].flatMap(([sourceMonth, typeIds]) => typeRows.filter((type) => typeIds.has(type.id)).map((type) => ({
         id: type.id,
         name: type.name,
+        calculation: type.calculation,
         iconName: type.iconName,
         color: type.color,
         defaultAmount: type.defaultAmount,
         reportAsIcon: type.reportAsIcon,
         reportNextMonth: type.reportNextMonth,
-      })),
+        sourceMonth,
+      }))).sort((left, right) => compareBalanceTypes(groupMonth, left, right)),
     }));
   const balances = visibleMembers
     .map((member) => ({
@@ -221,8 +227,8 @@ export default async function ReportsPage({
       paid: balancePayments.get(member.id) ?? 0,
       balance: (balancePayments.get(member.id) ?? 0) - (balanceCharges.get(member.id) ?? 0),
       cells: balanceGroups.flatMap((group) => group.types.flatMap((type) => {
-        const cell = balanceCells.get(`${member.id}|${group.month}|${type.id}`);
-        return cell ? [{ month: group.month, typeId: type.id, ...cell }] : [];
+        const cell = balanceCells.get(`${member.id}|${group.month}|${type.sourceMonth}|${type.id}`);
+        return cell ? [{ month: group.month, sourceMonth: type.sourceMonth, typeId: type.id, ...cell }] : [];
       })),
     }));
   const debt = balances.reduce((sum, row) => sum + Math.max(-row.balance, 0), 0);
@@ -248,7 +254,7 @@ export default async function ReportsPage({
           total={monthTotal}
           paidTotal={monthPaidTotal}
           types={monthlyTypes.map((type) => ({
-            id: type.id, name: type.name, iconName: type.iconName, color: type.color,
+            id: type.id, name: type.name, calculation: type.calculation, iconName: type.iconName, color: type.color,
             defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon, isLossPenalty: type.isLossPenalty,
             reportNextMonth: type.reportNextMonth,
             total: typeMonthTotals.get(type.id) ?? 0,

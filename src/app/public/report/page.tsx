@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { avatars, chargeTypes, clubs, fundTransactions, memberCharges, members } from "@/db/schema";
 import { APP_NAME } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/format";
-import { getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
+import { compareBalanceTypes, getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
 import { PublicReportCollection, type PublicReportGroup, type PublicReportRow } from "@/components/public-report-collection";
 
 export const dynamic = "force-dynamic";
@@ -70,31 +70,34 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
     db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
       .from(fundTransactions)
       .where(and(eq(fundTransactions.clubId, club.id), eq(fundTransactions.kind, "MEMBER_PAYMENT"), isNull(fundTransactions.deletedAt), ...paymentDateFilters)),
-    db.select({ id: chargeTypes.id, name: chargeTypes.name, iconName: chargeTypes.iconName, color: chargeTypes.color })
+    db.select({ id: chargeTypes.id, name: chargeTypes.name, calculation: chargeTypes.calculation, iconName: chargeTypes.iconName, color: chargeTypes.color, reportNextMonth: chargeTypes.reportNextMonth })
       .from(chargeTypes)
       .where(eq(chargeTypes.clubId, club.id)),
   ]);
 
   const typesById = new Map(typeRows.map((type) => [type.id, type]));
-  const cells = new Map<string, { memberId: string; month: string; typeId: string; quantity: number; total: number }>();
-  const monthTypeIds = new Map<string, Set<string>>();
+  const cells = new Map<string, { memberId: string; month: string; sourceMonth: string; typeId: string; quantity: number; total: number }>();
+  const monthTypeIds = new Map<string, Map<string, Set<string>>>();
   chargeRows.filter((charge) => period === "all" || isBalanceReportMonthInRange(
     getBalanceReportMonth(charge.chargeDate, charge.reportNextMonthSnapshot),
     fromMonth,
     toMonth,
   )).forEach((charge) => {
     const month = getBalanceReportMonth(charge.chargeDate, charge.reportNextMonthSnapshot);
-    const key = `${charge.memberId}|${month}|${charge.chargeTypeId}`;
-    const current = cells.get(key) ?? { memberId: charge.memberId, month, typeId: charge.chargeTypeId, quantity: 0, total: 0 };
+    const sourceMonth = charge.chargeDate.slice(0, 7);
+    const key = `${charge.memberId}|${month}|${sourceMonth}|${charge.chargeTypeId}`;
+    const current = cells.get(key) ?? { memberId: charge.memberId, month, sourceMonth, typeId: charge.chargeTypeId, quantity: 0, total: 0 };
     cells.set(key, { ...current, quantity: current.quantity + charge.quantity, total: current.total + charge.totalAmount });
-    const typeIds = monthTypeIds.get(month) ?? new Set<string>();
+    const monthSources = monthTypeIds.get(month) ?? new Map<string, Set<string>>();
+    const typeIds = monthSources.get(sourceMonth) ?? new Set<string>();
     typeIds.add(charge.chargeTypeId);
-    monthTypeIds.set(month, typeIds);
+    monthSources.set(sourceMonth, typeIds);
+    monthTypeIds.set(month, monthSources);
   });
-  const groups: PublicReportGroup[] = [...monthTypeIds.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([month, typeIds]) => ({
+  const groups: PublicReportGroup[] = [...monthTypeIds.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([month, sourceTypes]) => ({
     month,
     label: monthLabel(month),
-    types: [...typeIds].map((typeId) => typesById.get(typeId)).filter((type): type is PublicReportGroup["types"][number] => Boolean(type)).sort((left, right) => left.name.localeCompare(right.name, "vi")),
+    types: [...sourceTypes.entries()].flatMap(([sourceMonth, typeIds]) => [...typeIds].map((typeId) => typesById.get(typeId)).filter((type): type is PublicReportGroup["types"][number] => Boolean(type)).map((type) => ({ ...type, sourceMonth }))).sort((left, right) => compareBalanceTypes(month, left, right)),
   }));
   const paidByMember = new Map<string, number>();
   paymentRows.forEach((payment) => {

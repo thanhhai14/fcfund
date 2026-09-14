@@ -3779,6 +3779,21 @@ label>textarea {
   font-size: 10px;
 }
 
+.public-report-months p>span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.public-report-months p>span:first-child small,
+.balance-card-months p>span:first-child small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+}
+
 .public-report-cell-value,
 .public-report-table-value {
   display: inline-flex;
@@ -5674,6 +5689,16 @@ label>textarea {
 .balance-period-cell>small svg {
   width: 11px;
   height: 11px;
+}
+
+.balance-period-table th>small,
+.public-report-table th>small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: none;
 }
 
 .balance-period-table th[rowspan] {

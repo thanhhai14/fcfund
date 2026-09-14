@@ -6,10 +6,11 @@ import { Icon } from "./icon";
 import { ReportImageExporter } from "./report-image-exporter";
 import { CollectionToolbar, ColumnVisibilityMenu, CompactMonthInput, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { formatMoney, initials } from "@/lib/format";
+import { balanceCellColumnId, balanceSourceMonthLabel } from "@/lib/balance-report";
 
-export type PublicReportType = { id: string; name: string; iconName: string; color: string | null };
+export type PublicReportType = { id: string; name: string; calculation: "MONTHLY" | "OCCURRENCE"; iconName: string; color: string | null; reportNextMonth: boolean; sourceMonth: string };
 export type PublicReportGroup = { month: string; label: string; types: PublicReportType[] };
-export type PublicReportCell = { memberId: string; month: string; typeId: string; quantity: number; total: number };
+export type PublicReportCell = { memberId: string; month: string; sourceMonth: string; typeId: string; quantity: number; total: number };
 export type PublicReportRow = { id: string; name: string; avatarVersion: number | null; charged: number; paid: number; balance: number; cells: PublicReportCell[] };
 
 function PublicClubLogo({ name, src }: { name: string; src: string | null }) {
@@ -39,7 +40,7 @@ function PublicBalanceCell({ type, cell }: { type: PublicReportType; cell?: Publ
 }
 
 function PublicReportTable({ rows, groups, isColumnVisible, snapshot = false }: { rows: PublicReportRow[]; groups: PublicReportGroup[]; isColumnVisible: (id: string) => boolean; snapshot?: boolean }) {
-  const visibleGroups = groups.map((group) => ({ ...group, types: group.types.filter((type) => isColumnVisible(`cell:${group.month}:${type.id}`)) })).filter((group) => group.types.length);
+  const visibleGroups = groups.map((group) => ({ ...group, types: group.types.filter((type) => isColumnVisible(balanceCellColumnId(group.month, type.id, type.sourceMonth))) })).filter((group) => group.types.length);
   const cellCount = visibleGroups.reduce((sum, group) => sum + group.types.length, 0);
   const totalCharged = rows.reduce((sum, row) => sum + row.charged, 0);
   const totalPaid = rows.reduce((sum, row) => sum + row.paid, 0);
@@ -48,10 +49,10 @@ function PublicReportTable({ rows, groups, isColumnVisible, snapshot = false }: 
     <thead>
       <tr>{isColumnVisible("rank") && <th rowSpan={cellCount ? 3 : 1} className="public-report-rank-column">Hạng</th>}<th rowSpan={cellCount ? 3 : 1} className="public-report-member-column">Thành viên</th>{cellCount > 0 && <th colSpan={cellCount} className="public-report-charge-header">Các khoản phát sinh</th>}{isColumnVisible("charged") && <th rowSpan={cellCount ? 3 : 1}>Tổng</th>}{isColumnVisible("paid") && <th rowSpan={cellCount ? 3 : 1}>Đã đóng</th>}{isColumnVisible("balance") && <th rowSpan={cellCount ? 3 : 1}>Còn lại</th>}</tr>
       {cellCount > 0 && <tr>{visibleGroups.map((group) => <th key={group.month} colSpan={group.types.length} className="public-report-month-header">{group.label}</th>)}</tr>}
-      {cellCount > 0 && <tr>{visibleGroups.flatMap((group) => group.types.map((type) => <th key={`${group.month}-${type.id}`}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong></th>))}</tr>}
+      {cellCount > 0 && <tr>{visibleGroups.flatMap((group) => group.types.map((type) => <th key={balanceCellColumnId(group.month, type.id, type.sourceMonth)}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong>{type.sourceMonth !== group.month && <small>{balanceSourceMonthLabel(type.sourceMonth)}</small>}</th>))}</tr>}
     </thead>
-    <tbody>{rows.map((row, index) => <tr key={row.id}>{isColumnVisible("rank") && <td className="public-report-rank-column">#{index + 1}</td>}<td className="public-report-member-column"><PublicMemberIdentity row={row} compact /></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><PublicBalanceCell type={type} cell={row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)} /></td>))}{isColumnVisible("charged") && <td><strong>{formatMoney(row.charged)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(row.paid)}</strong></td>}{isColumnVisible("balance") && <td><strong className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</strong></td>}</tr>)}</tbody>
-    <tfoot><tr>{isColumnVisible("rank") && <td className="public-report-rank-column" />}<td className="public-report-member-column"><strong>Tổng danh sách</strong></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={`${group.month}-${type.id}`}><strong>{formatMoney(rows.reduce((sum, row) => sum + (row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>))}{isColumnVisible("charged") && <td><strong>{formatMoney(totalCharged)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(totalPaid)}</strong></td>}{isColumnVisible("balance") && <td><strong className={totalBalance < 0 ? "money-out" : "money-in"}>{totalBalance > 0 ? "+" : ""}{formatMoney(totalBalance)}</strong></td>}</tr></tfoot>
+    <tbody>{rows.map((row, index) => <tr key={row.id}>{isColumnVisible("rank") && <td className="public-report-rank-column">#{index + 1}</td>}<td className="public-report-member-column"><PublicMemberIdentity row={row} compact /></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={balanceCellColumnId(group.month, type.id, type.sourceMonth)}><PublicBalanceCell type={type} cell={row.cells.find((cell) => cell.month === group.month && cell.sourceMonth === type.sourceMonth && cell.typeId === type.id)} /></td>))}{isColumnVisible("charged") && <td><strong>{formatMoney(row.charged)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(row.paid)}</strong></td>}{isColumnVisible("balance") && <td><strong className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</strong></td>}</tr>)}</tbody>
+    <tfoot><tr>{isColumnVisible("rank") && <td className="public-report-rank-column" />}<td className="public-report-member-column"><strong>Tổng danh sách</strong></td>{visibleGroups.flatMap((group) => group.types.map((type) => <td key={balanceCellColumnId(group.month, type.id, type.sourceMonth)}><strong>{formatMoney(rows.reduce((sum, row) => sum + (row.cells.find((cell) => cell.month === group.month && cell.sourceMonth === type.sourceMonth && cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>))}{isColumnVisible("charged") && <td><strong>{formatMoney(totalCharged)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(totalPaid)}</strong></td>}{isColumnVisible("balance") && <td><strong className={totalBalance < 0 ? "money-out" : "money-in"}>{totalBalance > 0 ? "+" : ""}{formatMoney(totalBalance)}</strong></td>}</tr></tfoot>
   </table>;
 }
 
@@ -69,8 +70,8 @@ function PublicReportCard({ row, groups, rank }: { row: PublicReportRow; groups:
   return <article className="public-report-member">
     <header><span className="public-report-rank">#{rank}</span><PublicMemberIdentity row={row} /><b className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</b></header>
     <div className="public-report-months">{groups.map((group) => {
-      const groupCells = group.types.map((type) => ({ type, cell: row.cells.find((cell) => cell.month === group.month && cell.typeId === type.id) })).filter((item): item is { type: PublicReportType; cell: PublicReportCell } => Boolean(item.cell));
-      return groupCells.length ? <section key={group.month}><h2>{group.label}</h2>{groupCells.map(({ type, cell }) => <p key={type.id}><span>{type.name}</span><PublicBalanceCell type={type} cell={cell} /></p>)}</section> : null;
+      const groupCells = group.types.map((type) => ({ type, cell: row.cells.find((cell) => cell.month === group.month && cell.sourceMonth === type.sourceMonth && cell.typeId === type.id) })).filter((item): item is { type: PublicReportType; cell: PublicReportCell } => Boolean(item.cell));
+      return groupCells.length ? <section key={group.month}><h2>{group.label}</h2>{groupCells.map(({ type, cell }) => <p key={balanceCellColumnId(group.month, type.id, type.sourceMonth)}><span><b>{type.name}</b>{type.sourceMonth !== group.month && <small>{balanceSourceMonthLabel(type.sourceMonth)}</small>}</span><PublicBalanceCell type={type} cell={cell} /></p>)}</section> : null;
     })}{!row.cells.length && <p className="public-report-empty">Không có khoản phát sinh trong kỳ.</p>}</div>
     <footer><span><small>Tổng</small><b>{formatMoney(row.charged)}</b></span><span><small>Đã đóng</small><b>{formatMoney(row.paid)}</b></span><span><small>Còn lại</small><b className={row.balance < 0 ? "money-out" : "money-in"}>{row.balance > 0 ? "+" : ""}{formatMoney(row.balance)}</b></span></footer>
   </article>;
@@ -102,8 +103,8 @@ export function PublicReportCollection({ clubName, appName, logoUrl, rows, group
     { id: "rank", label: "Hạng" },
     { id: "member", label: "Thành viên", required: true },
     ...groups.flatMap((group) => group.types.map((type) => ({
-      id: `cell:${group.month}:${type.id}`,
-      label: `${group.label} · ${type.name}`,
+      id: balanceCellColumnId(group.month, type.id, type.sourceMonth),
+      label: `${group.label} · ${type.name}${type.sourceMonth !== group.month ? ` · ${balanceSourceMonthLabel(type.sourceMonth)}` : ""}`,
     }))),
     { id: "charged", label: "Tổng" },
     { id: "paid", label: "Đã đóng" },
@@ -112,7 +113,7 @@ export function PublicReportCollection({ clubName, appName, logoUrl, rows, group
   const columns = useColumnVisibility("fcfund:public-report:columns:v3", columnDefinitions);
   const displayGroups = useMemo(() => groups.map((group) => ({
     ...group,
-    types: group.types.filter((type) => !columns.hidden.includes(`cell:${group.month}:${type.id}`)),
+    types: group.types.filter((type) => !columns.hidden.includes(balanceCellColumnId(group.month, type.id, type.sourceMonth))),
   })).filter((group) => group.types.length), [columns.hidden, groups]);
   const visible = useMemo(() => {
     const normalized = normalizeSearch(query);
@@ -128,7 +129,7 @@ export function PublicReportCollection({ clubName, appName, logoUrl, rows, group
   }, [query, rows, sort]);
   const periodLabel = period === "all" ? "Toàn bộ thời gian" : fromMonth === toMonth ? fromLabel : `${fromLabel} – ${toLabel}`;
   const captureTitle = `Báo cáo công nợ · ${periodLabel}`;
-  const visibleCellCount = groups.reduce((sum, group) => sum + group.types.filter((type) => columns.isVisible(`cell:${group.month}:${type.id}`)).length, 0);
+  const visibleCellCount = groups.reduce((sum, group) => sum + group.types.filter((type) => columns.isVisible(balanceCellColumnId(group.month, type.id, type.sourceMonth))).length, 0);
   const exportWidth = Math.max(1080, 330 + visibleCellCount * 145 + ["charged", "paid", "balance"].filter((id) => columns.isVisible(id)).length * 150);
 
   return <main className="public-report-page">
