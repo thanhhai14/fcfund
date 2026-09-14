@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
+import { CollectionToolbar, ColumnVisibilityMenu, CompactMonthInput, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { Icon } from "./icon";
 import { formatMoney } from "@/lib/format";
 import { MemberIdentity } from "./member-identity";
@@ -13,28 +13,6 @@ type MonthlyType = { id: string; name: string; iconName: string; color: string |
 type ChargeDisplayType = Pick<MonthlyType, "id" | "name" | "iconName" | "color" | "defaultAmount" | "reportAsIcon" | "isLossPenalty">;
 type MonthlyCell = { typeId: string; quantity: number; total: number };
 type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" | "INACTIVE"; avatarVersion: number | null; total: number; paid: number; cells: MonthlyCell[] };
-
-function shortMonth(value: string) {
-  const [year, month] = value.split("-");
-  return month && year ? `${month}/${year}` : "--/----";
-}
-
-function CompactMonthInput({ name, value: initialValue, onChange, label }: { name: string; value: string; onChange?: (value: string) => void; label: string }) {
-  const [value, setValue] = useState(initialValue);
-  return <label className="compact-month-picker" title={label}>
-    <span>{shortMonth(value)}</span>
-    <input type="month" name={name} value={value} onClick={(event) => {
-      try {
-        event.currentTarget.showPicker();
-      } catch {
-        // Trình duyệt không hỗ trợ showPicker vẫn dùng bộ chọn native mặc định.
-      }
-    }} onChange={(event) => {
-      setValue(event.target.value);
-      onChange?.(event.target.value);
-    }} aria-label={label} required />
-  </label>;
-}
 
 function MonthlyCellView({ type, cell }: { type: ChargeDisplayType; cell?: MonthlyCell }) {
   if (!cell) return <span className="monthly-empty">—</span>;

@@ -11,6 +11,28 @@ export function normalizeSearch(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("vi").trim();
 }
 
+function shortMonth(value: string) {
+  const [year, month] = value.split("-");
+  return month && year ? `${month}/${year}` : "--/----";
+}
+
+export function CompactMonthInput({ name, value: initialValue, onChange, label }: { name: string; value: string; onChange?: (value: string) => void; label: string }) {
+  const [value, setValue] = useState(initialValue);
+  return <label className="compact-month-picker" title={label}>
+    <span>{shortMonth(value)}</span>
+    <input type="month" name={name} value={value} onClick={(event) => {
+      try {
+        event.currentTarget.showPicker();
+      } catch {
+        // Trình duyệt không hỗ trợ showPicker vẫn dùng bộ chọn native mặc định.
+      }
+    }} onChange={(event) => {
+      setValue(event.target.value);
+      onChange?.(event.target.value);
+    }} aria-label={label} required />
+  </label>;
+}
+
 export function useResponsiveView(storageKey: string, allowToggle = true) {
   const [view, setViewState] = useState<CollectionView>("list");
 

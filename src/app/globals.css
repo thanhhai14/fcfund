@@ -3513,6 +3513,7 @@ label>textarea {
 }
 
 .public-report-hero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3858,90 +3859,6 @@ label>textarea {
   color: var(--forest-900);
 }
 
-.public-report-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0 0 14px;
-  padding: 10px;
-  background: white;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--brand-primary);
-}
-
-.public-report-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 190px;
-  flex: 1 1 220px;
-  margin: 0;
-  padding: 0 10px;
-  background: #f8fafb;
-  border: 1px solid var(--line);
-}
-
-.public-report-search svg {
-  color: var(--brand-primary);
-}
-
-.public-report-search input {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-  padding: 9px 0;
-  background: transparent;
-  border: 0;
-}
-
-.public-report-controls>select,
-.public-report-period-form>select,
-.public-report-period-form>input {
-  min-height: 36px;
-  margin: 0;
-}
-
-.public-report-controls>select {
-  flex: 0 1 178px;
-}
-
-.public-report-period-form {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  min-width: 0;
-}
-
-.public-report-period-form>select {
-  width: 116px;
-}
-
-.public-report-period-form>input[type="month"] {
-  width: 142px;
-}
-
-.public-report-period-form>span {
-  color: var(--muted);
-  font-weight: 900;
-}
-
-.public-report-period-form .button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.public-report-result-count {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
 .public-report-table-wrap {
   overflow-x: auto;
   background: white;
@@ -4098,44 +4015,6 @@ label>textarea {
 
   .public-report-summary>div:nth-child(n + 3) {
     border-top: 1px solid var(--line);
-  }
-
-  .public-report-controls {
-    align-items: stretch;
-  }
-
-  .public-report-search,
-  .public-report-controls>select,
-  .public-report-period-form {
-    width: 100%;
-    flex-basis: 100%;
-  }
-
-  .public-report-period-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-  }
-
-  .public-report-period-form>select {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .public-report-period-form>input[type="month"] {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .public-report-period-form .button {
-    justify-content: center;
-  }
-
-  .public-report-result-count {
-    margin-left: 0;
-  }
-
-  .public-report-controls .view-toggle {
-    margin-left: auto;
   }
 
   .public-report-members {
@@ -6678,6 +6557,23 @@ label>textarea {
     flex: 1 1 82px;
   }
 
+  .collection-filters>.balance-period-controls {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .collection-filters>.balance-period-controls select {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .collection-filters>.balance-period-controls .compact-month-picker {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 76px;
+  }
+
   .icon-config-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -7295,6 +7191,30 @@ label {
   min-width: 125px;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.collection-filters>.balance-period-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.collection-filters>.balance-period-controls select {
+  width: 138px;
+  flex: 1 1 118px;
+  min-width: 0;
+}
+
+.collection-filters>.balance-period-controls .compact-month-picker {
+  width: 92px;
+  flex: 1 1 76px;
+  min-width: 0;
+}
+
+.collection-filters>.balance-period-controls .button {
+  flex: 0 0 auto;
 }
 
 .compact-date-range-disclosure>summary,
