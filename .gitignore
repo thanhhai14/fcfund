@@ -30,3 +30,5 @@ pnpm-debug.log*
 /drizzle/meta/_journal.json.bak
 .vercel
 .env*
+# MCP file-write backups
+.mcp-backups/
