@@ -6,17 +6,18 @@ import { avatars, chargeTypes, clubs, fundTransactions, memberCharges, members }
 import { APP_NAME } from "@/lib/constants";
 import { todayInTimezone } from "@/lib/format";
 import { compareBalanceTypes, getBalanceReportMonth, isBalanceReportMonthInRange } from "@/lib/balance-report";
+import { calculateOpeningBalances } from "@/lib/opening-balance";
 import { PublicReportCollection, type PublicReportGroup, type PublicReportRow } from "@/components/public-report-collection";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Công nợ lũy kế công khai",
+  title: "Báo cáo theo kỳ công khai",
   description: "Báo cáo các khoản phát sinh, tiền đã đóng và số dư còn lại của đội bóng.",
   robots: { index: false, follow: false },
   openGraph: {
     type: "website",
-    title: "Công nợ lũy kế công khai",
+    title: "Báo cáo theo kỳ công khai",
     description: "Báo cáo các khoản phát sinh, tiền đã đóng và số dư còn lại của đội bóng.",
   },
 };
@@ -75,6 +76,34 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
       .where(eq(chargeTypes.clubId, club.id)),
   ]);
 
+  const [priorChargeRows, priorPaymentRows] = period === "range" ? await Promise.all([
+    db.select({
+      memberId: memberCharges.memberId,
+      chargeTypeId: memberCharges.chargeTypeId,
+      chargeDate: memberCharges.chargeDate,
+      totalAmount: memberCharges.totalAmount,
+      reportNextMonthSnapshot: memberCharges.reportNextMonthSnapshot,
+    }).from(memberCharges).where(and(
+      eq(memberCharges.clubId, club.id),
+      isNull(memberCharges.deletedAt),
+      lt(memberCharges.chargeDate, rangeStart),
+    )),
+    db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
+      .from(fundTransactions).where(and(
+        eq(fundTransactions.clubId, club.id),
+        eq(fundTransactions.kind, "MEMBER_PAYMENT"),
+        isNull(fundTransactions.deletedAt),
+        lt(fundTransactions.transactionDate, rangeStart),
+      )),
+  ]) : [[], []];
+  const visibleMemberIds = new Set(memberRows.map((member) => member.id));
+  const openingBalances = calculateOpeningBalances(
+    fromMonth,
+    priorChargeRows.filter((row) => visibleMemberIds.has(row.memberId)),
+    priorPaymentRows.filter((row) => row.memberId && visibleMemberIds.has(row.memberId)),
+    typeRows,
+  );
+
   const typesById = new Map(typeRows.map((type) => [type.id, type]));
   const cells = new Map<string, { memberId: string; month: string; sourceMonth: string; typeId: string; quantity: number; total: number }>();
   const monthTypeIds = new Map<string, Map<string, Set<string>>>();
@@ -113,7 +142,8 @@ export default async function PublicReportPage({ searchParams }: { searchParams:
       avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
       charged,
       paid,
-      balance: paid - charged,
+      balance: (openingBalances.get(member.id)?.amount ?? 0) + paid - charged,
+      openingBalance: openingBalances.get(member.id) ?? null,
       cells: memberCells,
     };
   }).sort((left, right) => left.balance - right.balance || left.name.localeCompare(right.name, "vi"));

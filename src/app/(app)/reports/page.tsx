@@ -9,6 +9,7 @@ import { PERMISSIONS } from "@/lib/constants";
 import { formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { getBalanceReportMonth, isBalanceReportMonthInRange, compareBalanceTypes } from "@/lib/balance-report";
+import { calculateOpeningBalances } from "@/lib/opening-balance";
 import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
 import { ReportTabs, type ReportTab } from "@/components/report-tabs";
 
@@ -128,6 +129,33 @@ export default async function ReportsPage({
     .groupBy(chargeTypes.id)
     .orderBy(chargeTypes.name);
 
+  const [priorChargeRows, priorPaymentRows] = balancePeriod === "range" ? await Promise.all([
+    db.select({
+      memberId: memberCharges.memberId,
+      chargeTypeId: memberCharges.chargeTypeId,
+      chargeDate: memberCharges.chargeDate,
+      totalAmount: memberCharges.totalAmount,
+      reportNextMonthSnapshot: memberCharges.reportNextMonthSnapshot,
+    }).from(memberCharges).where(and(
+      eq(memberCharges.clubId, user.clubId),
+      isNull(memberCharges.deletedAt),
+      lt(memberCharges.chargeDate, balanceRangeStart),
+    )),
+    db.select({ memberId: fundTransactions.memberId, amount: fundTransactions.amount })
+      .from(fundTransactions).where(and(
+        eq(fundTransactions.clubId, user.clubId),
+        eq(fundTransactions.kind, "MEMBER_PAYMENT"),
+        isNull(fundTransactions.deletedAt),
+        lt(fundTransactions.transactionDate, balanceRangeStart),
+      )),
+  ]) : [[], []];
+  const openingBalances = calculateOpeningBalances(
+    balanceFromMonth,
+    priorChargeRows.filter((row) => visibleMemberIds.has(row.memberId)),
+    priorPaymentRows.filter((row) => row.memberId && visibleMemberIds.has(row.memberId)),
+    typeRows,
+  );
+
   const monthlyRows = await db.select({
     memberId: memberCharges.memberId,
     chargeTypeId: memberCharges.chargeTypeId,
@@ -225,7 +253,8 @@ export default async function ReportsPage({
       ...member,
       charged: balanceCharges.get(member.id) ?? 0,
       paid: balancePayments.get(member.id) ?? 0,
-      balance: (balancePayments.get(member.id) ?? 0) - (balanceCharges.get(member.id) ?? 0),
+      balance: (openingBalances.get(member.id)?.amount ?? 0) + (balancePayments.get(member.id) ?? 0) - (balanceCharges.get(member.id) ?? 0),
+      openingBalance: openingBalances.get(member.id) ?? null,
       cells: balanceGroups.flatMap((group) => group.types.flatMap((type) => {
         const cell = balanceCells.get(`${member.id}|${group.month}|${type.sourceMonth}|${type.id}`);
         return cell ? [{ month: group.month, sourceMonth: type.sourceMonth, typeId: type.id, ...cell }] : [];
@@ -238,8 +267,8 @@ export default async function ReportsPage({
     <>
       <PageHeader eyebrow="Phân tích" title="Báo cáo quỹ" description="Theo dõi phát sinh tháng và công nợ thành viên" />
       <section className="report-hero">
-        <div><small>Còn phải đóng trong kỳ</small><strong>{formatMoney(debt)}</strong><span>{balancePeriod === "all" ? "Toàn bộ thời gian" : `${balanceFromLabel} – ${balanceToLabel}`} · {balances.filter((row) => row.balance < 0).length} người còn thiếu</span></div>
-        <div><small>Tổng đóng dư trong kỳ</small><strong>{formatMoney(credit)}</strong><span>{balances.filter((row) => row.balance > 0).length} người đóng dư</span></div>
+        <div><small>Còn phải đóng cuối kỳ</small><strong>{formatMoney(debt)}</strong><span>{balancePeriod === "all" ? "Toàn bộ thời gian" : `${balanceFromLabel} – ${balanceToLabel}`} · {balances.filter((row) => row.balance < 0).length} người còn thiếu</span></div>
+        <div><small>Tổng đóng dư cuối kỳ</small><strong>{formatMoney(credit)}</strong><span>{balances.filter((row) => row.balance > 0).length} người đóng dư</span></div>
         <div><small>Tỷ lệ hoàn thành</small><strong>{balances.length ? Math.round((balances.filter((row) => row.balance >= 0).length / balances.length) * 100) : 0}%</strong><span>thành viên không còn nợ</span></div>
       </section>
       <ReportTabs

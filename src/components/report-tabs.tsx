@@ -6,7 +6,7 @@ export type ReportTab = "monthly" | "balances" | "structure";
 
 const TABS: Array<{ id: ReportTab; label: string }> = [
   { id: "monthly", label: "Phát sinh theo tháng" },
-  { id: "balances", label: "Công nợ lũy kế" },
+  { id: "balances", label: "Báo cáo theo kỳ" },
   { id: "structure", label: "Cơ cấu lũy kế" },
 ];
 

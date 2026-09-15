@@ -269,10 +269,14 @@ Hệ thống có ba vai trò:
 - Ghi lại kết quả thay thế các khoản phạt do kết quả trước sinh ra, nhưng không thay đổi loại khoản thu khác của trận.
 - Kết quả, loại thu phạt, thời điểm và người thao tác được lưu cùng phiên bản đội hình; thao tác phải có activity log.
 
-## BR-42 — Kỳ ghi nhận khoản phạt trong báo cáo công nợ
+## BR-42 — Kỳ ghi nhận khoản thu trong Báo cáo theo kỳ
 
-- Riêng báo cáo `Công nợ lũy kế`, khoản phải thu có snapshot `report_next_month_snapshot = true` được tổng kết vào tháng kế tiếp tháng phát sinh.
+- Riêng `Báo cáo theo kỳ`, khoản phải thu có snapshot `report_next_month_snapshot = true` được tổng kết vào tháng kế tiếp tháng phát sinh.
 - Các khoản phải thu khác vẫn được ghi nhận đúng tháng của `charge_date`.
 - Ngày phát sinh gốc không bị thay đổi và không tạo thêm bản ghi khoản phải thu khi chuyển kỳ báo cáo.
 - Tiền thành viên đã đóng được tính theo ngày nộp thực tế. Vì vậy kỳ tháng mới có thể đối chiếu quỹ tháng mới và khoản phạt của tháng trước trong cùng một lần nộp.
 - Quy tắc áp dụng đồng nhất cho báo cáo nội bộ, báo cáo công khai, dạng danh sách, dạng thẻ và ảnh chụp báo cáo.
+- `Phát sinh trong kỳ` chỉ gồm các khoản phải thu thuộc kỳ báo cáo; `Đã đóng trong kỳ` chỉ gồm tiền thành viên nộp trong cùng kỳ. Không cộng giao dịch cũ vào hai cột tổng này để tránh tính trùng.
+- `Số dư trước kỳ = Đã đóng trước kỳ - Phát sinh trước kỳ`, có thể âm (còn nợ) hoặc dương (đóng dư). `Số dư cuối kỳ = Số dư trước kỳ + Đã đóng trong kỳ - Phát sinh trong kỳ`.
+- Khi chọn khoảng tháng và có thành viên có số dư trước kỳ khác 0, cột `Số dư trước kỳ` hiển thị cả nợ và tiền đóng dư. Nếu toàn bộ danh sách đang xem có số dư trước kỳ bằng 0, cột này được ẩn. Ẩn cột trong giao diện chỉ ẩn thông tin, không loại số dư đầu kỳ khỏi phép tính.
+- Chi tiết số dư âm trước kỳ nhóm các khoản phát sinh cũ theo tháng báo cáo và loại thu. Các kỳ còn thiếu được suy luận theo quy ước bù kỳ cũ trước; không khẳng định khoản thu cụ thể đã hoặc chưa được thanh toán vì tiền nộp không phân bổ theo khoản. Số dư dương chỉ thể hiện tiền đóng dư, không gắn với khoản phải thu cụ thể.
