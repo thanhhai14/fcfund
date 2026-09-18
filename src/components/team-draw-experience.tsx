@@ -238,13 +238,15 @@ export function TeamDrawExperience({
     ? [participants.filter((_, index) => index % 2 === 0), participants.filter((_, index) => index % 2 === 1)]
     : [participants];
   const totalMembers = draw?.teams.reduce((sum, team) => sum + team.members.length, 0) ?? participants.length;
+  const replayLabel = latestDraw?.source === "LEGACY_FINAL_LINEUP" ? "Xem lại đội hình lịch sử" : "Xem lại bốc thăm";
+  const stageLabel = draw?.source === "LEGACY_FINAL_LINEUP" ? "Đội hình lịch sử" : "Bốc thăm đội hình";
   const maxTeamSize = draw ? Math.max(...draw.teams.map((team) => team.members.length)) : 0;
   const density = maxTeamSize >= 8 || (draw?.teams.length ?? 0) >= 5 ? "dense" : maxTeamSize >= 6 ? "compact" : "normal";
 
   const stage = typeof document !== "undefined" && open ? createPortal(
     <section className={`team-draw-stage ${phase} ${density}`} role="dialog" aria-modal="true" aria-label="Bốc thăm chia đội">
       <header className="team-draw-header">
-        <div><span className="eyebrow">Bốc thăm đội hình</span><strong>{matchLabel}</strong></div>
+        <div><span className="eyebrow">{stageLabel}</span><strong>{matchLabel}</strong></div>
         <div className="team-draw-stage-actions">
           <button type="button" onClick={() => setHaptics((value) => !value)} aria-pressed={haptics}><Icon name={haptics ? "bolt" : "ban"} /> {haptics ? "Rung bật" : "Rung tắt"}</button>
           {phase !== "complete" && phase !== "error" && <button type="button" onClick={skip}>Bỏ qua</button>}
@@ -306,20 +308,20 @@ export function TeamDrawExperience({
       <footer className="team-draw-footer">
         <div><span style={{ width: `${totalMembers ? (revealed.length / totalMembers) * 100 : 0}%` }} /></div>
         <strong>{Math.min(revealed.length, totalMembers)} / {totalMembers} cầu thủ</strong>
-        {phase === "complete" && <><button type="button" onClick={() => draw && void play(draw)}>Xem lại bốc thăm</button><button type="button" className="primary" onClick={close}>Xem đội hình</button></>}
+        {phase === "complete" && <><button type="button" onClick={() => draw && void play(draw)}>{draw?.source === "LEGACY_FINAL_LINEUP" ? "Xem lại đội hình lịch sử" : "Xem lại bốc thăm"}</button><button type="button" className="primary" onClick={close}>Xem đội hình</button></>}
       </footer>
     </section>,
     document.body,
   ) : null;
 
   if (replayOnly) return <>
-    {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> Xem lại bốc thăm</button>}
+    {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> {replayLabel}</button>}
     {stage}
   </>;
 
   if (hasTeams && !allowRegenerate) return <>
     {latestDraw
-      ? <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> Xem lại bốc thăm</button>
+      ? <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> {replayLabel}</button>
       : <p className="panel-note">Đội hình này được tạo trước khi hệ thống lưu bốc thăm gốc. Hãy điều chỉnh và xác nhận đội hình hiện tại.</p>}
     {stage}
   </>;
@@ -332,7 +334,7 @@ export function TeamDrawExperience({
         <label>Số trận gần nhất<input name="lookbackMatches" type="number" min="1" max="30" defaultValue={defaultLookbackMatches} required /></label>
       </div>
       <div className="team-config-actions">
-        {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}>Xem lại bốc thăm</button>}
+        {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}>{replayLabel}</button>}
         <button className="button primary" type="submit" disabled={disabled || pending}>{pending ? "Đang cân bằng…" : hasTeams ? "Chia lại đội" : "Tạo đội cân bằng"}</button>
       </div>
       {state && !state.ok && <p className="form-message error">{state.message}</p>}

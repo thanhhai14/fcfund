@@ -342,7 +342,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
         })),
       });
     }
-    const initialDrawSnapshot: TeamDrawSnapshot = { runId: randomKey, teams: payload };
+    const initialDrawSnapshot: TeamDrawSnapshot = { runId: randomKey, source: "ORIGINAL_DRAW", teams: payload };
     await tx.update(matchTeamVersions).set({
       randomKey,
       initialDrawSnapshot,

@@ -200,7 +200,7 @@ Quy ước này đáp ứng đồng thời:
 - Avatar và logo công khai chỉ được trả về khi token còn hiệu lực và thành viên thuộc đội hình xác nhận của chính trận đó.
 - Trang công khai cung cấp Open Graph và Twitter Card động. Ảnh preview 1200×630 sử dụng logo, tên đội bóng, ngày thi đấu, tên/màu các đội và tổng quân số; token đã tắt không được tạo metadata hoặc ảnh preview hợp lệ.
 - **Xem lại bốc thăm** luôn phát lại snapshot kết quả random gốc của phiên bản, trước mọi lần đổi người thủ công. Đội hình chính thức, kết quả trận và trang công khai vẫn dùng đội hình cuối đã xác nhận.
-- Phiên bản lịch sử được tạo trước khi có snapshot bốc thăm gốc vẫn xem được đội hình cuối, nhưng không hiển thị nút trình chiếu lại giả từ dữ liệu đã điều chỉnh.
+- Phiên bản lịch sử được tạo trước khi có snapshot bốc thăm gốc được backfill từ đội hình cuối đã lưu. UI phải ghi rõ **Xem lại đội hình lịch sử** và không gọi đây là kết quả bốc thăm gốc, vì phiên bản đó có thể đã từng được điều chỉnh thủ công.
 
 ## 5. Thuật toán chia đội
 

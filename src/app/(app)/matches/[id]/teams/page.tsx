@@ -278,7 +278,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
 
       {confirmed && canManageTeams && !draft && (
         <section className="new-version-callout">
-          <div><strong>Cần xem lại đội hình?</strong><span>Trình chiếu lại kết quả bốc thăm của phiên bản {confirmed.version} mà không thay đổi dữ liệu.</span></div>
+          <div><strong>Cần xem lại đội hình?</strong><span>{originalDraw?.source === "LEGACY_FINAL_LINEUP" ? `Trình chiếu đội hình cuối đã lưu của phiên bản ${confirmed.version}. Phiên bản lịch sử này không có dữ liệu bốc thăm gốc.` : `Trình chiếu lại kết quả bốc thăm của phiên bản ${confirmed.version} mà không thay đổi dữ liệu.`}</span></div>
           {originalDraw ? <TeamDrawExperience
             action={generateMatchTeamsAction}
             matchId={match.id}

@@ -92,6 +92,13 @@
       "when": 1789704954719,
       "tag": "0012_uneven_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789707485495,
+      "tag": "0013_backfill_legacy_team_draw_snapshots",
+      "breakpoints": true
     }
   ]
 }
