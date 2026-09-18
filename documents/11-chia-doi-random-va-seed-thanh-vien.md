@@ -139,15 +139,17 @@ Trang tạo đội tải toàn bộ người đã được check tham gia trận
 
 ### 4.3. Bước 2 — Lưu và khóa tier
 
-Admin bấm **Lưu và khóa tier**. Hệ thống lưu seed trên từng người tham gia trận và chụp snapshot vào phiên bản đội hình hiện tại.
+Người có quyền quản lý Seed bấm **Lưu và khóa tier**. Hệ thống lưu seed trên từng người tham gia trận và chụp snapshot vào phiên bản đội hình hiện tại.
 
 - Khi đang khóa, dropdown seed chuyển sang chỉ đọc.
-- Muốn sửa phải bấm **Mở khóa tier**; thao tác này xóa đội hình nháp đã sinh vì đầu vào đã thay đổi.
+- Trước lần bốc thăm đầu tiên, người có quyền quản lý Seed có thể mở khóa để đánh giá lại.
+- Sau lần bốc thăm đầu tiên của bản nháp, chỉ Admin được mở khóa Seed; thao tác này xóa đội hình nháp đã sinh vì đầu vào đã thay đổi.
+- Người tổ chức hoặc Thủ quỹ muốn đánh giá lại Seed phải xác nhận đội hình hiện tại rồi tạo phiên bản mới.
 - Seed của trận khác hoặc việc đánh giá lại sau này không làm đổi đội hình lịch sử.
 
 ### 4.4. Bước 3 — Cấu hình
 
-Admin nhập:
+Người có quyền quản lý đội nhập:
 
 - số đội, tối thiểu 2;
 - cửa sổ phong độ, mặc định 10 trận tham gia gần nhất;
@@ -157,9 +159,12 @@ UI hiển thị ngay quân số dự kiến từng đội và cảnh báo số t
 
 ### 4.5. Bước 4 — Tạo đội
 
-Sau khi hợp lệ, Admin bấm **Tạo đội**. Hệ thống sinh một đội hình nháp cân bằng.
+Sau khi hợp lệ, người có quyền quản lý đội bấm **Tạo đội**. Hệ thống sinh một đội hình nháp cân bằng và lưu một snapshot bất biến của kết quả bốc thăm gốc.
 
-Các lần bấm **Chia lại** trước khi xác nhận chỉ thay thế bản nháp hiện tại; không lưu mọi kết quả random vào cơ sở dữ liệu. Activity log có thể ghi số lần thao tác nhưng không cần lưu thành viên của từng lần thử.
+- Admin được bấm **Chia lại** trong cùng bản nháp. Mỗi lần chia lại thay thế đội hình nháp và snapshot bốc thăm gốc bằng kết quả mới nhất.
+- Người tổ chức và Thủ quỹ không được chia lại sau lần bốc thăm đầu tiên. Họ chỉ được đổi người thủ công, lưu và xác nhận đội hình.
+- Nếu người không phải Admin cần một kết quả random khác, phải xác nhận đội hình hiện tại, tạo phiên bản mới, đánh giá/khóa Seed và thực hiện lần bốc thăm đầu tiên của phiên bản mới.
+- Không lưu lịch sử của mọi lần random thử; mỗi phiên bản chỉ giữ snapshot kết quả random gần nhất trước khi điều chỉnh thủ công.
 
 ### 4.6. Bước 5 — Kiểm tra và chỉnh thủ công
 
@@ -172,13 +177,13 @@ Mỗi đội hiển thị:
 - số lượng từng Tier 1–7 của cầu thủ sân;
 - điểm phong độ trung bình và số người phong độ thấp.
 
-Admin được kéo/thả người giữa các đội. Sau mỗi thay đổi, hệ thống tính lại các chỉ số và cảnh báo nếu vi phạm quân số hoặc phân bổ thủ môn. Có thể khóa một người tại đội hiện tại trước khi bấm chia lại.
+Người có quyền quản lý đội được đổi người giữa các đội. Sau mỗi thay đổi, hệ thống tính lại các chỉ số và cảnh báo nếu vi phạm quân số hoặc phân bổ thủ môn. Các điều chỉnh thủ công chỉ thay đổi đội hình nháp hiện tại, không thay đổi snapshot bốc thăm gốc.
 
 ### 4.7. Bước 6 — Xác nhận
 
 Chỉ cho **Xác nhận đội hình** khi các ràng buộc cứng đều hợp lệ. Phiên bản xác nhận là đội hình được thành viên nhìn thấy mặc định.
 
-Sau xác nhận, không sửa trực tiếp phiên bản đó. Admin bấm **Tạo phiên bản mới**, hệ thống sao chép đội hình hiện hành thành một bản nháp mới. Khi phiên bản mới được xác nhận, phiên bản cũ chuyển thành `SUPERSEDED` nhưng vẫn giữ để audit.
+Sau xác nhận, không sửa trực tiếp phiên bản đó. Người có quyền quản lý đội bấm **Tạo phiên bản mới**, hệ thống sao chép đội hình hiện hành thành một bản nháp mới. Khi phiên bản mới được xác nhận, phiên bản cũ chuyển thành `SUPERSEDED` nhưng vẫn giữ để audit.
 
 Quy ước này đáp ứng đồng thời:
 
@@ -194,6 +199,8 @@ Quy ước này đáp ứng đồng thời:
 - Không công khai Seed, Điểm phong độ, khoản thu, công nợ, số điện thoại hoặc thao tác quản trị.
 - Avatar và logo công khai chỉ được trả về khi token còn hiệu lực và thành viên thuộc đội hình xác nhận của chính trận đó.
 - Trang công khai cung cấp Open Graph và Twitter Card động. Ảnh preview 1200×630 sử dụng logo, tên đội bóng, ngày thi đấu, tên/màu các đội và tổng quân số; token đã tắt không được tạo metadata hoặc ảnh preview hợp lệ.
+- **Xem lại bốc thăm** luôn phát lại snapshot kết quả random gốc của phiên bản, trước mọi lần đổi người thủ công. Đội hình chính thức, kết quả trận và trang công khai vẫn dùng đội hình cuối đã xác nhận.
+- Phiên bản lịch sử được tạo trước khi có snapshot bốc thăm gốc vẫn xem được đội hình cuối, nhưng không hiển thị nút trình chiếu lại giả từ dữ liệu đã điều chỉnh.
 
 ## 5. Thuật toán chia đội
 
@@ -400,9 +407,11 @@ Mặc định:
 | Quyền | Admin | Thủ quỹ | Thành viên |
 |---|---:|---:|---:|
 | Xem seed | Có | Có | Có |
-| Sửa seed | Có | Theo policy | Không |
+| Sửa seed trước khi bốc thăm | Có | Theo policy | Không |
+| Mở khóa seed sau khi bốc thăm | Có | Không | Không |
 | Xem đội hình xác nhận | Có | Có | Có |
 | Tạo/chỉnh/xác nhận đội | Có | Theo policy | Không |
+| Chia lại trong cùng bản nháp | Có | Không | Không |
 | Xem phong độ suy luận | Có | Có | Theo policy |
 
 Activity log tối thiểu ghi: đánh giá/thay đổi seed của trận, khóa/mở khóa tier, tạo bản nháp, chia lại, di chuyển thủ công, xác nhận và tạo phiên bản mới.
@@ -419,6 +428,8 @@ Activity log tối thiểu ghi: đánh giá/thay đổi seed của trận, khóa
 - Người chưa có lịch sử: dùng mức phong độ trung tính.
 - Xóa người tham gia sau khi đã có nháp: làm nháp mất hiệu lực và yêu cầu sinh lại.
 - Thay đổi danh sách tham gia sau xác nhận: bắt buộc tạo phiên bản mới.
+- Người tổ chức hoặc Thủ quỹ sửa ngày/danh sách tham gia sau khi đã bốc thăm: chặn để không vô hiệu hóa bản nháp và né quy trình tạo phiên bản mới.
+- Đổi người thủ công rồi xác nhận: đội hình chính thức dùng danh sách đã đổi; **Xem lại bốc thăm** vẫn phát đúng danh sách random gốc.
 
 ## 11. Tiêu chí nghiệm thu chính
 

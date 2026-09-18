@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { avatars, chargeTypes, matches, matchParticipants, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, matches, matchParticipants, matchTeamVersions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -28,6 +28,14 @@ export default async function MatchesPage() {
     .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt)))
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
   const ids = matchRows.map((row) => row.id);
+  const generatedDrafts = ids.length && user.role !== "ADMIN" ? await db.select({ matchId: matchTeamVersions.matchId })
+    .from(matchTeamVersions)
+    .where(and(
+      inArray(matchTeamVersions.matchId, ids),
+      eq(matchTeamVersions.status, "DRAFT"),
+      isNotNull(matchTeamVersions.randomKey),
+    )) : [];
+  const generatedDraftMatchIds = new Set(generatedDrafts.map((row) => row.matchId));
   const participants = ids.length ? await db
     .select({
       matchId: matchParticipants.matchId,
@@ -149,6 +157,7 @@ export default async function MatchesPage() {
                           note={match.note ?? ""}
                           initialParticipantIds={[...(participantIdMap.get(match.id) ?? new Set<string>())]}
                           initialChargeQuantities={Object.fromEntries(chargeQuantityMap.get(match.id) ?? new Map<string, number>())}
+                          lockParticipants={generatedDraftMatchIds.has(match.id)}
                         />
                         <div className="form-actions"><SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton></div>
                       </MutationForm>

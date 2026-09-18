@@ -8,26 +8,10 @@ import { MemberAvatar } from "./member-identity";
 import { TeamCountField } from "./team-count-field";
 import { playerPositionsLabel, playerStrengthLabel, type PlayerPosition, type PlayerStrength } from "@/lib/player-profile";
 import { ACTIVE_SEED_TIERS, SEED_LABELS, type StoredSeedTier } from "@/lib/seed-tier";
+import type { TeamDrawSnapshot } from "@/lib/team-draw-snapshot";
 
 
-export type TeamDrawData = {
-  runId: string;
-  teams: Array<{
-    id: string;
-    index: number;
-    name: string;
-    color: string;
-    goalkeeperCount: number;
-    members: Array<{
-      participantId: string;
-      memberId: string | null;
-      name: string;
-      seedTier: StoredSeedTier;
-      assignedAsGoalkeeper: boolean;
-      isLocked: boolean;
-    }>;
-  }>;
-};
+export type TeamDrawData = TeamDrawSnapshot;
 
 type DrawResult = { ok: boolean; message: string; draw?: TeamDrawData };
 type Participant = {
@@ -62,6 +46,7 @@ export function TeamDrawExperience({
   hasTeams,
   initialDraw,
   replayOnly = false,
+  allowRegenerate = false,
 }: {
   action: (formData: FormData) => Promise<DrawResult>;
   matchId: string;
@@ -73,6 +58,7 @@ export function TeamDrawExperience({
   hasTeams: boolean;
   initialDraw?: TeamDrawData | null;
   replayOnly?: boolean;
+  allowRegenerate?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -124,7 +110,7 @@ export function TeamDrawExperience({
           const team = teams[teamIndex];
           ordered.push({
             ...member,
-            avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? null,
+            avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? member.avatarVersion,
             formScore: participantMap.get(member.participantId)?.formScore ?? 5000,
             desiredPositions: participantMap.get(member.participantId)?.desiredPositions ?? [],
             playerStrength: participantMap.get(member.participantId)?.playerStrength ?? null,
@@ -138,7 +124,7 @@ export function TeamDrawExperience({
     }
     teams.forEach((team) => team.members.filter((member) => member.assignedAsGoalkeeper).forEach((member) => ordered.push({
       ...member,
-      avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? null,
+      avatarVersion: participantMap.get(member.participantId)?.avatarVersion ?? member.avatarVersion,
       formScore: participantMap.get(member.participantId)?.formScore ?? 5000,
       desiredPositions: participantMap.get(member.participantId)?.desiredPositions ?? [],
       playerStrength: participantMap.get(member.participantId)?.playerStrength ?? null,
@@ -306,7 +292,7 @@ export function TeamDrawExperience({
                 const isRevealed = revealedSet.has(member.participantId);
                 return <li className={isRevealed ? "revealed" : "waiting"} key={member.participantId} title={member.name}>
                   {isRevealed ? <span className="team-draw-member-entry">
-                    <MemberAvatar memberId={member.memberId} name={member.name} avatarVersion={memberDetail?.avatarVersion} />
+                    <MemberAvatar memberId={member.memberId} name={member.name} avatarVersion={memberDetail?.avatarVersion ?? member.avatarVersion} />
                     <span><strong>{member.name}</strong><small>{SEED_LABELS[member.seedTier]}{member.assignedAsGoalkeeper ? " · Thủ môn" : ""} · {playerPositionsLabel(memberDetail?.desiredPositions)} · {Math.round((memberDetail?.formScore ?? 5000) / 100)} điểm</small></span>
                   </span> : <span className="team-draw-member-waiting">Đang chờ…</span>}
                   {member.isLocked && <Icon name="shield" />}
@@ -328,6 +314,13 @@ export function TeamDrawExperience({
 
   if (replayOnly) return <>
     {latestDraw && <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> Xem lại bốc thăm</button>}
+    {stage}
+  </>;
+
+  if (hasTeams && !allowRegenerate) return <>
+    {latestDraw
+      ? <button className="button secondary" type="button" onClick={() => void play(latestDraw)}><Icon name="eye" /> Xem lại bốc thăm</button>
+      : <p className="panel-note">Đội hình này được tạo trước khi hệ thống lưu bốc thăm gốc. Hãy điều chỉnh và xác nhận đội hình hiện tại.</p>}
     {stage}
   </>;
 

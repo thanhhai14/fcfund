@@ -16,10 +16,10 @@ import { Icon } from "@/components/icon";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { SeedEvaluationTable } from "@/components/seed-evaluation-table";
-import { TeamDrawExperience, type TeamDrawData } from "@/components/team-draw-experience";
+import { TeamDrawExperience } from "@/components/team-draw-experience";
 import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
-import { PERMISSIONS, teamColorForIndex } from "@/lib/constants";
+import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
@@ -46,6 +46,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const canManageSeeds = await can(PERMISSIONS.MATCH_SEED_MANAGE);
   const canViewSeeds = canManageSeeds || await can(PERMISSIONS.MATCH_SEED_VIEW);
   const canViewFormReport = canManageTeams || await can(PERMISSIONS.MATCH_FORM_REPORT_VIEW);
+  const isAdmin = user.role === "ADMIN";
   const { id } = await params;
 
   const [match] = await db.select().from(matches).where(and(
@@ -128,24 +129,8 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
   const missingRoleProfiles = participants.filter((participant) => !(participant.desiredPositions?.length) || !participant.playerStrength).length;
   const maxTeamCount = participants.length;
   const isDraftLocked = Boolean(draft?.tierLockedAt);
-  const currentDraw: TeamDrawData | null = displayedVersion?.randomKey && teamRows.length ? {
-    runId: displayedVersion.randomKey,
-    teams: teamRows.map((team) => ({
-      id: team.id,
-      index: team.teamIndex,
-      name: team.name,
-      color: team.color ?? teamColorForIndex(team.teamIndex),
-      goalkeeperCount: team.goalkeeperCount,
-      members: teamMemberRows.filter((member) => member.teamId === team.id && member.participantId).map((member) => ({
-        participantId: member.participantId!,
-        memberId: member.memberId,
-        name: member.displayNameSnapshot,
-        seedTier: member.seedTierSnapshot,
-        assignedAsGoalkeeper: member.assignedAsGoalkeeper,
-        isLocked: member.isLocked,
-      })),
-    })),
-  } : null;
+  const draftHasDraw = Boolean(draft && (draft.initialDrawSnapshot || draft.randomKey || teamRows.length));
+  const originalDraw = displayedVersion?.initialDrawSnapshot ?? null;
 
   return (
     <>
@@ -213,11 +198,11 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
 
       {canManageSeeds && draft && isDraftLocked && (
         <section className="seed-lock-bar">
-          <span><Icon name="shield" /><strong>Seed đã khóa</strong><small> Mở khóa sẽ xóa đội hình nháp hiện tại.</small></span>
-          <MutationForm action={unlockMatchSeedsAction}>
+          <span><Icon name="shield" /><strong>Seed đã khóa</strong><small>{draftHasDraw && !isAdmin ? " Đội hình đã bốc thăm; hãy xác nhận rồi tạo phiên bản mới nếu cần đánh giá lại." : " Mở khóa sẽ xóa đội hình nháp hiện tại."}</small></span>
+          {(!draftHasDraw || isAdmin) && <MutationForm action={unlockMatchSeedsAction}>
             <input type="hidden" name="matchId" value={match.id} />
             <SubmitButton variant="secondary">Mở khóa để đánh giá lại</SubmitButton>
-          </MutationForm>
+          </MutationForm>}
         </section>
       )}
 
@@ -246,7 +231,8 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
             defaultLookbackMatches={draft.lookbackMatches}
             disabled={participants.length < 10}
             hasTeams={teamRows.length > 0}
-            initialDraw={currentDraw}
+            initialDraw={originalDraw}
+            allowRegenerate={isAdmin}
           />
         </section>
       )}
@@ -264,11 +250,11 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
               <div className="team-columns">
                 {teamRows.map((team) => {
                   const rows = teamMemberRows.filter((row) => row.teamId === team.id);
-                  return <TeamCard key={team.id} team={team} rows={rows} allRows={teamMemberRows} allTeams={teamRows} editable showSeed={canViewSeeds} showForm={canViewFormReport} />;
+                  return <TeamCard key={team.id} team={team} rows={rows} allRows={teamMemberRows} allTeams={teamRows} editable allowLock={isAdmin} showSeed={canViewSeeds} showForm={canViewFormReport} />;
                 })}
               </div>
               <div className="team-draft-actions">
-                <span>Di chuyển bằng ô chọn đội; khóa người để giữ nguyên khi chia lại.</span>
+                <span>{isAdmin ? "Di chuyển bằng ô chọn đội; khóa người để giữ nguyên khi chia lại." : "Di chuyển cầu thủ bằng ô chọn đội, lưu điều chỉnh rồi xác nhận đội hình."}</span>
                 <SubmitButton variant="secondary">Lưu điều chỉnh</SubmitButton>
               </div>
             </MutationForm>
@@ -293,7 +279,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       {confirmed && canManageTeams && !draft && (
         <section className="new-version-callout">
           <div><strong>Cần xem lại đội hình?</strong><span>Trình chiếu lại kết quả bốc thăm của phiên bản {confirmed.version} mà không thay đổi dữ liệu.</span></div>
-          {currentDraw && <TeamDrawExperience
+          {originalDraw ? <TeamDrawExperience
             action={generateMatchTeamsAction}
             matchId={match.id}
             matchLabel={`Trận ngày ${formatDate(match.playedOn)}`}
@@ -312,9 +298,9 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
             defaultLookbackMatches={confirmed.lookbackMatches}
             disabled
             hasTeams
-            initialDraw={currentDraw}
+            initialDraw={originalDraw}
             replayOnly
-          />}
+          /> : <small>Phiên bản này không có dữ liệu bốc thăm gốc để trình chiếu lại.</small>}
         </section>
       )}
     </>
@@ -327,6 +313,7 @@ function TeamCard({
   allRows,
   allTeams,
   editable = false,
+  allowLock = false,
   showSeed = true,
   showForm = true,
 }: {
@@ -335,6 +322,7 @@ function TeamCard({
   allRows: Array<typeof matchTeamMembers.$inferSelect & { avatarUpdatedAt: Date | null }>;
   allTeams: Array<typeof matchTeams.$inferSelect>;
   editable?: boolean;
+  allowLock?: boolean;
   showSeed?: boolean;
   showForm?: boolean;
 }) {
@@ -382,7 +370,7 @@ function TeamCard({
               <select name={`team_${row.id}`} defaultValue={row.teamId} aria-label={`Đội của ${row.displayNameSnapshot}`}>
                 {allTeams.map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}
               </select>
-              <label title="Giữ người này ở đội khi chia lại"><input type="checkbox" name={`locked_${row.id}`} defaultChecked={row.isLocked} /> Khóa</label>
+              {allowLock && <label title="Giữ người này ở đội khi chia lại"><input type="checkbox" name={`locked_${row.id}`} defaultChecked={row.isLocked} /> Khóa</label>}
             </span>}
           </div>
         ))}

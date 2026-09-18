@@ -1,0 +1,1 @@
+ALTER TABLE "match_team_versions" ADD COLUMN "initial_draw_snapshot" jsonb;

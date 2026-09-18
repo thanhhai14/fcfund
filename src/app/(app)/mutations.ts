@@ -2,7 +2,7 @@
 
 import { del, put } from "@vercel/blob";
 import { hash } from "bcryptjs";
-import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -1090,6 +1090,16 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     .map((row) => row.id);
   const participantsChanged = addedMemberIds.length > 0 || removedParticipantIds.length > 0;
   const teamDraftInvalidated = participantsChanged || playedOn !== before.playedOn;
+  if (teamDraftInvalidated && actor.role !== "ADMIN") {
+    const [generatedDraft] = await db.select({ id: matchTeamVersions.id }).from(matchTeamVersions).where(and(
+      eq(matchTeamVersions.matchId, id),
+      eq(matchTeamVersions.status, "DRAFT"),
+      or(isNotNull(matchTeamVersions.randomKey), isNotNull(matchTeamVersions.initialDrawSnapshot)),
+    )).limit(1);
+    if (generatedDraft) {
+      return { ok: false, message: "Đội hình đã được bốc thăm. Hãy giữ nguyên ngày và người tham gia, điều chỉnh đội hình rồi xác nhận." };
+    }
+  }
 
   await db.transaction(async (tx) => {
     const [after] = await tx.update(matches).set({

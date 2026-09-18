@@ -16,6 +16,7 @@ export function MatchFields({
   note = "",
   initialParticipantIds = [],
   initialChargeQuantities = {},
+  lockParticipants = false,
 }: {
   memberRows: MatrixMember[];
   occurrenceTypes: MatrixChargeType[];
@@ -23,6 +24,7 @@ export function MatchFields({
   note?: string;
   initialParticipantIds?: string[];
   initialChargeQuantities?: Record<string, number>;
+  lockParticipants?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("ALL");
@@ -41,10 +43,11 @@ export function MatchFields({
   }
 
   return <>
-    <div className="form-row"><label className="date-field">Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required /></label><label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label></div>
+    <div className="form-row"><label className="date-field">Ngày thi đấu<input name="playedOn" type="date" defaultValue={playedOn} required disabled={lockParticipants} /></label><label>Ghi chú<input name="note" defaultValue={note} placeholder="Sân, khung giờ..." /></label></div>
     <div>
       <span className="field-label">Người tham gia và khoản thu</span>
-      <p className="matrix-help">Nhập số lần phát sinh từ 1 trở lên sẽ tự đánh dấu người đó tham gia trận.</p>
+      <p className="matrix-help">{lockParticipants ? "Đội hình đã được bốc thăm nên ngày và người tham gia được giữ nguyên. Bạn vẫn có thể sửa khoản thu của người đang tham gia." : "Nhập số lần phát sinh từ 1 trở lên sẽ tự đánh dấu người đó tham gia trận."}</p>
+      {lockParticipants && initialParticipantIds.map((memberId) => <input type="hidden" name="participants" value={memberId} key={memberId} />)}
       <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên..." count={selected.size} countLabel={`${selected.size} người đã chọn`}>
         <select value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">Tất cả thành viên</option><option value="SELECTED">Đã chọn</option><option value="UNSELECTED">Chưa chọn</option></select>
         <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="ASC">Tên A–Z</option><option value="DESC">Tên Z–A</option></select>
@@ -56,8 +59,8 @@ export function MatchFields({
           const visible = (!search || normalizeSearch(member.fullName).includes(search)) && (filter === "ALL" || (filter === "SELECTED" ? isSelected : !isSelected));
           return <div className={`matrix-row ${visible ? "" : "filtered-out"}`} style={{ gridTemplateColumns: columns }} key={member.id}>
             <MemberIdentity memberId={member.id} name={member.fullName} avatarVersion={member.avatarUpdatedAt} compact />
-            <label className="box-check" title="Đánh dấu tham gia"><input type="checkbox" name="participants" value={member.id} checked={isSelected} onChange={(event) => setParticipant(member.id, event.target.checked)} /><small className="matrix-mobile-label">Tham gia</small><span>✓</span></label>
-            {occurrenceTypes.map((type) => { const key = `${member.id}|${type.id}`; return <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}><small className="matrix-mobile-label"><Icon name={type.iconName} />{type.name}<em>{formatMoney(type.defaultAmount)}</em></small><input type="number" name={`matchChargeQuantity:${member.id}:${type.id}`} min="0" max="99" step="1" inputMode="numeric" defaultValue={initialChargeQuantities[key] ?? 0} onChange={(event) => { if (Number(event.target.value) > 0) setParticipant(member.id, true); }} aria-label={`Số lần ${type.name} của ${member.fullName}`} /></label>; })}
+            <label className="box-check" title={lockParticipants ? "Người tham gia đã được khóa sau khi bốc thăm" : "Đánh dấu tham gia"}><input type="checkbox" name={lockParticipants ? undefined : "participants"} value={member.id} checked={isSelected} disabled={lockParticipants} onChange={(event) => setParticipant(member.id, event.target.checked)} /><small className="matrix-mobile-label">Tham gia</small><span>✓</span></label>
+            {occurrenceTypes.map((type) => { const key = `${member.id}|${type.id}`; return <label className="quantity-field" title={`${type.name} · ${member.fullName}`} key={type.id}><small className="matrix-mobile-label"><Icon name={type.iconName} />{type.name}<em>{formatMoney(type.defaultAmount)}</em></small><input type="number" name={`matchChargeQuantity:${member.id}:${type.id}`} min="0" max="99" step="1" inputMode="numeric" defaultValue={initialChargeQuantities[key] ?? 0} disabled={lockParticipants && !isSelected} onChange={(event) => { if (!lockParticipants && Number(event.target.value) > 0) setParticipant(member.id, true); }} aria-label={`Số lần ${type.name} của ${member.fullName}`} /></label>; })}
           </div>;
         })}
       </div>

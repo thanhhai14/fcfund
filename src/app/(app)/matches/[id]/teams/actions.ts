@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
   activityLogs,
+  avatars,
   matches,
   matchParticipants,
   matchTeamMembers,
@@ -20,28 +21,10 @@ import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant } from "@/lib/team-balancer";
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
+import type { TeamDrawSnapshot } from "@/lib/team-draw-snapshot";
 
 type MutationResult = { ok: boolean; message: string };
-type TeamDrawResult = MutationResult & {
-  draw?: {
-    runId: string;
-    teams: Array<{
-      id: string;
-      index: number;
-      name: string;
-      color: string;
-      goalkeeperCount: number;
-      members: Array<{
-        participantId: string;
-        memberId: string | null;
-        name: string;
-        seedTier: SeedTier;
-        assignedAsGoalkeeper: boolean;
-        isLocked: boolean;
-      }>;
-    }>;
-  };
-};
+type TeamDrawResult = MutationResult & { draw?: TeamDrawSnapshot };
 
 function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -66,10 +49,12 @@ async function currentParticipants(matchId: string) {
     memberName: members.fullName,
     desiredPositions: memberProfiles.desiredPositions,
     playerStrength: memberProfiles.playerStrength,
+    avatarUpdatedAt: avatars.updatedAt,
   })
     .from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
     .leftJoin(memberProfiles, eq(matchParticipants.memberId, memberProfiles.memberId))
+    .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
     .where(eq(matchParticipants.matchId, matchId));
 }
 
@@ -140,6 +125,9 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
   }
 
   const existingDraft = await draftForMatch(matchId);
+  if (existingDraft && actor.role !== "ADMIN" && (existingDraft.initialDrawSnapshot || existingDraft.randomKey)) {
+    return { ok: false, message: "Đội hình đã được bốc thăm. Hãy xác nhận đội hình rồi tạo phiên bản mới nếu cần đánh giá lại Seed." };
+  }
   const [latest] = await db.select({ version: matchTeamVersions.version })
     .from(matchTeamVersions)
     .where(eq(matchTeamVersions.matchId, matchId))
@@ -164,6 +152,7 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
         tierLockedAt: now,
         tierLockedBy: actor.id,
         randomKey: null,
+        initialDrawSnapshot: null,
         metrics: {},
         updatedAt: now,
       }).where(eq(matchTeamVersions.id, existingDraft.id));
@@ -203,6 +192,9 @@ export async function unlockMatchSeedsAction(formData: FormData): Promise<Mutati
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
   const draft = await draftForMatch(matchId);
   if (!draft) return { ok: false, message: "Chưa có phiên bản nháp để mở khóa." };
+  if ((draft.initialDrawSnapshot || draft.randomKey) && actor.role !== "ADMIN") {
+    return { ok: false, message: "Seed đã được dùng để bốc thăm. Chỉ Admin có thể mở khóa trước khi xác nhận đội hình." };
+  }
 
   await db.transaction(async (tx) => {
     await tx.delete(matchTeams).where(eq(matchTeams.versionId, draft.id));
@@ -210,6 +202,7 @@ export async function unlockMatchSeedsAction(formData: FormData): Promise<Mutati
       tierLockedAt: null,
       tierLockedBy: null,
       randomKey: null,
+      initialDrawSnapshot: null,
       metrics: {},
       updatedAt: new Date(),
     }).where(eq(matchTeamVersions.id, draft.id));
@@ -233,6 +226,11 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
   const draft = await draftForMatch(matchId);
   if (!draft?.tierLockedAt) return { ok: false, message: "Hãy lưu và khóa Seed trước khi tạo đội." };
+  const existingTeams = await db.select({ id: matchTeams.id }).from(matchTeams)
+    .where(eq(matchTeams.versionId, draft.id)).limit(1);
+  if (actor.role !== "ADMIN" && (draft.initialDrawSnapshot || draft.randomKey || existingTeams.length > 0)) {
+    return { ok: false, message: "Đội hình đã được bốc thăm. Hãy điều chỉnh cầu thủ và xác nhận; muốn bốc thăm lại, hãy tạo phiên bản mới sau khi xác nhận." };
+  }
 
   const teamCount = Number(str(formData, "teamCount"));
   const lookbackMatches = Math.min(30, Math.max(1, Number(str(formData, "lookbackMatches") || 10)));
@@ -292,7 +290,7 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
 
   const drawTeams = await db.transaction(async (tx) => {
     await tx.delete(matchTeams).where(eq(matchTeams.versionId, draft.id));
-    const payload: NonNullable<TeamDrawResult["draw"]>["teams"] = [];
+    const payload: TeamDrawSnapshot["teams"] = [];
     for (const team of result.teams) {
       const color = teamColorForIndex(team.index);
       const [createdTeam] = await tx.insert(matchTeams).values({
@@ -337,14 +335,17 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
           participantId: member.participantId,
           memberId: member.memberId,
           name: member.name,
+          avatarVersion: participants.find((participant) => participant.id === member.participantId)?.avatarUpdatedAt?.getTime() ?? null,
           seedTier: member.seedTier,
           assignedAsGoalkeeper: Boolean(member.assignedAsGoalkeeper),
           isLocked: Boolean(member.lockedTeamIndex),
         })),
       });
     }
+    const initialDrawSnapshot: TeamDrawSnapshot = { runId: randomKey, teams: payload };
     await tx.update(matchTeamVersions).set({
       randomKey,
+      initialDrawSnapshot,
       teamCount,
       lookbackMatches,
       metrics: { cost: result.cost },
@@ -386,7 +387,7 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
   const assignments = rows.map((row) => ({
     row,
     teamId: str(formData, `team_${row.id}`),
-    isLocked: formData.get(`locked_${row.id}`) === "on",
+    isLocked: actor.role === "ADMIN" ? formData.get(`locked_${row.id}`) === "on" : row.isLocked,
   }));
   if (assignments.some((assignment) => !teamIds.has(assignment.teamId))) {
     return { ok: false, message: "Đội được chọn không hợp lệ." };
@@ -416,7 +417,7 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
       entityId: draft.id,
       action: "UPDATE",
       actorId: actor.id,
-      message: "Điều chỉnh đội hình thủ công và cập nhật người được khóa",
+      message: actor.role === "ADMIN" ? "Điều chỉnh đội hình thủ công và cập nhật người được khóa" : "Điều chỉnh đội hình thủ công",
     });
   });
   revalidatePath(`/matches/${matchId}/teams`);

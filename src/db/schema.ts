@@ -18,6 +18,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
+import type { TeamDrawSnapshot } from "@/lib/team-draw-snapshot";
 
 const auditColumns = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -278,6 +279,7 @@ export const matchTeamVersions = pgTable(
     version: integer("version").notNull(),
     status: matchTeamVersionStatus("status").default("DRAFT").notNull(),
     randomKey: varchar("random_key", { length: 100 }),
+    initialDrawSnapshot: jsonb("initial_draw_snapshot").$type<TeamDrawSnapshot>(),
     teamCount: integer("team_count").default(2).notNull(),
     lookbackMatches: integer("lookback_matches").default(10).notNull(),
     tierLockedAt: timestamp("tier_locked_at", { withTimezone: true }),
