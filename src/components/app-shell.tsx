@@ -17,6 +17,17 @@ const navItems = [
   { href: "/settings", label: "Cài đặt", icon: "settings" },
 ];
 
+const mobileNavItems = [
+  { href: "/dashboard", label: "Tổng quan", icon: "house" },
+  { href: "/matches", label: "Trận", icon: "futbol" },
+  { href: "/charges", label: "Khoản thu", icon: "coins" },
+  { href: "/reports", label: "Báo cáo", icon: "chart" },
+];
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function AppShell({
   children,
   clubName,
@@ -26,6 +37,7 @@ export function AppShell({
   userMemberId,
   userAvatarVersion,
   roleLabel,
+  mobileNavRoutes,
   logoutAction,
 }: {
   children: React.ReactNode;
@@ -36,10 +48,13 @@ export function AppShell({
   userMemberId?: string | null;
   userAvatarVersion?: Date | string | number | null;
   roleLabel: string;
+  mobileNavRoutes: string[];
   logoutAction: () => Promise<void>;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const visibleMobileNavItems = mobileNavItems.filter((item) => mobileNavRoutes.includes(item.href));
+  const mobilePrimaryActive = visibleMobileNavItems.some((item) => isActivePath(pathname, item.href));
 
   return (
     <div className="app-shell">
@@ -55,12 +70,13 @@ export function AppShell({
         </Link>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = isActivePath(pathname, item.href);
             return (
               <Link
                 href={item.href}
                 key={item.href}
                 className={active ? "active" : ""}
+                aria-current={active ? "page" : undefined}
                 onClick={() => setOpen(false)}
               >
                 <Icon name={item.icon} /><span>{item.label}</span>
@@ -92,6 +108,34 @@ export function AppShell({
         </button>
         {children}
       </main>
+
+      <nav className="mobile-bottom-nav" aria-label="Điều hướng chính trên điện thoại">
+        {visibleMobileNavItems.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Link
+              href={item.href}
+              key={item.href}
+              className={active ? "active" : ""}
+              aria-current={active ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
+              <Icon name={item.icon} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          className={open || !mobilePrimaryActive ? "active" : ""}
+          onClick={() => setOpen(true)}
+          aria-label="Mở thêm chức năng"
+          aria-expanded={open}
+        >
+          <Icon name="menu" />
+          <span>Thêm</span>
+        </button>
+      </nav>
     </div>
   );
 }

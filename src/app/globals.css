@@ -574,6 +574,10 @@ label>textarea {
   display: none;
 }
 
+.mobile-bottom-nav {
+  display: none;
+}
+
 .sidebar-backdrop {
   display: none;
 }
@@ -1001,19 +1005,82 @@ label>textarea {
 
   .app-main {
     margin-left: 0;
-    padding: 22px 16px 45px;
+    padding: 22px 16px max(96px, calc(76px + env(safe-area-inset-bottom)));
   }
 
   .mobile-menu {
+    display: none;
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 24;
     display: grid;
-    place-items: center;
-    width: 35px;
-    height: 35px;
-    border: 1px solid var(--line);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    align-items: stretch;
+    padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .97);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -5px 18px rgba(4, 47, 82, .09);
+  }
+
+  .mobile-bottom-nav a,
+  .mobile-bottom-nav button {
+    position: relative;
+    min-width: 0;
+    min-height: 54px;
+    padding: 6px 3px 5px;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
     border-radius: 2px;
-    background: white;
-    margin-bottom: 15px;
-    box-shadow: 3px 3px 0 var(--pink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.05;
+  }
+
+  .mobile-bottom-nav a svg,
+  .mobile-bottom-nav button svg {
+    width: 19px;
+    height: 19px;
+    font-size: 19px;
+  }
+
+  .mobile-bottom-nav a::before,
+  .mobile-bottom-nav button::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 22%;
+    width: 56%;
+    height: 3px;
+    background: transparent;
+  }
+
+  .mobile-bottom-nav a.active,
+  .mobile-bottom-nav button.active {
+    color: var(--forest-900);
+    background: var(--forest-50);
+  }
+
+  .mobile-bottom-nav a.active::before,
+  .mobile-bottom-nav button.active::before {
+    background: var(--pink);
+  }
+
+  .mobile-bottom-nav a:focus-visible,
+  .mobile-bottom-nav button:focus-visible {
+    outline: 2px solid var(--pink);
+    outline-offset: -2px;
   }
 
   .page-header {
