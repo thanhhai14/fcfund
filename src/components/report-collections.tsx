@@ -20,7 +20,7 @@ type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" 
 function MonthlyCellView({ type, cell }: { type: ChargeDisplayType; cell?: MonthlyCell }) {
   if (!cell) return <span className="monthly-empty">—</span>;
   if (!type.reportAsIcon) return <span className="monthly-quantity" title={`${type.name} · ${cell.quantity} lần`}><strong>{cell.quantity}</strong></span>;
-  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${type.name} · ${cell.quantity} lần`}><Icon name={type.iconName} className="report-charge-icon" /><small className="report-charge-quantity">× {cell.quantity}</small></span>;
+  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${type.name} · ${cell.quantity} lần`}>{Array.from({ length: cell.quantity }, (_, index) => <Icon name={type.iconName} key={index} className="report-charge-icon" />)}<small className="report-charge-quantity">({cell.quantity})</small></span>;
 }
 
 function BalanceCellView({ type, cell }: { type: ChargeDisplayType; cell?: MonthlyCell }) {
