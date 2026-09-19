@@ -62,14 +62,21 @@ function MonthlyReportSnapshot({ members, types, isColumnVisible }: {
 export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, previousMonth, nextMonth, total, paidTotal, types, members }: { clubName: string; logoUrl: string | null; month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; paidTotal: number; types: MonthlyType[]; members: MonthlyMember[] }) {
   const [query, setQuery] = useState("");
   const [activity, setActivity] = useState("ALL");
-  const [sort, setSort] = useState("NAME");
+  const [sort, setSort] = useState("MEDAL_DESC");
   const [view, setView] = useResponsiveView("fcfund:report-monthly:view");
+  const medalType = useMemo(
+    () => types.find((type) => normalizeSearch(type.name) === "huan chuong")
+      ?? types.find((type) => type.iconName === "medal"),
+    [types],
+  );
   const columnDefinitions = useMemo<CollectionColumn[]>(() => [
     { id: "rank", label: "Hạng" }, { id: "member", label: "Thành viên", required: true },
     ...types.map((type) => ({ id: `type:${type.id}`, label: type.name })),
-    { id: "total", label: "Tổng tháng" }, { id: "paid", label: "Đã đóng" }, { id: "remaining", label: "Còn lại" },
+    { id: "total", label: "Tổng tháng", defaultVisible: false },
+    { id: "paid", label: "Đã đóng", defaultVisible: false },
+    { id: "remaining", label: "Còn lại", defaultVisible: false },
   ], [types]);
-  const columns = useColumnVisibility("fcfund:report-monthly:columns", columnDefinitions);
+  const columns = useColumnVisibility("fcfund:report-monthly:columns:v2", columnDefinitions);
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
     const result = members.filter((member) => {
@@ -79,6 +86,15 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
       return true;
     });
     result.sort((a, b) => {
+      if (sort === "MEDAL_DESC") {
+        const medalQuantity = (member: MonthlyMember) =>
+          medalType
+            ? member.cells.find((item) => item.typeId === medalType.id)?.quantity ?? 0
+            : 0;
+        return medalQuantity(b) - medalQuantity(a)
+          || b.total - a.total
+          || a.name.localeCompare(b.name, "vi");
+      }
       if (sort.startsWith("TYPE:")) {
         const type = types.find((item) => item.id === sort.slice(5));
         const score = (member: MonthlyMember) => {
@@ -95,7 +111,7 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
       return a.name.localeCompare(b.name, "vi");
     });
     return result;
-  }, [activity, members, query, sort, types]);
+  }, [activity, medalType, members, query, sort, types]);
 
   const remainingTotal = paidTotal - total;
   const exportWidth = Math.max(1080,
@@ -117,7 +133,7 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
     <div className="report-toolbar-pad">
       <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc mã..." count={visible.length} view={view} onViewChange={setView}>
         <select value={activity} onChange={(event) => setActivity(event.target.value)}><option value="ALL">Mọi phát sinh</option><option value="HAS">Có phát sinh</option><option value="NONE">Không phát sinh</option></select>
-        <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="NAME">Tên A–Z</option><option value="TOTAL_DESC">Tổng tháng cao nhất</option><option value="TOTAL_ASC">Tổng tháng thấp nhất</option><option value="PAID_DESC">Đã đóng cao nhất</option><option value="REMAINING_ASC">Còn nợ nhiều trước</option><option value="REMAINING_DESC">Đóng dư nhiều trước</option>{types.map((type) => <option value={`TYPE:${type.id}`} key={type.id}>{type.name} nhiều nhất</option>)}</select>
+        <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="MEDAL_DESC">Huân chương cao nhất</option><option value="NAME">Tên A–Z</option><option value="TOTAL_DESC">Tổng tháng cao nhất</option><option value="TOTAL_ASC">Tổng tháng thấp nhất</option><option value="PAID_DESC">Đã đóng cao nhất</option><option value="REMAINING_ASC">Còn nợ nhiều trước</option><option value="REMAINING_DESC">Đóng dư nhiều trước</option>{types.map((type) => <option value={`TYPE:${type.id}`} key={type.id}>{type.name} nhiều nhất</option>)}</select>
         {view === "list" && <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />}
       </CollectionToolbar>
     </div>
