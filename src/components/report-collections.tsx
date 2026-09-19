@@ -12,15 +12,15 @@ import { balanceCellColumnId, balanceSourceMonthLabel } from "@/lib/balance-repo
 import type { OpeningBalance } from "@/lib/opening-balance";
 import { OpeningBalanceBadge } from "./opening-balance-badge";
 
-type MonthlyType = { id: string; name: string; calculation: "MONTHLY" | "OCCURRENCE"; iconName: string; color: string | null; defaultAmount: number; reportAsIcon: boolean; isLossPenalty: boolean; reportNextMonth: boolean; total: number };
+type MonthlyType = { id: string; name: string; calculation: "MONTHLY" | "OCCURRENCE"; iconName: string; color: string | null; defaultAmount: number; reportAsIcon: boolean; isLossPenalty: boolean; reportNextMonth: boolean };
 type ChargeDisplayType = Pick<MonthlyType, "id" | "name" | "calculation" | "iconName" | "color" | "defaultAmount" | "reportAsIcon" | "reportNextMonth"> & { sourceMonth?: string };
 type MonthlyCell = { typeId: string; quantity: number; total: number };
-type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" | "INACTIVE"; avatarVersion: number | null; total: number; paid: number; cells: MonthlyCell[] };
+type MonthlyMember = { id: string; code: string; name: string; status: "ACTIVE" | "INACTIVE"; avatarVersion: number | null; total: number; cells: MonthlyCell[] };
 
 function MonthlyCellView({ type, cell }: { type: ChargeDisplayType; cell?: MonthlyCell }) {
   if (!cell) return <span className="monthly-empty">—</span>;
-  if (!type.reportAsIcon) return <span className="monthly-money"><strong>{formatMoney(cell.total)}</strong>{cell.quantity > 1 && <small>{cell.quantity} lần</small>}</span>;
-  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${cell.quantity} lần · ${formatMoney(cell.total)}`}>{Array.from({ length: cell.quantity }, (_, index) => <Icon name={type.iconName} key={index} className="report-charge-icon" />)}<small className="report-charge-quantity">({cell.quantity})</small></span>;
+  if (!type.reportAsIcon) return <span className="monthly-quantity" title={`${type.name} · ${cell.quantity} lần`}><strong>{cell.quantity}</strong></span>;
+  return <span className="icon-count" style={{ color: type.color ?? undefined }} title={`${type.name} · ${cell.quantity} lần`}><Icon name={type.iconName} className="report-charge-icon" /><small className="report-charge-quantity">× {cell.quantity}</small></span>;
 }
 
 function BalanceCellView({ type, cell }: { type: ChargeDisplayType; cell?: MonthlyCell }) {
@@ -38,28 +38,29 @@ function MonthlyReportSnapshot({ members, types, isColumnVisible }: {
 }) {
   const visibleTypes = types.filter((type) => isColumnVisible(`type:${type.id}`));
   const total = members.reduce((sum, member) => sum + member.total, 0);
-  const paid = members.reduce((sum, member) => sum + member.paid, 0);
-  const remaining = paid - total;
+  const totalOccurrences = members.reduce((sum, member) => sum + member.cells.reduce((cellSum, cell) => cellSum + cell.quantity, 0), 0);
+  const medalType = types.find((type) => normalizeSearch(type.name) === "huan chuong")
+    ?? types.find((type) => type.iconName === "medal");
+  const medalCount = medalType
+    ? members.reduce((sum, member) => sum + (member.cells.find((cell) => cell.typeId === medalType.id)?.quantity ?? 0), 0)
+    : 0;
 
   return <main className="monthly-report-snapshot">
     <section className="report-export-summary">
       <div><small>THÀNH VIÊN</small><strong>{members.length}</strong></div>
-      <div><small>TỔNG PHẢI ĐÓNG</small><strong>{formatMoney(total)}</strong></div>
-      <div><small>ĐÃ ĐÓNG</small><strong>{formatMoney(paid)}</strong></div>
-      <div><small>CÒN LẠI</small><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></div>
+      <div><small>LƯỢT PHÁT SINH</small><strong>{totalOccurrences}</strong></div>
+      <div><small>HUÂN CHƯƠNG</small><strong>{medalCount}</strong></div>
+      <div><small>TỔNG PHẢI THU</small><strong>{formatMoney(total)}</strong></div>
     </section>
     <table>
-      <thead><tr>{isColumnVisible("rank") && <th className="snapshot-rank">Hạng</th>}<th className="snapshot-member">Thành viên</th>{visibleTypes.map((type) => <th key={type.id}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong></th>)}{isColumnVisible("total") && <th>Tổng tháng</th>}{isColumnVisible("paid") && <th>Đã đóng</th>}{isColumnVisible("remaining") && <th>Còn lại</th>}</tr></thead>
-      <tbody>{members.map((member, index) => {
-        const memberRemaining = member.paid - member.total;
-        return <tr key={member.id}>{isColumnVisible("rank") && <td className="snapshot-rank">#{index + 1}</td>}<td className="snapshot-member"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} compact /></td>{visibleTypes.map((type) => <td key={type.id}><MonthlyCellView type={type} cell={member.cells.find((cell) => cell.typeId === type.id)} /></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(member.total)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(member.paid)}</strong></td>}{isColumnVisible("remaining") && <td><strong className={memberRemaining < 0 ? "money-out" : "money-in"}>{memberRemaining > 0 ? "+" : ""}{formatMoney(memberRemaining)}</strong></td>}</tr>;
-      })}</tbody>
-      <tfoot><tr>{isColumnVisible("rank") && <td />}<td className="snapshot-member"><strong>Tổng danh sách</strong></td>{visibleTypes.map((type) => <td key={type.id}><strong>{formatMoney(members.reduce((sum, member) => sum + (member.cells.find((cell) => cell.typeId === type.id)?.total ?? 0), 0))}</strong></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(total)}</strong></td>}{isColumnVisible("paid") && <td><strong>{formatMoney(paid)}</strong></td>}{isColumnVisible("remaining") && <td><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></td>}</tr></tfoot>
+      <thead><tr>{isColumnVisible("rank") && <th className="snapshot-rank">Hạng</th>}<th className="snapshot-member">Thành viên</th>{visibleTypes.map((type) => <th key={type.id}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong></th>)}{isColumnVisible("total") && <th>Tổng phải thu</th>}</tr></thead>
+      <tbody>{members.map((member, index) => <tr key={member.id}>{isColumnVisible("rank") && <td className="snapshot-rank">#{index + 1}</td>}<td className="snapshot-member"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} compact /></td>{visibleTypes.map((type) => <td key={type.id}><MonthlyCellView type={type} cell={member.cells.find((cell) => cell.typeId === type.id)} /></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(member.total)}</strong></td>}</tr>)}</tbody>
+      <tfoot><tr>{isColumnVisible("rank") && <td />}<td className="snapshot-member"><strong>Tổng danh sách</strong></td>{visibleTypes.map((type) => <td key={type.id}><strong>{members.reduce((sum, member) => sum + (member.cells.find((cell) => cell.typeId === type.id)?.quantity ?? 0), 0)}</strong></td>)}{isColumnVisible("total") && <td><strong>{formatMoney(total)}</strong></td>}</tr></tfoot>
     </table>
   </main>;
 }
 
-export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, previousMonth, nextMonth, total, paidTotal, types, members }: { clubName: string; logoUrl: string | null; month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; paidTotal: number; types: MonthlyType[]; members: MonthlyMember[] }) {
+export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, previousMonth, nextMonth, total, types, members }: { clubName: string; logoUrl: string | null; month: string; monthLabel: string; previousMonth: string; nextMonth: string; total: number; types: MonthlyType[]; members: MonthlyMember[] }) {
   const [query, setQuery] = useState("");
   const [activity, setActivity] = useState("ALL");
   const [sort, setSort] = useState("MEDAL_DESC");
@@ -72,17 +73,15 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
   const columnDefinitions = useMemo<CollectionColumn[]>(() => [
     { id: "rank", label: "Hạng" }, { id: "member", label: "Thành viên", required: true },
     ...types.map((type) => ({ id: `type:${type.id}`, label: type.name })),
-    { id: "total", label: "Tổng tháng", defaultVisible: false },
-    { id: "paid", label: "Đã đóng", defaultVisible: false },
-    { id: "remaining", label: "Còn lại", defaultVisible: false },
+    { id: "total", label: "Tổng phải thu" },
   ], [types]);
-  const columns = useColumnVisibility("fcfund:report-monthly:columns:v2", columnDefinitions);
+  const columns = useColumnVisibility("fcfund:report-monthly:columns:v3", columnDefinitions);
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
     const result = members.filter((member) => {
       if (search && !normalizeSearch(`${member.name} ${member.code}`).includes(search)) return false;
-      if (activity === "HAS" && member.total <= 0) return false;
-      if (activity === "NONE" && member.total > 0) return false;
+      if (activity === "HAS" && member.cells.length === 0) return false;
+      if (activity === "NONE" && member.cells.length > 0) return false;
       return true;
     });
     result.sort((a, b) => {
@@ -96,28 +95,24 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
           || a.name.localeCompare(b.name, "vi");
       }
       if (sort.startsWith("TYPE:")) {
-        const type = types.find((item) => item.id === sort.slice(5));
-        const score = (member: MonthlyMember) => {
-          const cell = member.cells.find((item) => item.typeId === type?.id);
-          return type?.reportAsIcon ? cell?.quantity ?? 0 : cell?.total ?? 0;
-        };
-        return score(b) - score(a) || a.name.localeCompare(b.name, "vi");
+        const typeId = sort.slice(5);
+        const quantity = (member: MonthlyMember) =>
+          member.cells.find((item) => item.typeId === typeId)?.quantity ?? 0;
+        return quantity(b) - quantity(a)
+          || b.total - a.total
+          || a.name.localeCompare(b.name, "vi");
       }
       if (sort === "TOTAL_DESC") return b.total - a.total || a.name.localeCompare(b.name, "vi");
       if (sort === "TOTAL_ASC") return a.total - b.total || a.name.localeCompare(b.name, "vi");
-      if (sort === "PAID_DESC") return b.paid - a.paid || a.name.localeCompare(b.name, "vi");
-      if (sort === "REMAINING_ASC") return (a.paid - a.total) - (b.paid - b.total) || a.name.localeCompare(b.name, "vi");
-      if (sort === "REMAINING_DESC") return (b.paid - b.total) - (a.paid - a.total) || a.name.localeCompare(b.name, "vi");
       return a.name.localeCompare(b.name, "vi");
     });
     return result;
-  }, [activity, medalType, members, query, sort, types]);
+  }, [activity, medalType, members, query, sort]);
 
-  const remainingTotal = paidTotal - total;
   const exportWidth = Math.max(1080,
     330
     + types.filter((type) => columns.isVisible(`type:${type.id}`)).length * 145
-    + ["total", "paid", "remaining"].filter((id) => columns.isVisible(id)).length * 150,
+    + (columns.isVisible("total") ? 150 : 0),
   );
 
   return <article className="panel monthly-report">
@@ -133,23 +128,17 @@ export function MonthlyReportCollection({ clubName, logoUrl, month, monthLabel, 
     <div className="report-toolbar-pad">
       <CollectionToolbar query={query} onQueryChange={setQuery} placeholder="Tìm thành viên hoặc mã..." count={visible.length} view={view} onViewChange={setView}>
         <select value={activity} onChange={(event) => setActivity(event.target.value)}><option value="ALL">Mọi phát sinh</option><option value="HAS">Có phát sinh</option><option value="NONE">Không phát sinh</option></select>
-        <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="MEDAL_DESC">Huân chương cao nhất</option><option value="NAME">Tên A–Z</option><option value="TOTAL_DESC">Tổng tháng cao nhất</option><option value="TOTAL_ASC">Tổng tháng thấp nhất</option><option value="PAID_DESC">Đã đóng cao nhất</option><option value="REMAINING_ASC">Còn nợ nhiều trước</option><option value="REMAINING_DESC">Đóng dư nhiều trước</option>{types.map((type) => <option value={`TYPE:${type.id}`} key={type.id}>{type.name} nhiều nhất</option>)}</select>
+        <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="MEDAL_DESC">Huân chương cao nhất</option><option value="NAME">Tên A–Z</option><option value="TOTAL_DESC">Tổng phải thu cao nhất</option><option value="TOTAL_ASC">Tổng phải thu thấp nhất</option>{types.map((type) => <option value={`TYPE:${type.id}`} key={type.id}>{type.name} nhiều nhất</option>)}</select>
         {view === "list" && <ColumnVisibilityMenu columns={columnDefinitions} hidden={columns.hidden} onToggle={columns.toggle} />}
       </CollectionToolbar>
     </div>
     {view === "list" ? <div className="monthly-table-wrap">
       <table className={`monthly-table report-sticky-table ${columns.isVisible("rank") ? "has-rank-column" : ""}`}>
-        <thead><tr>{columns.isVisible("rank") && <th className="report-rank-column">Hạng</th>}<th className="report-member-column">Thành viên</th>{types.map((type) => columns.isVisible(`type:${type.id}`) && <th key={type.id}><span className="monthly-type-icon" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong><small>{type.reportAsIcon ? "Theo số lần" : formatMoney(type.defaultAmount)}</small></th>)}{columns.isVisible("total") && <th className="align-right">Tổng tháng</th>}{columns.isVisible("paid") && <th className="align-right">Đã đóng</th>}{columns.isVisible("remaining") && <th className="align-right">Còn lại</th>}</tr></thead>
-        <tbody>{visible.map((member, index) => {
-          const remaining = member.paid - member.total;
-          return <tr key={member.id}>{columns.isVisible("rank") && <td className="report-rank-cell">#{index + 1}</td>}<td className="report-member-column"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} compact /></td>{types.map((type) => columns.isVisible(`type:${type.id}`) && <td key={type.id}><MonthlyCellView type={type} cell={member.cells.find((cell) => cell.typeId === type.id)} /></td>)}{columns.isVisible("total") && <td className="align-right"><strong>{formatMoney(member.total)}</strong></td>}{columns.isVisible("paid") && <td className="align-right"><strong>{formatMoney(member.paid)}</strong></td>}{columns.isVisible("remaining") && <td className="align-right"><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></td>}</tr>;
-        })}</tbody>
-        <tfoot><tr>{columns.isVisible("rank") && <td className="report-rank-cell" />}<td className="report-member-column"><strong>Tổng toàn tháng</strong></td>{types.map((type) => columns.isVisible(`type:${type.id}`) && <td key={type.id}><strong>{formatMoney(type.total)}</strong></td>)}{columns.isVisible("total") && <td className="align-right"><strong>{formatMoney(total)}</strong></td>}{columns.isVisible("paid") && <td className="align-right"><strong>{formatMoney(paidTotal)}</strong></td>}{columns.isVisible("remaining") && <td className="align-right"><strong className={remainingTotal < 0 ? "money-out" : "money-in"}>{remainingTotal > 0 ? "+" : ""}{formatMoney(remainingTotal)}</strong></td>}</tr></tfoot>
+        <thead><tr>{columns.isVisible("rank") && <th className="report-rank-column">Hạng</th>}<th className="report-member-column">Thành viên</th>{types.map((type) => columns.isVisible(`type:${type.id}`) && <th key={type.id}><span className="monthly-type-icon" style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /></span><strong>{type.name}</strong><small>Số lượt</small></th>)}{columns.isVisible("total") && <th className="align-right">Tổng phải thu</th>}</tr></thead>
+        <tbody>{visible.map((member, index) => <tr key={member.id}>{columns.isVisible("rank") && <td className="report-rank-cell">#{index + 1}</td>}<td className="report-member-column"><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} compact /></td>{types.map((type) => columns.isVisible(`type:${type.id}`) && <td key={type.id}><MonthlyCellView type={type} cell={member.cells.find((cell) => cell.typeId === type.id)} /></td>)}{columns.isVisible("total") && <td className="align-right"><strong>{formatMoney(member.total)}</strong></td>}</tr>)}</tbody>
+        <tfoot><tr>{columns.isVisible("rank") && <td className="report-rank-cell" />}<td className="report-member-column"><strong>Tổng toàn tháng</strong></td>{types.map((type) => columns.isVisible(`type:${type.id}`) && <td key={type.id}><strong>{visible.reduce((sum, member) => sum + (member.cells.find((cell) => cell.typeId === type.id)?.quantity ?? 0), 0)}</strong></td>)}{columns.isVisible("total") && <td className="align-right"><strong>{formatMoney(total)}</strong></td>}</tr></tfoot>
       </table>
-    </div> : <div className="monthly-card-grid">{visible.map((member, index) => {
-      const remaining = member.paid - member.total;
-      return <article className="monthly-member-card" key={member.id}><header><span className="report-rank-badge">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} /><strong>{formatMoney(member.total)}</strong></header><div>{member.cells.length ? member.cells.map((cell) => { const type = types.find((item) => item.id === cell.typeId); return type ? <div key={cell.typeId}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /><b>{type.name}</b></span><span><MonthlyCellView type={type} cell={cell} /></span></div> : null; }) : <p>Không có phát sinh trong tháng.</p>}</div><footer className="monthly-payment-summary"><span><small>Đã đóng</small><strong>{formatMoney(member.paid)}</strong></span><span><small>Còn lại</small><strong className={remaining < 0 ? "money-out" : "money-in"}>{remaining > 0 ? "+" : ""}{formatMoney(remaining)}</strong></span></footer></article>;
-    })}</div>}
+    </div> : <div className="monthly-card-grid">{visible.map((member, index) => <article className="monthly-member-card" key={member.id}><header><span className="report-rank-badge">#{index + 1}</span><MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarVersion} /></header><div>{member.cells.length ? member.cells.map((cell) => { const type = types.find((item) => item.id === cell.typeId); return type ? <div key={cell.typeId}><span style={{ color: type.color ?? undefined }}><Icon name={type.iconName} /><b>{type.name}</b></span><span><MonthlyCellView type={type} cell={cell} /></span></div> : null; }) : <p>Không có phát sinh trong tháng.</p>}</div><footer className="monthly-payment-summary monthly-total-summary"><span><small>Tổng phải thu</small><strong>{formatMoney(member.total)}</strong></span></footer></article>)}</div>}
     {!visible.length && <div className="collection-empty">Không tìm thấy thành viên phù hợp.</div>}
   </article>;
 }

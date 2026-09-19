@@ -5843,6 +5843,18 @@ label>textarea {
   gap: 3px;
 }
 
+.monthly-quantity {
+  display: inline-flex;
+  min-width: 28px;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthly-quantity strong {
+  font-size: 12px;
+}
+
 .icon-count {
   display: flex;
   flex-wrap: wrap;
@@ -8014,6 +8026,10 @@ label {
   border-bottom: 1px solid var(--line);
 }
 
+.monthly-member-card>header {
+  grid-template-columns: 32px minmax(0, 1fr);
+}
+
 .report-rank-column,
 .report-rank-cell {
   width: 44px;
@@ -8147,6 +8163,10 @@ label {
   grid-template-columns: 1fr 1fr;
   border-top: 1px solid var(--line);
   background: #f8fafb;
+}
+
+.monthly-total-summary {
+  grid-template-columns: 1fr;
 }
 
 .monthly-payment-summary>span {

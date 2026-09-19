@@ -167,23 +167,11 @@ export default async function ReportsPage({
     lt(memberCharges.chargeDate, nextMonthStart),
     isNull(memberCharges.deletedAt),
   ));
-  const monthlyPaymentRows = await db.select({
-    memberId: fundTransactions.memberId,
-    total: sql<string>`SUM(${fundTransactions.amount})`,
-  }).from(fundTransactions).where(and(
-    eq(fundTransactions.clubId, user.clubId),
-    eq(fundTransactions.kind, "MEMBER_PAYMENT"),
-    gte(fundTransactions.transactionDate, monthStart),
-    lt(fundTransactions.transactionDate, nextMonthStart),
-    isNull(fundTransactions.deletedAt),
-  )).groupBy(fundTransactions.memberId);
-
   const visibleMonthlyRows = monthlyRows.filter((row) => visibleMemberIds.has(row.memberId));
   const monthlyTypeIds = new Set(visibleMonthlyRows.map((row) => row.chargeTypeId));
   const monthlyTypes = typeRows.filter((type) => type.isActive || monthlyTypeIds.has(type.id));
   const monthlyCells = new Map<string, { quantity: number; total: number }>();
   const memberMonthTotals = new Map<string, number>();
-  const typeMonthTotals = new Map<string, number>();
   visibleMonthlyRows.forEach((row) => {
     const key = `${row.memberId}|${row.chargeTypeId}`;
     const current = monthlyCells.get(key) ?? { quantity: 0, total: 0 };
@@ -192,15 +180,8 @@ export default async function ReportsPage({
       total: current.total + row.totalAmount,
     });
     memberMonthTotals.set(row.memberId, (memberMonthTotals.get(row.memberId) ?? 0) + row.totalAmount);
-    typeMonthTotals.set(row.chargeTypeId, (typeMonthTotals.get(row.chargeTypeId) ?? 0) + row.totalAmount);
   });
   const monthTotal = [...memberMonthTotals.values()].reduce((sum, value) => sum + value, 0);
-  const memberMonthPayments = new Map(
-    monthlyPaymentRows
-      .filter((row) => row.memberId && visibleMemberIds.has(row.memberId))
-      .map((row) => [row.memberId!, Number(row.total)]),
-  );
-  const monthPaidTotal = [...memberMonthPayments.values()].reduce((sum, value) => sum + value, 0);
 
   const balanceCells = new Map<string, { quantity: number; total: number }>();
   const balanceCharges = new Map<string, number>();
@@ -281,18 +262,15 @@ export default async function ReportsPage({
           previousMonth={shiftMonth(month, -1)}
           nextMonth={shiftMonth(month, 1)}
           total={monthTotal}
-          paidTotal={monthPaidTotal}
           types={monthlyTypes.map((type) => ({
             id: type.id, name: type.name, calculation: type.calculation, iconName: type.iconName, color: type.color,
             defaultAmount: type.defaultAmount, reportAsIcon: type.reportAsIcon, isLossPenalty: type.isLossPenalty,
             reportNextMonth: type.reportNextMonth,
-            total: typeMonthTotals.get(type.id) ?? 0,
           }))}
           members={visibleMembers.map((member) => ({
             ...member,
             avatarVersion: member.avatarUpdatedAt?.getTime() ?? null,
             total: memberMonthTotals.get(member.id) ?? 0,
-            paid: memberMonthPayments.get(member.id) ?? 0,
             cells: monthlyTypes.flatMap((type) => {
               const cell = monthlyCells.get(`${member.id}|${type.id}`);
               return cell ? [{ typeId: type.id, ...cell }] : [];
