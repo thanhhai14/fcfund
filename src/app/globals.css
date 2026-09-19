@@ -6255,7 +6255,7 @@ label>textarea {
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 19;
+    z-index: 39;
     padding: 0;
     border: 0;
     background: rgba(4, 25, 42, .5);
@@ -6264,6 +6264,7 @@ label>textarea {
   .disclosure-content {
     position: fixed;
     inset: auto max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    z-index: 40;
     width: auto !important;
     min-width: 0;
     max-width: 100%;
