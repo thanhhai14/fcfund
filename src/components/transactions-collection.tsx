@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { Disclosure } from "./disclosure";
-import { MutationForm, SubmitButton } from "./mutation-form";
+import { MutationForm, PendingButton, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateFundTransactionAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
@@ -31,7 +31,7 @@ const TRANSACTION_COLUMNS: CollectionColumn[] = [
 ];
 
 function TransactionActions({ row }: { row: TransactionCollectionRow }) {
-  return <Disclosure label="•••" className="row-disclosure"><MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} /><label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><button className="button danger wide small">Xóa giao dịch</button></form></Disclosure>;
+  return <Disclosure label="•••" className="row-disclosure"><MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} /><label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><PendingButton className="button danger wide small" pendingLabel="Đang xóa…">Xóa giao dịch</PendingButton></form></Disclosure>;
 }
 
 export function TransactionsCollection({ rows, canManage, defaultDateFrom, defaultDateTo }: { rows: TransactionCollectionRow[]; canManage: boolean; defaultDateFrom: string; defaultDateTo: string }) {

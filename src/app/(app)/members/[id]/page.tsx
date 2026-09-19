@@ -15,7 +15,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Chatter } from "@/components/chatter";
-import { MutationForm, SubmitButton } from "@/components/mutation-form";
+import { MutationForm, PendingButton, SubmitButton } from "@/components/mutation-form";
 import {
   createAssignmentAction,
   createMemberAccountAction,
@@ -254,7 +254,7 @@ export default async function MemberDetailPage({
                 <label className="check-field account-active-field"><input name="isActive" type="checkbox" defaultChecked={account.isActive} /><span><strong>Cho phép đăng nhập</strong><small>Tắt tùy chọn này để khóa tài khoản nhưng vẫn giữ dữ liệu.</small></span></label>
                 <SubmitButton>Lưu tài khoản</SubmitButton>
               </MutationForm>}
-              <form action={resetPasswordAction} className="reset-row"><input type="hidden" name="userId" value={account.id} /><span>Mật khẩu mặc định: <b>Trailang123</b></span><button className="button danger small">Đặt lại mật khẩu</button></form>
+              <form action={resetPasswordAction} className="reset-row"><input type="hidden" name="userId" value={account.id} /><span>Mật khẩu mặc định: <b>Trailang123</b></span><PendingButton className="button danger small" pendingLabel="Đang đặt lại…">Đặt lại mật khẩu</PendingButton></form>
               <div className="account-link-box"><MutationForm action={unlinkUserFromMemberAction} className="form-stack compact"><input type="hidden" name="userId" value={account.id} /><p>Tháo liên kết không xóa tài khoản hoặc dữ liệu thành viên.</p><SubmitButton variant="secondary">Tháo liên kết tài khoản</SubmitButton></MutationForm></div>
             </>}
           </article>}

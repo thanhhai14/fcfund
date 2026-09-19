@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { CollectionToolbar, ColumnVisibilityMenu, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
 import { Disclosure } from "./disclosure";
 import { Icon } from "./icon";
-import { MutationForm, SubmitButton } from "./mutation-form";
+import { MutationForm, PendingButton, SubmitButton } from "./mutation-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { softDeleteFinancialAction, updateMemberChargeAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
@@ -43,7 +43,7 @@ function ChargeActions({ row }: { row: ChargeCollectionRow }) {
       <label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label>
       <SubmitButton>Lưu thay đổi</SubmitButton>
     </MutationForm>
-    <form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="charge" /><button className="button danger wide small">Xóa khoản này</button></form>
+    <form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="charge" /><PendingButton className="button danger wide small" pendingLabel="Đang xóa…">Xóa khoản này</PendingButton></form>
   </Disclosure>;
 }
 

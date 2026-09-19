@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useMemo, useState } from "react";
+import Form from "next/form";
 import { Icon } from "./icon";
 import { ReportImageExporter } from "./report-image-exporter";
 import { CollectionToolbar, ColumnVisibilityMenu, CompactMonthInput, normalizeSearch, useColumnVisibility, useResponsiveView, type CollectionColumn } from "./collection-controls";
@@ -9,6 +10,7 @@ import { formatMoney, initials } from "@/lib/format";
 import { balanceCellColumnId, balanceSourceMonthLabel } from "@/lib/balance-report";
 import type { OpeningBalance } from "@/lib/opening-balance";
 import { OpeningBalanceBadge } from "./opening-balance-badge";
+import { PendingButton } from "./mutation-form";
 
 export type PublicReportType = { id: string; name: string; calculation: "MONTHLY" | "OCCURRENCE"; iconName: string; color: string | null; reportNextMonth: boolean; sourceMonth: string };
 export type PublicReportGroup = { month: string; label: string; types: PublicReportType[] };
@@ -94,7 +96,7 @@ function PublicPeriodForm({ period, fromMonth, toMonth }: { period: "range" | "a
   const [selectedPeriod, setSelectedPeriod] = useState<"range" | "all">(period);
   const [selectedFromMonth, setSelectedFromMonth] = useState(fromMonth);
   const [selectedToMonth, setSelectedToMonth] = useState(toMonth);
-  return <form action="/public/report" method="get" className="balance-period-controls"><input type="hidden" name="tab" value="balances" /><select name="period" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value as "range" | "all")} aria-label="Phạm vi thời gian"><option value="range">Khoảng tháng</option><option value="all">Toàn bộ</option></select>{selectedPeriod === "range" && <><CompactMonthInput name="fromMonth" value={selectedFromMonth} onChange={setSelectedFromMonth} label="Từ tháng" /><span className="month-range-arrow" aria-hidden="true">→</span><CompactMonthInput name="toMonth" value={selectedToMonth} onChange={setSelectedToMonth} label="Đến tháng" /></>}<button className="button small report-view-button" type="submit">Xem</button></form>;
+  return <Form action="/public/report" className="balance-period-controls"><input type="hidden" name="tab" value="balances" /><select name="period" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value as "range" | "all")} aria-label="Phạm vi thời gian"><option value="range">Khoảng tháng</option><option value="all">Toàn bộ</option></select>{selectedPeriod === "range" && <><CompactMonthInput name="fromMonth" value={selectedFromMonth} onChange={setSelectedFromMonth} label="Từ tháng" /><span className="month-range-arrow" aria-hidden="true">→</span><CompactMonthInput name="toMonth" value={selectedToMonth} onChange={setSelectedToMonth} label="Đến tháng" /></>}<PendingButton className="button small report-view-button" pendingLabel="Đang tải…">Xem</PendingButton></Form>;
 }
 
 export function PublicReportCollection({ clubName, appName, logoUrl, rows, groups, period, fromMonth, toMonth, fromLabel, toLabel }: {

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icon";
 import { APP_NAME } from "@/lib/constants";
 import { MemberAvatar } from "./member-identity";
+import { NavigationFeedback } from "./navigation-feedback";
+import { PendingButton } from "./mutation-form";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
@@ -58,6 +60,9 @@ export function AppShell({
 
   return (
     <div className="app-shell">
+      <Suspense fallback={null}>
+        <NavigationFeedback />
+      </Suspense>
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <Link href="/dashboard" className="sidebar-brand" onClick={() => setOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -93,7 +98,7 @@ export function AppShell({
             <span><strong>{userName}</strong><small>{roleLabel}</small></span>
           </>}
           <form action={logoutAction}>
-            <button title="Đăng xuất"><Icon name="logout" /></button>
+            <PendingButton className="" title="Đăng xuất" ariaLabel="Đăng xuất" pendingLabel="…"><Icon name="logout" /></PendingButton>
           </form>
         </div>
       </aside>

@@ -4,6 +4,7 @@ import { activityLogs, avatars, members, users } from "@/db/schema";
 import { formatDateTime } from "@/lib/format";
 import { addCommentAction } from "@/app/(app)/mutations";
 import { MemberIdentity } from "./member-identity";
+import { PendingButton } from "./mutation-form";
 
 const actionLabels = {
   CREATE: "đã tạo",
@@ -62,7 +63,7 @@ export async function Chatter({
         <input type="hidden" name="entityId" value={entityId} />
         <input type="hidden" name="path" value={path} />
         <input name="message" placeholder="Thêm ghi chú..." required />
-        <button className="button secondary small">Gửi</button>
+        <PendingButton className="button secondary small" pendingLabel="Đang gửi…">Gửi</PendingButton>
       </form>
       <div className="timeline">
         {logs.map((log) => (

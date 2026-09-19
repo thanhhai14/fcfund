@@ -36,8 +36,9 @@ export function LoginForm() {
         />
       </label>
       {state.error && <p className="form-error" role="alert">{state.error}</p>}
-      <button className="button primary wide" disabled={pending}>
-        {pending ? "Đang đăng nhập..." : "Đăng nhập"}
+      <button className="button primary wide submit-button" disabled={pending} aria-busy={pending}>
+        {pending && <span className="button-spinner" aria-hidden="true" />}
+        <span>{pending ? "Đang đăng nhập..." : "Đăng nhập"}</span>
       </button>
       <p className="login-help">Quên mật khẩu? Liên hệ Admin của đội để được đặt lại.</p>
     </form>

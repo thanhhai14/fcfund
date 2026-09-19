@@ -14,7 +14,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
-import { MutationForm, SubmitButton } from "@/components/mutation-form";
+import { MutationForm, PendingButton, SubmitButton } from "@/components/mutation-form";
 import { ChargeTypeFields } from "@/components/charge-type-fields";
 import {
   changeOwnPasswordAction,
@@ -196,11 +196,11 @@ export default async function SettingsPage() {
                       const checked = accountOverrides?.get(permission.key) ?? rolePolicyMap.get(`${account.role}|${permission.key}`) ?? false;
                       return <label className="policy-row" key={permission.key}><input type="checkbox" name="permissions" value={permission.key} defaultChecked={checked} /><span><strong>{permission.name}</strong><small>{permission.description}</small></span></label>;
                     })}
-                    <button className="button primary small">Lưu policy riêng</button>
+                    <PendingButton className="button primary small" pendingLabel="Đang lưu…">Lưu policy riêng</PendingButton>
                   </form>
                   <div className="account-actions">
-                    <form action={saveUserPoliciesAction}><input type="hidden" name="userId" value={account.id} /><input type="hidden" name="mode" value="default" /><button className="button secondary small">Dùng policy vai trò</button></form>
-                    <form action={resetPasswordAction}><input type="hidden" name="userId" value={account.id} /><button className="button danger small">Đặt lại mật khẩu</button></form>
+                    <form action={saveUserPoliciesAction}><input type="hidden" name="userId" value={account.id} /><input type="hidden" name="mode" value="default" /><PendingButton className="button secondary small" pendingLabel="Đang áp dụng…">Dùng policy vai trò</PendingButton></form>
+                    <form action={resetPasswordAction}><input type="hidden" name="userId" value={account.id} /><PendingButton className="button danger small" pendingLabel="Đang đặt lại…">Đặt lại mật khẩu</PendingButton></form>
                   </div>
                 </Disclosure>;
               })}
