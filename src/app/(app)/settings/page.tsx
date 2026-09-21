@@ -150,10 +150,11 @@ export default async function SettingsPage() {
             <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>
             <div className="account-avatar-editor">
               <MemberAvatar userId={currentUser.id} memberId={currentUser.memberId} name={currentUser.displayName} avatarVersion={currentUser.avatarUpdatedAt} />
-              <MutationForm action={updateOwnAvatarAction} className="form-stack">
-                <label>Ảnh đại diện<input name="avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+              <MutationForm action={updateOwnAvatarAction} className="form-stack" optimizeAvatar>
+                <label>Ảnh đại diện<input name="avatar" type="file" accept="image/*" /></label>
+                <p className="panel-note">Ảnh lớn sẽ tự động resize và nén trên thiết bị trước khi tải lên.</p>
                 {currentUser.avatarUpdatedAt && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}
-                <SubmitButton>Lưu avatar</SubmitButton>
+                <SubmitButton pendingLabel="Đang tối ưu ảnh…">Lưu avatar</SubmitButton>
               </MutationForm>
             </div>
           </article>

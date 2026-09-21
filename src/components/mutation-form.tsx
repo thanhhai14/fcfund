@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { ClientImageError, optimizeAvatarFile } from "@/lib/client-image";
 
 type Result = { ok: boolean; message: string };
 
@@ -11,16 +12,37 @@ export function MutationForm({
   className,
   closeDisclosureOnSuccess = false,
   messageMode = "inline",
+  optimizeAvatar = false,
 }: {
   action: (formData: FormData) => Promise<Result>;
   children: React.ReactNode;
   className?: string;
   closeDisclosureOnSuccess?: boolean;
   messageMode?: "inline" | "alert";
+  optimizeAvatar?: boolean;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
-    async (_state: Result | null, formData: FormData) => action(formData),
+    async (_state: Result | null, formData: FormData) => {
+      if (optimizeAvatar) {
+        const avatar = formData.get("avatar");
+        if (avatar instanceof File && avatar.size > 0) {
+          try {
+            const optimized = await optimizeAvatarFile(avatar);
+            formData.set("avatar", optimized);
+          } catch (error) {
+            return {
+              ok: false,
+              message: error instanceof ClientImageError
+                ? error.message
+                : "Không thể tối ưu ảnh trên thiết bị này.",
+            };
+          }
+        }
+      }
+
+      return action(formData);
+    },
     null,
   );
 
