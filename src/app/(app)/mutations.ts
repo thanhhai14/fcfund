@@ -524,7 +524,7 @@ export async function updateUserAccountAction(formData: FormData): Promise<Mutat
     return { ok: false, message: "Chỉ Admin có thể thay đổi tài khoản Admin." };
   }
 
-  const nextRole = before.role === "ADMIN" ? "ADMIN" : parsed.data.role;
+  const nextRole = actor.id === before.id && before.role === "ADMIN" ? "ADMIN" : parsed.data.role;
   const nextActive = actor.id === before.id ? true : formData.get("isActive") === "on";
   try {
     await db.transaction(async (tx) => {

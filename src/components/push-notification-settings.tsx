@@ -26,6 +26,8 @@ export function PushNotificationSettings({
   const [state, setState] = useState<PushClientState>(EMPTY_STATE);
   const [busy, setBusy] = useState(false);
   const [testBusy, setTestBusy] = useState(false);
+  const [testOpen, setTestOpen] = useState(false);
+  const [testBody, setTestBody] = useState("");
   const [message, setMessage] = useState("");
 
   const refreshState = useCallback(async () => {
@@ -90,26 +92,42 @@ export function PushNotificationSettings({
   }
 
   async function sendTest() {
+    const body = testBody.trim();
+    if (!body) {
+      setMessage("Hãy nhập nội dung thông báo.");
+      return;
+    }
+
     setTestBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/push/test", { method: "POST" });
-      const result = await response.json().catch(() => null) as { ok?: boolean; status?: string; error?: string } | null;
+      const response = await fetch("/api/push/test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      const result = await response.json().catch(() => null) as {
+        ok?: boolean;
+        recipientCount?: number;
+        message?: string;
+        error?: string;
+      } | null;
+
       if (!response.ok || !result?.ok) {
         throw new Error(result?.error || "test-failed");
       }
 
-      if (result.status === "SENT") {
-        setMessage("Đã gửi thông báo thử. Nếu Push hoạt động bình thường, thiết bị sẽ nhận được ngay.");
-      } else if (result.status === "PARTIAL") {
-        setMessage("Thông báo thử đã gửi thành công tới ít nhất một thiết bị của tài khoản Admin.");
-      } else if (result.status === "FAILED") {
-        setMessage("Máy chủ đã thử gửi nhưng Push thất bại. Hãy kiểm tra subscription và VAPID.");
+      if ((result.recipientCount ?? 0) === 0) {
+        setMessage(result.message ?? "Không có thành viên nào đang có thiết bị đăng ký Push.");
       } else {
-        setMessage("Không tìm thấy subscription Push đang hoạt động cho tài khoản này.");
+        setMessage(`Đã gửi thông báo tới ${result.recipientCount} thành viên có thiết bị Push đang hoạt động.`);
+        setTestBody("");
+        setTestOpen(false);
       }
-    } catch {
-      setMessage("Không thể gửi thông báo thử. Hãy thử lại sau.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "test-failed"
+        ? error.message
+        : "Không thể gửi thông báo. Hãy thử lại sau.");
     } finally {
       setTestBusy(false);
     }
@@ -137,22 +155,54 @@ export function PushNotificationSettings({
       {unavailable && <p className="push-settings-warning">{unavailable}</p>}
       {blocked && !unavailable && <p className="push-settings-warning">{blockedPermissionHelp()}</p>}
       {message && <p className="push-settings-message">{message}</p>}
+
       <div className="form-actions push-settings-actions">
         {state.subscribed
           ? <button className="button secondary" type="button" onClick={disable} disabled={busy}>{busy ? "Đang tắt…" : "Tắt thông báo"}</button>
           : <button className="button primary" type="button" onClick={enable} disabled={busy || Boolean(unavailable)}>{busy ? "Đang kiểm tra…" : blocked ? "Bật lại thông báo" : "Bật thông báo"}</button>}
+
         {isAdmin && (
           <button
             className="button secondary"
             type="button"
-            onClick={sendTest}
+            onClick={() => {
+              setTestOpen((value) => !value);
+              setMessage("");
+            }}
             disabled={testBusy}
           >
-            {testBusy ? "Đang gửi…" : "Gửi thông báo thử"}
+            {testOpen ? "Đóng gửi thử" : "Gửi thông báo thử"}
           </button>
         )}
       </div>
-      {isAdmin && <p className="push-settings-test-note">Nút test chỉ hiển thị với Administrator và gửi tới các thiết bị Push đang hoạt động của tài khoản Admin hiện tại.</p>}
+
+      {isAdmin && testOpen && (
+        <div className="push-test-composer">
+          <label>
+            Nội dung thông báo
+            <textarea
+              value={testBody}
+              onChange={(event) => setTestBody(event.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder="Nhập nội dung muốn gửi đến các thành viên..."
+            />
+          </label>
+          <div className="push-test-composer-meta">
+            <small>{testBody.length}/500 ký tự</small>
+            <button
+              className="button primary"
+              type="button"
+              onClick={sendTest}
+              disabled={testBusy || !testBody.trim()}
+            >
+              {testBusy ? "Đang gửi…" : "Gửi"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isAdmin && <p className="push-settings-test-note">Thông báo thử sẽ gửi tới toàn bộ thành viên ACTIVE đang có ít nhất một thiết bị Push đã đăng ký.</p>}
     </article>
   );
 }

@@ -117,7 +117,7 @@ iOS không cho website tự yêu cầu permission tùy ý mà không có user in
 - Nút phụ dùng tên **Hủy**; chỉ đóng prompt trong phiên mở app hiện tại, nên lần mở PWA tiếp theo sẽ hỏi lại nếu vẫn chưa bật.
 - Nếu user từ chối system permission (`denied`), prompt tự ẩn trong 24 giờ trước khi nhắc lại.
 - Khi permission đang bị chặn, Settings hiển thị nút **Bật lại thông báo** cùng hướng dẫn mở phần cài đặt notification của iOS/Android; JavaScript không thể tự bỏ trạng thái block của hệ điều hành.
-- Settings của role `ADMIN` có nút **Gửi thông báo thử**; API server kiểm tra lại role và gửi tới tất cả subscription active của chính tài khoản Admin đó.
+- Settings của role `ADMIN` có nút **Gửi thông báo thử**; Admin nhập nội dung tối đa 500 ký tự, API server kiểm tra lại role rồi gửi broadcast tới toàn bộ User ACTIVE đang liên kết Member ACTIVE và có ít nhất một Push Subscription enabled. Mỗi User nhận trên tất cả thiết bị Push đang đăng ký của họ.
 
 ### Tài liệu nền tảng
 

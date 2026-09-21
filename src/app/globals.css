@@ -9513,6 +9513,41 @@ html[data-navigation-pending="true"] .app-main::after {
   line-height: 1.5;
 }
 
+.push-test-composer {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
+.push-test-composer label {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.push-test-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 96px;
+}
+
+.push-test-composer-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.push-test-composer-meta small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
 @media (max-width: 560px) {
   .push-permission-gate {
     align-items: end;

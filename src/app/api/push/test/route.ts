@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { notificationEvents } from "@/db/schema";
+import { members, pushSubscriptions, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { notifyUsers } from "@/lib/push-notifications";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+type TestPushInput = {
+  body?: string;
+};
+
+export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
@@ -16,25 +20,50 @@ export async function POST() {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
-  const baseDedupeKey = `TEST_NOTIFICATION:${user.id}:${Date.now()}`;
+  const input = await request.json().catch(() => null) as TestPushInput | null;
+  const body = input?.body?.trim() ?? "";
+  if (!body || body.length > 500) {
+    return NextResponse.json(
+      { ok: false, error: "Nội dung thông báo phải từ 1 đến 500 ký tự." },
+      { status: 400 },
+    );
+  }
+
+  const rows = await db.select({ userId: users.id })
+    .from(users)
+    .innerJoin(members, eq(users.memberId, members.id))
+    .innerJoin(pushSubscriptions, and(
+      eq(pushSubscriptions.userId, users.id),
+      eq(pushSubscriptions.enabled, true),
+    ))
+    .where(and(
+      eq(users.clubId, user.clubId),
+      eq(users.isActive, true),
+      eq(members.status, "ACTIVE"),
+    ));
+
+  const recipientIds = [...new Set(rows.map((row) => row.userId))];
+  if (!recipientIds.length) {
+    return NextResponse.json({
+      ok: true,
+      recipientCount: 0,
+      message: "Không có thành viên nào đang có thiết bị đăng ký Push.",
+    });
+  }
+
   await notifyUsers({
     clubId: user.clubId,
-    userIds: [user.id],
+    userIds: recipientIds,
     type: "TEST_NOTIFICATION",
-    title: "Thông báo thử FCFUND",
-    body: "Nếu bạn thấy thông báo này, Web Push đang hoạt động bình thường trên thiết bị.",
-    url: "/settings",
+    title: "Thông báo từ FCFUND",
+    body,
+    url: "/dashboard",
     entityType: "push_test",
-    dedupeKey: baseDedupeKey,
+    dedupeKey: `TEST_NOTIFICATION:BROADCAST:${user.id}:${Date.now()}`,
   });
-
-  const [event] = await db.select({ status: notificationEvents.status })
-    .from(notificationEvents)
-    .where(eq(notificationEvents.dedupeKey, `${baseDedupeKey}:${user.id}`))
-    .limit(1);
 
   return NextResponse.json({
     ok: true,
-    status: event?.status ?? "SKIPPED",
+    recipientCount: recipientIds.length,
   });
 }
