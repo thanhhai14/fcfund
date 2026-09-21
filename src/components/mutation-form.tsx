@@ -10,11 +10,13 @@ export function MutationForm({
   children,
   className,
   closeDisclosureOnSuccess = false,
+  messageMode = "inline",
 }: {
   action: (formData: FormData) => Promise<Result>;
   children: React.ReactNode;
   className?: string;
   closeDisclosureOnSuccess?: boolean;
+  messageMode?: "inline" | "alert";
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -27,12 +29,19 @@ export function MutationForm({
     formRef.current?.closest("details")?.removeAttribute("open");
   }, [closeDisclosureOnSuccess, state]);
 
+  useEffect(() => {
+    if (messageMode !== "alert" || !state) return;
+    window.alert(state.message);
+  }, [messageMode, state]);
+
   return (
     <form ref={formRef} action={formAction} className={className}>
       {children}
-      <div aria-live="polite">
-        {state && <p className={`form-message ${state.ok ? "success" : "error"}`}>{state.message}</p>}
-      </div>
+      {messageMode === "inline" && (
+        <div aria-live="polite">
+          {state && <p className={`form-message ${state.ok ? "success" : "error"}`}>{state.message}</p>}
+        </div>
+      )}
       <input type="hidden" name="_pending" value={pending ? "1" : "0"} />
     </form>
   );

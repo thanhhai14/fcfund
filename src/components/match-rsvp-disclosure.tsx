@@ -162,9 +162,9 @@ export function MatchRsvpDisclosure({
                 <h4>Lịch sử bình chọn</h4>
               </div>
               {canRemind && !disabled && (
-                <MutationForm action={reminderAction} className="match-rsvp-reminder">
+                <MutationForm action={reminderAction} className="match-rsvp-reminder" messageMode="alert">
                   <input type="hidden" name="matchId" value={matchId} />
-                  <SubmitButton variant="secondary" pendingLabel="Đang gửi…">Thông báo</SubmitButton>
+                  <SubmitButton variant="secondary" pendingLabel="Đang gửi…"><Icon name="bullhorn" /> Nhắc mọi người</SubmitButton>
                 </MutationForm>
               )}
             </div>
