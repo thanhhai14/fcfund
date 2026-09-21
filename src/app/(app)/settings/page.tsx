@@ -40,6 +40,7 @@ import { formatMoney } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MemberAvatar, MemberIdentity } from "@/components/member-identity";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
+import { PushNotificationSettings } from "@/components/push-notification-settings";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -142,6 +143,8 @@ export default async function SettingsPage() {
         </div>
 
         <div className="stack">
+          <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+
           <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>
             <div className="account-avatar-editor">

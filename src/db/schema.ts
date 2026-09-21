@@ -46,6 +46,7 @@ export const activityAction = pgEnum("activity_action", [
   "COMMENT",
 ]);
 export const jobStatus = pgEnum("job_status", ["RUNNING", "COMPLETED", "FAILED"]);
+export const notificationStatus = pgEnum("notification_status", ["PENDING", "SENT", "PARTIAL", "FAILED", "SKIPPED"]);
 export const memberSeedTier = pgEnum("member_seed_tier", [
   "TIER_1",
   "TIER_2",
@@ -116,6 +117,55 @@ export const users = pgTable(
     uniqueIndex("users_phone_unique").on(table.phoneNormalized),
     uniqueIndex("users_member_unique").on(table.memberId).where(sql`${table.memberId} IS NOT NULL`),
     index("users_club_role_idx").on(table.clubId, table.role),
+  ],
+);
+
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    expirationTime: bigint("expiration_time", { mode: "number" }),
+    platform: varchar("platform", { length: 40 }),
+    userAgent: text("user_agent"),
+    deviceLabel: varchar("device_label", { length: 120 }),
+    enabled: boolean("enabled").default(true).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+    failureCount: integer("failure_count").default(0).notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("push_subscriptions_endpoint_unique").on(table.endpoint),
+    index("push_subscriptions_user_enabled_idx").on(table.userId, table.enabled),
+  ],
+);
+
+export const notificationEvents = pgTable(
+  "notification_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    type: varchar("type", { length: 80 }).notNull(),
+    title: varchar("title", { length: 180 }).notNull(),
+    body: text("body").notNull(),
+    url: text("url").notNull(),
+    entityType: varchar("entity_type", { length: 80 }),
+    entityId: uuid("entity_id"),
+    dedupeKey: varchar("dedupe_key", { length: 255 }).notNull(),
+    status: notificationStatus("status").default("PENDING").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("notification_events_dedupe_unique").on(table.dedupeKey),
+    index("notification_events_user_status_idx").on(table.userId, table.status),
+    index("notification_events_created_idx").on(table.createdAt),
   ],
 );
 

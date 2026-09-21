@@ -22,6 +22,7 @@ import { generateBalancedTeams, type BalanceParticipant } from "@/lib/team-balan
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
 import type { TeamDrawSnapshot } from "@/lib/team-draw-snapshot";
+import { notifyUsers, userIdsForTeamVersion } from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
 type TeamDrawResult = MutationResult & { draw?: TeamDrawSnapshot };
@@ -476,6 +477,22 @@ export async function confirmMatchTeamsAction(formData: FormData): Promise<Mutat
       message: `Xác nhận đội hình phiên bản ${draft.version}`,
     });
   });
+  try {
+    const recipientIds = await userIdsForTeamVersion(actor.clubId, draft.id);
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: recipientIds,
+      type: "MATCH_TEAM_CONFIRMED",
+      title: "Đội hình đã được chốt",
+      body: "Đội hình trận sắp tới đã được xác nhận. Xem đội của bạn trong ứng dụng.",
+      url: `/matches/${matchId}/teams`,
+      entityType: "match_team_version",
+      entityId: draft.id,
+      dedupeKey: `MATCH_TEAM_CONFIRMED:${draft.id}`,
+    });
+  } catch {
+    // Push failures must not affect lineup confirmation.
+  }
   revalidatePath(`/matches/${matchId}/teams`);
   revalidatePath("/matches");
   return { ok: true, message: `Đã xác nhận đội hình phiên bản ${draft.version}.` };

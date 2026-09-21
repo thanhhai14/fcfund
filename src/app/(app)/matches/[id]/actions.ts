@@ -22,6 +22,7 @@ import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
+import { notifyUsers, userIdsForMembers, userIdsForTeamVersion } from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -243,6 +244,39 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       message: `Ghi nhận kết quả trận: ${teams.map((team) => `${team.name} hạng ${placements.get(team.id)}, phạt ${penaltyQuantities.get(team.id)} lần`).join("; ")}`,
     });
   });
+
+  try {
+    const lineupUsers = await userIdsForTeamVersion(actor.clubId, version.id);
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: lineupUsers,
+      type: "MATCH_RESULT_RECORDED",
+      title: "Kết quả trận đã cập nhật",
+      body: "Kết quả trận và thứ hạng đội vừa được ghi nhận.",
+      url: `/matches/${matchId}`,
+      entityType: "match",
+      entityId: matchId,
+      dedupeKey: `MATCH_RESULT_RECORDED:${matchId}:${now.getTime()}`,
+    });
+
+    const penaltyMemberIds = [...new Set(penaltyRows.map((row) => row.memberId))];
+    if (penaltyMemberIds.length) {
+      const chargedUsers = await userIdsForMembers(actor.clubId, penaltyMemberIds);
+      await notifyUsers({
+        clubId: actor.clubId,
+        userIds: chargedUsers,
+        type: "MEMBER_CHARGE_CREATED",
+        title: "Khoản phải đóng mới",
+        body: "Bạn có khoản phải đóng mới phát sinh từ kết quả trận.",
+        url: "/charges",
+        entityType: "match",
+        entityId: matchId,
+        dedupeKey: `MEMBER_CHARGE_CREATED:RESULT:${matchId}:${now.getTime()}`,
+      });
+    }
+  } catch {
+    // Push failures must not affect result recording.
+  }
 
   revalidatePath(`/matches/${matchId}`);
   revalidatePath(`/matches/${matchId}/teams`);

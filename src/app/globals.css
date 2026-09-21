@@ -1912,6 +1912,40 @@ label>textarea {
   gap: 16px;
 }
 
+.push-settings-card .status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.push-settings-card .status-badge.active {
+  color: var(--forest-800);
+  background: var(--forest-50);
+}
+
+.push-settings-card .status-badge.inactive {
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+
+.push-settings-warning,
+.push-settings-message {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  border-left: 3px solid var(--brand-primary);
+  background: var(--brand-surface);
+}
+
+.push-settings-warning {
+  color: var(--muted);
+}
+
 .assignment-list>div,
 .ledger>div,
 .settings-list>div,

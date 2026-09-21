@@ -1,6 +1,6 @@
 # Web Push và thiết kế thông báo cho thành viên
 
-**Trạng thái:** Tài liệu thiết kế cho giai đoạn triển khai tiếp theo  
+**Trạng thái:** P0 đã triển khai; P1/P2 và scheduler nâng cao vẫn là thiết kế tiếp theo  
 **Ngày cập nhật:** 21/09/2026  
 **Phạm vi:** Push notification cho User đang hoạt động; ưu tiên User có liên kết `users.member_id`
 

@@ -34,6 +34,12 @@ import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
 import { can, requirePermission } from "@/lib/permissions";
 import { isPlayerPosition, isPlayerStrength, type PlayerPosition } from "@/lib/player-profile";
+import {
+  activeMemberUserIdsForClub,
+  notifyUsers,
+  userIdsForMatchAudience,
+  userIdsForMembers,
+} from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -846,6 +852,7 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
   if (!memberId || !type) return { ok: false, message: "Thành viên hoặc loại thu không hợp lệ." };
   const unitAmount = str(formData, "unitAmount") ? amount(formData, "unitAmount") : type.defaultAmount;
 
+  let createdChargeId = "";
   await db.transaction(async (tx) => {
     const [record] = await tx.insert(memberCharges).values({
       clubId: actor.clubId, memberId, chargeTypeId,
@@ -857,11 +864,28 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
       reportNextMonthSnapshot: type.reportNextMonth,
       note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
+    createdChargeId = record.id;
     await track(tx, {
       clubId: actor.clubId, entityType: "member_charge", entityId: record.id,
       action: "CREATE", actorId: actor.id, afterData: record, message: `Tạo khoản phải đóng ${record.totalAmount}đ`,
     });
   });
+  try {
+    const recipientIds = await userIdsForMembers(actor.clubId, [memberId]);
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: recipientIds,
+      type: "MEMBER_CHARGE_CREATED",
+      title: "Khoản phải đóng mới",
+      body: `Bạn có khoản phải đóng mới: ${type.name}.`,
+      url: "/charges",
+      entityType: "member_charge",
+      entityId: createdChargeId,
+      dedupeKey: `MEMBER_CHARGE_CREATED:${createdChargeId}`,
+    });
+  } catch {
+    // Push failures must not affect the financial transaction.
+  }
   revalidatePath("/charges");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
@@ -902,6 +926,7 @@ export async function createFundTransactionAction(formData: FormData): Promise<M
   const memberId = str(formData, "memberId") || null;
   if (kind === "MEMBER_PAYMENT" && !memberId) return { ok: false, message: "Vui lòng chọn thành viên." };
 
+  let createdTransactionId = "";
   await db.transaction(async (tx) => {
     const [record] = await tx.insert(fundTransactions).values({
       clubId: actor.clubId, direction, kind,
@@ -910,12 +935,31 @@ export async function createFundTransactionAction(formData: FormData): Promise<M
       amount: value, transactionDate: str(formData, "transactionDate") || todayInTimezone(),
       note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
+    createdTransactionId = record.id;
     await track(tx, {
       clubId: actor.clubId, entityType: "fund_transaction", entityId: record.id,
       action: "CREATE", actorId: actor.id, afterData: record,
       message: `${direction === "IN" ? "Ghi nhận thu" : "Ghi nhận chi"} ${value}đ`,
     });
   });
+  if (kind === "MEMBER_PAYMENT" && memberId) {
+    try {
+      const recipientIds = await userIdsForMembers(actor.clubId, [memberId]);
+      await notifyUsers({
+        clubId: actor.clubId,
+        userIds: recipientIds,
+        type: "MEMBER_PAYMENT_RECORDED",
+        title: "Đã ghi nhận tiền nộp",
+        body: "Khoản tiền bạn nộp đã được ghi nhận vào quỹ.",
+        url: "/reports",
+        entityType: "fund_transaction",
+        entityId: createdTransactionId,
+        dedupeKey: `MEMBER_PAYMENT_RECORDED:${createdTransactionId}`,
+      });
+    } catch {
+      // Push failures must not affect the payment transaction.
+    }
+  }
   revalidatePath("/transactions"); revalidatePath("/dashboard"); revalidatePath("/reports");
   return { ok: true, message: direction === "IN" ? "Đã ghi nhận khoản thu." : "Đã ghi nhận khoản chi." };
 }
@@ -997,10 +1041,12 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
   }
   const typeMap = new Map(validTypes.map((type) => [type.id, type]));
 
+  let createdMatchId = "";
   await db.transaction(async (tx) => {
     const [match] = await tx.insert(matches).values({
       clubId: actor.clubId, playedOn, note: str(formData, "note") || null, createdBy: actor.id,
     }).returning();
+    createdMatchId = match.id;
 
     if (involved.size) {
       await tx.insert(matchParticipants).values([...involved].map((memberId) => ({ matchId: match.id, memberId })));
@@ -1027,6 +1073,37 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
     });
   });
 
+  try {
+    const allMemberUsers = await activeMemberUserIdsForClub(actor.clubId);
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: allMemberUsers,
+      type: "MATCH_CREATED",
+      title: "Có trận đấu mới",
+      body: `Trận ngày ${playedOn} đã được tạo. Hãy bình chọn tham gia.`,
+      url: "/matches",
+      entityType: "match",
+      entityId: createdMatchId,
+      dedupeKey: `MATCH_CREATED:${createdMatchId}`,
+    });
+    if (chargeRows.length) {
+      const chargedMemberIds = [...new Set(chargeRows.map((row) => row.memberId))];
+      const chargedUsers = await userIdsForMembers(actor.clubId, chargedMemberIds);
+      await notifyUsers({
+        clubId: actor.clubId,
+        userIds: chargedUsers,
+        type: "MEMBER_CHARGE_CREATED",
+        title: "Khoản phải đóng mới",
+        body: "Bạn có khoản phải đóng mới phát sinh từ trận đấu.",
+        url: "/charges",
+        entityType: "match",
+        entityId: createdMatchId,
+        dedupeKey: `MEMBER_CHARGE_CREATED:MATCH:${createdMatchId}`,
+      });
+    }
+  } catch {
+    // Push failures must not affect match creation.
+  }
   revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard");
   revalidatePath("/reports");
   return { ok: true, message: "Đã tạo trận và khoản thu phát sinh." };
@@ -1162,6 +1239,25 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     });
   });
 
+  const noteChanged = (str(formData, "note") || null) !== before.note;
+  if (playedOn !== before.playedOn || participantsChanged || noteChanged) {
+    try {
+      const recipientIds = await userIdsForMatchAudience(actor.clubId, id);
+      await notifyUsers({
+        clubId: actor.clubId,
+        userIds: recipientIds,
+        type: "MATCH_UPDATED",
+        title: "Trận đấu đã được cập nhật",
+        body: `Thông tin trận ngày ${playedOn} vừa thay đổi. Mở ứng dụng để kiểm tra.`,
+        url: `/matches/${id}`,
+        entityType: "match",
+        entityId: id,
+        dedupeKey: `MATCH_UPDATED:${id}:${before.updatedAt.getTime()}`,
+      });
+    } catch {
+      // Push failures must not affect match updates.
+    }
+  }
   revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports");
   return { ok: true, message: "Đã cập nhật trận và các khoản thu phát sinh." };
 }
@@ -1173,6 +1269,7 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
     .where(and(eq(matches.id, id), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt))).limit(1);
   if (!before) return;
 
+  const cancellationRecipients = await userIdsForMatchAudience(actor.clubId, id).catch(() => []);
   await db.transaction(async (tx) => {
     const deletedAt = new Date();
     await tx.update(matches).set({
@@ -1196,6 +1293,21 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
     });
   });
 
+  try {
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: cancellationRecipients,
+      type: "MATCH_CANCELLED",
+      title: "Trận đấu đã bị hủy",
+      body: `Trận ngày ${before.playedOn} đã bị hủy.`,
+      url: "/matches",
+      entityType: "match",
+      entityId: id,
+      dedupeKey: `MATCH_CANCELLED:${id}`,
+    });
+  } catch {
+    // Push failures must not affect match cancellation.
+  }
   revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports");
 }
 

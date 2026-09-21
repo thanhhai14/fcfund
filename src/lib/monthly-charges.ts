@@ -9,6 +9,7 @@ import {
   monthlyJobRuns,
 } from "@/db/schema";
 import { monthStart, todayInTimezone } from "./format";
+import { notifyUsers, userIdsForMembers } from "./push-notifications";
 
 export async function generateMonthlyCharges(options?: {
   force?: boolean;
@@ -68,6 +69,7 @@ export async function generateMonthlyCharges(options?: {
       );
 
     let created = 0;
+    const chargedMemberIds = new Set<string>();
     for (const assignment of assignments) {
       const amount = assignment.customAmount ?? assignment.defaultAmount;
       const inserted = await db
@@ -88,14 +90,41 @@ export async function generateMonthlyCharges(options?: {
           note: `Khoản thu tự động tháng ${period.slice(5, 7)}/${period.slice(0, 4)}`,
         })
         .onConflictDoNothing()
-        .returning({ id: memberCharges.id });
+        .returning({ id: memberCharges.id, memberId: memberCharges.memberId });
       created += inserted.length;
+      for (const row of inserted) chargedMemberIds.add(row.memberId);
     }
 
     await db
       .update(monthlyJobRuns)
       .set({ status: "COMPLETED", finishedAt: new Date(), createdCount: created })
       .where(eq(monthlyJobRuns.periodMonth, period));
+
+    if (chargedMemberIds.size) {
+      try {
+        const clubIds = [...new Set(assignments
+          .filter((assignment) => chargedMemberIds.has(assignment.memberId))
+          .map((assignment) => assignment.clubId))];
+        for (const clubId of clubIds) {
+          const memberIds = assignments
+            .filter((assignment) => assignment.clubId === clubId && chargedMemberIds.has(assignment.memberId))
+            .map((assignment) => assignment.memberId);
+          const recipientIds = await userIdsForMembers(clubId, memberIds);
+          await notifyUsers({
+            clubId,
+            userIds: recipientIds,
+            type: "MEMBER_CHARGE_CREATED",
+            title: "Khoản phải đóng tháng mới",
+            body: "Các khoản phải đóng định kỳ của tháng mới đã được cập nhật.",
+            url: "/charges",
+            entityType: "monthly_job",
+            dedupeKey: `MONTHLY_CHARGES:${period}`,
+          });
+        }
+      } catch {
+        // Push failures must not affect the monthly charge job result.
+      }
+    }
 
     return { skipped: false, created, period };
   } catch (error) {

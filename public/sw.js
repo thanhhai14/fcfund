@@ -72,3 +72,45 @@ self.addEventListener("fetch", (event) => {
       .catch(() => offlineFallback(event.request)),
   );
 });
+
+self.addEventListener("push", (event) => {
+  const data = event.data?.json?.() ?? {};
+  const title = typeof data.title === "string" ? data.title : "FCFUND";
+  const body = typeof data.body === "string" ? data.body : "Bạn có thông báo mới.";
+  const url = typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/dashboard";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url },
+      tag: typeof data.type === "string" ? data.type : undefined,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const rawUrl = event.notification.data?.url;
+  const target = new URL(typeof rawUrl === "string" ? rawUrl : "/dashboard", self.location.origin);
+  if (target.origin !== self.location.origin) return;
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+
+    for (const client of windows) {
+      try {
+        if ("navigate" in client) await client.navigate(target.href);
+      } catch {
+        // If navigation fails, fall through and try the next controlled client.
+      }
+      if ("focus" in client) return client.focus();
+    }
+
+    return self.clients.openWindow(target.href);
+  })());
+});
