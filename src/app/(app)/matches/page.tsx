@@ -216,7 +216,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                       matchId={match.id}
                       disabled={isRsvpClosed}
                       canVote={Boolean(user.memberId)}
-                      canRemind={user.role === "ORGANIZER"}
+                      canRemind={["ORGANIZER", "TREASURER", "ADMIN"].includes(user.role)}
                       defaultOpen={params.rsvp === match.id}
                       myStatus={myRsvpMember?.status ?? null}
                       myGoalkeeperAvailable={myRsvpMember?.goalkeeperAvailable ?? false}

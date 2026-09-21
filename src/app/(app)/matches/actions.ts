@@ -236,8 +236,8 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
 
 export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRsvpResult> {
   const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
-  if (actor.role !== "ORGANIZER") {
-    return { ok: false, message: "Chỉ Người tổ chức mới có thể gửi nhắc bình chọn." };
+  if (!["ORGANIZER", "TREASURER", "ADMIN"].includes(actor.role)) {
+    return { ok: false, message: "Bạn không có quyền gửi nhắc bình chọn." };
   }
 
   const matchId = str(formData, "matchId");

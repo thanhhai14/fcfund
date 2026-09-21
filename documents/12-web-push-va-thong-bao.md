@@ -145,7 +145,7 @@ iOS không cho website tự yêu cầu permission tùy ý mà không có user in
 - `MATCH_RSVP_UPDATED`: gửi khi thành viên bình chọn lần đầu hoặc đổi `GOING ↔ NOT_GOING`; thay đổi riêng `goalkeeperAvailable` không phát Push.
 - Người nhận là toàn bộ User ACTIVE đang liên kết Member ACTIVE trong club, ngoại trừ chính User vừa thao tác.
 - Deep link dùng `/matches?rsvp=<matchId>`; trang Matches tự mở popup **Bình chọn tham gia** của đúng trận.
-- `MATCH_RSVP_REMINDER`: role `ORGANIZER` có nút **Thông báo** để nhắc riêng nhóm thành viên chưa trả lời.
+- `MATCH_RSVP_REMINDER`: các role `ORGANIZER`, `TREASURER` và `ADMIN` có nút **Thông báo** để nhắc riêng nhóm thành viên chưa trả lời.
 - ADMIN không cần liên kết Member để xem popup, thống kê và chatter RSVP; không thể tự bình chọn nếu không có `member_id`.
 - Chatter RSVP lấy từ `activity_logs`, hiển thị mới nhất ở trên và giới hạn chiều cao với scroll khi có nhiều log.
 - Mỗi Push payload có `eventId`; Service Worker dùng `eventId` làm notification tag để các RSVP liên tiếp không ghi đè nhau.
