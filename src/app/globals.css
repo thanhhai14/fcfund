@@ -9230,3 +9230,126 @@ html[data-navigation-pending="true"] .app-main::after {
     animation: none;
   }
 }
+
+/* PWA install prompt */
+.pwa-install-card {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 90;
+  width: min(380px, calc(100vw - 36px));
+  padding: 16px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, .98);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--pink);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 36px rgba(4, 47, 82, .18);
+  backdrop-filter: blur(12px);
+}
+
+.pwa-install-close {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pwa-install-brand {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding-right: 26px;
+}
+
+.pwa-install-brand img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+}
+
+.pwa-install-brand strong,
+.pwa-install-brand span {
+  display: block;
+}
+
+.pwa-install-brand strong {
+  font-size: 14px;
+}
+
+.pwa-install-brand span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.pwa-install-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pwa-install-ios-help {
+  margin-top: 13px;
+  padding: 12px 13px;
+  background: var(--forest-50);
+  border-left: 3px solid var(--forest-700);
+}
+
+.pwa-install-ios-help strong {
+  display: block;
+  font-size: 11px;
+}
+
+.pwa-install-ios-help ol {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.pwa-install-ios-help small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1024px) {
+  .pwa-install-card {
+    right: 12px;
+    bottom: max(88px, calc(72px + env(safe-area-inset-bottom)));
+    width: min(390px, calc(100vw - 24px));
+  }
+}
+
+@media (max-width: 560px) {
+  .pwa-install-card {
+    right: 10px;
+    bottom: max(86px, calc(70px + env(safe-area-inset-bottom)));
+    width: calc(100vw - 20px);
+    padding: 14px;
+  }
+
+  .pwa-install-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pwa-install-actions .button {
+    justify-content: center;
+  }
+}
