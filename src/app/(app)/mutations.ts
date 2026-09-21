@@ -275,19 +275,24 @@ export async function updateOwnAvatarAction(formData: FormData): Promise<Mutatio
     if (avatarFile.size > 2 * 1024 * 1024) return { ok: false, message: "Avatar không được lớn hơn 2 MB." };
   }
 
-  const ownerCondition = actor.memberId
-    ? or(eq(avatars.userId, actor.id), eq(avatars.memberId, actor.memberId))
-    : eq(avatars.userId, actor.id);
-  const [beforeAvatar] = await db.select().from(avatars).where(and(
-    eq(avatars.clubId, actor.clubId),
-    ownerCondition,
-  )).limit(1);
+  const [beforeAvatar] = actor.memberId
+    ? await db.select().from(avatars).where(and(
+        eq(avatars.clubId, actor.clubId),
+        or(eq(avatars.userId, actor.id), eq(avatars.memberId, actor.memberId)),
+      )).limit(1)
+    : await db.select().from(avatars).where(eq(avatars.userId, actor.id)).limit(1);
+
   let uploaded: Awaited<ReturnType<typeof put>> | null = null;
   try {
     if (avatarFile instanceof File && avatarFile.size > 0) {
       uploaded = await put(`clubs/${actor.clubId}/users/${actor.id}/avatar-${Date.now()}`, avatarFile, { access: "private", addRandomSuffix: true });
     }
-  } catch {
+  } catch (error) {
+    console.error("[avatar] Không thể tải avatar tài khoản lên Blob", {
+      userId: actor.id,
+      hasMember: Boolean(actor.memberId),
+      error,
+    });
     return { ok: false, message: "Không thể tải avatar lên kho lưu trữ." };
   }
 
@@ -318,8 +323,26 @@ export async function updateOwnAvatarAction(formData: FormData): Promise<Mutatio
         message: uploaded ? "Cập nhật avatar tài khoản" : "Xóa avatar tài khoản",
       });
     });
-  } catch {
+  } catch (error) {
     if (uploaded) void del(uploaded.url).catch(() => undefined);
+    const code = typeof error === "object" && error && "code" in error
+      ? String((error as { code?: unknown }).code ?? "")
+      : "";
+
+    console.error("[avatar] Không thể cập nhật avatar tài khoản", {
+      userId: actor.id,
+      hasMember: Boolean(actor.memberId),
+      code,
+      error,
+    });
+
+    if (!actor.memberId && ["23502", "23514", "42703"].includes(code)) {
+      return {
+        ok: false,
+        message: "Cấu trúc dữ liệu avatar chưa đồng bộ cho tài khoản không gắn thành viên.",
+      };
+    }
+
     return { ok: false, message: "Không thể cập nhật avatar tài khoản." };
   }
   if (beforeAvatar && (uploaded || removeAvatar)) void del(beforeAvatar.blobUrl).catch(() => undefined);
