@@ -1,94 +1,73 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  blockedPermissionHelp,
+  disablePushNotifications,
+  enablePushNotifications,
+  readPushClientState,
+  type PushClientState,
+} from "@/lib/push-client";
 
-type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+const EMPTY_STATE: PushClientState = {
+  supported: false,
+  standalone: false,
+  permission: "unsupported",
+  subscribed: false,
+};
 
-function standaloneMode() {
-  return window.matchMedia("(display-mode: standalone)").matches
-    || Boolean((navigator as NavigatorWithStandalone).standalone);
-}
-
-function vapidKeyBytes(value: string) {
-  const padding = "=".repeat((4 - (value.length % 4)) % 4);
-  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = window.atob(base64);
-  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
-}
-
-function platformName() {
-  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return "ios";
-  if (/Android/i.test(navigator.userAgent)) return "android";
-  return "desktop";
-}
-
-export function PushNotificationSettings({ publicKey }: { publicKey: string | null }) {
-  const [supported, setSupported] = useState(false);
-  const [standalone, setStandalone] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("unsupported");
+export function PushNotificationSettings({
+  publicKey,
+  isAdmin,
+}: {
+  publicKey: string | null;
+  isAdmin: boolean;
+}) {
+  const [state, setState] = useState<PushClientState>(EMPTY_STATE);
   const [busy, setBusy] = useState(false);
+  const [testBusy, setTestBusy] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function refreshState() {
-      await Promise.resolve();
-      const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-      if (cancelled) return;
-      setSupported(ok);
-      setStandalone(standaloneMode());
-      if (!ok) return;
-      setPermission(Notification.permission);
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        if (!cancelled) setSubscribed(Boolean(subscription));
-      } catch {
-        // The settings panel remains usable even if service worker inspection fails.
-      }
+  const refreshState = useCallback(async () => {
+    try {
+      setState(await readPushClientState());
+    } catch {
+      // Keep the settings panel available if service worker inspection fails.
     }
-
-    void refreshState();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
+  useEffect(() => {
+    const initialTimer = window.setTimeout(() => {
+      void refreshState();
+    }, 0);
+
+    function handleResume() {
+      if (document.visibilityState === "visible") void refreshState();
+    }
+
+    window.addEventListener("focus", handleResume);
+    document.addEventListener("visibilitychange", handleResume);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.removeEventListener("focus", handleResume);
+      document.removeEventListener("visibilitychange", handleResume);
+    };
+  }, [refreshState]);
+
   async function enable() {
-    if (!publicKey || !supported || !standalone) return;
+    if (!publicKey || !state.supported || !state.standalone) return;
     setBusy(true);
     setMessage("");
     try {
-      const nextPermission = await Notification.requestPermission();
-      setPermission(nextPermission);
-      if (nextPermission !== "granted") {
-        setMessage("Bạn chưa cho phép ứng dụng gửi thông báo.");
+      const nextState = await enablePushNotifications(publicKey);
+      setState(nextState);
+      if (nextState.permission === "denied") {
+        setMessage(blockedPermissionHelp());
         return;
       }
-
-      const registration = await navigator.serviceWorker.ready;
-      const existing = await registration.pushManager.getSubscription();
-      const subscription = existing ?? await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: vapidKeyBytes(publicKey),
-      });
-      const json = subscription.toJSON();
-      const response = await fetch("/api/push/subscriptions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint,
-          expirationTime: subscription.expirationTime,
-          keys: json.keys,
-          platform: platformName(),
-          userAgent: navigator.userAgent,
-        }),
-      });
-      if (!response.ok) throw new Error("save-failed");
-      setSubscribed(true);
-      setMessage("Đã bật thông báo trên thiết bị này.");
+      if (nextState.subscribed) {
+        setMessage("Đã bật thông báo trên thiết bị này.");
+      }
     } catch {
       setMessage("Không thể bật thông báo. Hãy thử lại sau.");
     } finally {
@@ -100,17 +79,8 @@ export function PushNotificationSettings({ publicKey }: { publicKey: string | nu
     setBusy(true);
     setMessage("");
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await fetch("/api/push/subscriptions", {
-          method: "DELETE",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ endpoint: subscription.endpoint }),
-        });
-        await subscription.unsubscribe();
-      }
-      setSubscribed(false);
+      await disablePushNotifications();
+      await refreshState();
       setMessage("Đã tắt thông báo trên thiết bị này.");
     } catch {
       setMessage("Không thể tắt thông báo. Hãy thử lại sau.");
@@ -119,32 +89,70 @@ export function PushNotificationSettings({ publicKey }: { publicKey: string | nu
     }
   }
 
+  async function sendTest() {
+    setTestBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/push/test", { method: "POST" });
+      const result = await response.json().catch(() => null) as { ok?: boolean; status?: string; error?: string } | null;
+      if (!response.ok || !result?.ok) {
+        throw new Error(result?.error || "test-failed");
+      }
+
+      if (result.status === "SENT") {
+        setMessage("Đã gửi thông báo thử. Nếu Push hoạt động bình thường, thiết bị sẽ nhận được ngay.");
+      } else if (result.status === "PARTIAL") {
+        setMessage("Thông báo thử đã gửi thành công tới ít nhất một thiết bị của tài khoản Admin.");
+      } else if (result.status === "FAILED") {
+        setMessage("Máy chủ đã thử gửi nhưng Push thất bại. Hãy kiểm tra subscription và VAPID.");
+      } else {
+        setMessage("Không tìm thấy subscription Push đang hoạt động cho tài khoản này.");
+      }
+    } catch {
+      setMessage("Không thể gửi thông báo thử. Hãy thử lại sau.");
+    } finally {
+      setTestBusy(false);
+    }
+  }
+
   const unavailable = !publicKey
     ? "Máy chủ chưa cấu hình VAPID keys."
-    : !supported
+    : !state.supported
       ? "Trình duyệt/thiết bị này không hỗ trợ Web Push."
-      : !standalone
+      : !state.standalone
         ? "Hãy mở FCFUND từ PWA đã cài trên màn hình chính để bật thông báo."
-        : permission === "denied"
-          ? "Thông báo đang bị chặn trong cài đặt của hệ điều hành/trình duyệt."
-          : null;
+        : null;
+
+  const blocked = state.permission === "denied";
 
   return (
     <article className="panel push-settings-card">
       <div className="panel-heading">
         <div><span className="eyebrow">PWA</span><h2>Thông báo</h2></div>
-        <span className={"status-badge " + (subscribed ? "active" : "inactive")}>
-          {subscribed ? "Đang bật" : "Đang tắt"}
+        <span className={"status-badge " + (state.subscribed ? "active" : "inactive")}>
+          {state.subscribed ? "Đang bật" : blocked ? "Bị chặn" : "Đang tắt"}
         </span>
       </div>
       <p className="panel-note">Nhận thông báo về trận đấu, đội hình, kết quả, khoản phải đóng và tiền nộp.</p>
       {unavailable && <p className="push-settings-warning">{unavailable}</p>}
+      {blocked && !unavailable && <p className="push-settings-warning">{blockedPermissionHelp()}</p>}
       {message && <p className="push-settings-message">{message}</p>}
-      <div className="form-actions">
-        {subscribed
+      <div className="form-actions push-settings-actions">
+        {state.subscribed
           ? <button className="button secondary" type="button" onClick={disable} disabled={busy}>{busy ? "Đang tắt…" : "Tắt thông báo"}</button>
-          : <button className="button primary" type="button" onClick={enable} disabled={busy || Boolean(unavailable)}>{busy ? "Đang bật…" : "Bật thông báo"}</button>}
+          : <button className="button primary" type="button" onClick={enable} disabled={busy || Boolean(unavailable)}>{busy ? "Đang kiểm tra…" : blocked ? "Bật lại thông báo" : "Bật thông báo"}</button>}
+        {isAdmin && (
+          <button
+            className="button secondary"
+            type="button"
+            onClick={sendTest}
+            disabled={testBusy}
+          >
+            {testBusy ? "Đang gửi…" : "Gửi thông báo thử"}
+          </button>
+        )}
       </div>
+      {isAdmin && <p className="push-settings-test-note">Nút test chỉ hiển thị với Administrator và gửi tới các thiết bị Push đang hoạt động của tài khoản Admin hiện tại.</p>}
     </article>
   );
 }

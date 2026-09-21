@@ -8,6 +8,7 @@ import { APP_NAME } from "@/lib/constants";
 import { MemberAvatar } from "./member-identity";
 import { NavigationFeedback } from "./navigation-feedback";
 import { PendingButton } from "./mutation-form";
+import { PushNotificationPrompt } from "./push-notification-prompt";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
@@ -39,6 +40,7 @@ export function AppShell({
   userMemberId,
   userAvatarVersion,
   roleLabel,
+  pushPublicKey,
   mobileNavRoutes,
   logoutAction,
 }: {
@@ -50,6 +52,7 @@ export function AppShell({
   userMemberId?: string | null;
   userAvatarVersion?: Date | string | number | null;
   roleLabel: string;
+  pushPublicKey: string | null;
   mobileNavRoutes: string[];
   logoutAction: () => Promise<void>;
 }) {
@@ -113,6 +116,8 @@ export function AppShell({
         </button>
         {children}
       </main>
+
+      <PushNotificationPrompt publicKey={pushPublicKey} />
 
       <nav className="mobile-bottom-nav" aria-label="Điều hướng chính trên điện thoại">
         {visibleMobileNavItems.map((item) => {

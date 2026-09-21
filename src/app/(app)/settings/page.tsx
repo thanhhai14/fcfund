@@ -143,7 +143,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="stack">
-          <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+          <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} isAdmin={currentUser.role === "ADMIN"} />
 
           <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>

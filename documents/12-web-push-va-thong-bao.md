@@ -17,16 +17,18 @@ FCFUND hiện đã có các thành phần nền phù hợp để bổ sung Web P
 - Deep link nội bộ đã có các route như `/matches/[id]`, `/matches/[id]/teams`, `/charges`, `/reports`, `/members/[id]`.
 - Vercel Cron đang dùng cho sinh khoản thu định kỳ.
 
-Service Worker hiện chỉ xử lý install/activate/fetch/offline. Chưa có:
+P0 Web Push hiện đã triển khai:
 
-- `push`;
-- `notificationclick`;
-- đăng ký Push Subscription;
+- Service Worker xử lý `push` và `notificationclick`;
+- API đăng ký/tắt Push Subscription theo User;
 - VAPID keys;
-- bảng lưu thiết bị/subscription;
-- service gửi Web Push.
+- `push_subscriptions` và `notification_events`;
+- service gửi Web Push và vô hiệu hóa endpoint hỏng;
+- prompt mời bật thông báo chỉ khi app đang chạy dưới dạng PWA/standalone;
+- trang Settings quản lý trạng thái Push;
+- API gửi thông báo thử dành riêng cho Administrator.
 
-Do đó Web Push là phần mở rộng độc lập, không yêu cầu viết lại PWA hoặc các module nghiệp vụ hiện tại.
+P1/P2 vẫn tập trung vào scheduler, reminder, preference và các event mở rộng.
 
 ## 2. Nguyên tắc sản phẩm
 
@@ -107,6 +109,15 @@ Web Push được hỗ trợ cho Home Screen web app từ iOS/iPadOS 16.4. User 
 4. chấp nhận permission của hệ điều hành.
 
 iOS không cho website tự yêu cầu permission tùy ý mà không có user interaction.
+
+### UX permission đã triển khai
+
+- Prompt chỉ xuất hiện sau đăng nhập khi đang chạy PWA/standalone và chưa có subscription hoạt động.
+- Nút **Bật thông báo** mới gọi system permission prompt.
+- Nút phụ dùng tên **Hủy**; chỉ đóng prompt trong phiên mở app hiện tại, nên lần mở PWA tiếp theo sẽ hỏi lại nếu vẫn chưa bật.
+- Nếu user từ chối system permission (`denied`), prompt tự ẩn trong 24 giờ trước khi nhắc lại.
+- Khi permission đang bị chặn, Settings hiển thị nút **Bật lại thông báo** cùng hướng dẫn mở phần cài đặt notification của iOS/Android; JavaScript không thể tự bỏ trạng thái block của hệ điều hành.
+- Settings của role `ADMIN` có nút **Gửi thông báo thử**; API server kiểm tra lại role và gửi tới tất cả subscription active của chính tài khoản Admin đó.
 
 ### Tài liệu nền tảng
 
@@ -517,3 +528,7 @@ Các thông báo bảo mật/tài khoản quan trọng có thể tách khỏi pr
 10. Nội dung Lock Screen không lộ thông tin nhạy cảm không cần thiết.
 11. Tất cả URL từ Push được validate cùng origin.
 12. Có thể tắt notification trên thiết bị hiện tại.
+13. Prompt bật Push không xuất hiện trong tab browser thông thường, chỉ trong PWA/standalone.
+14. Bấm **Hủy** không tạo cooldown; lần mở PWA tiếp theo vẫn được nhắc lại.
+15. Nếu system permission bị từ chối, prompt tạm ẩn 24 giờ và Settings vẫn hướng dẫn bật lại.
+16. Chỉ `ADMIN` có thể gọi API test Push; role khác nhận `403`.

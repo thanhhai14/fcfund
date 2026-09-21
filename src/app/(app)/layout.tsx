@@ -39,6 +39,7 @@ export default async function DashboardLayout({
       userMemberId={user.memberId}
       userAvatarVersion={user.avatarUpdatedAt}
       roleLabel={ROLE_LABELS[user.role]}
+      pushPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
       mobileNavRoutes={mobileNavRoutes}
       logoutAction={logoutAction}
     >

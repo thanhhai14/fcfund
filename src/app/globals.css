@@ -9443,6 +9443,106 @@ html[data-navigation-pending="true"] .app-main::after {
   }
 }
 
+
+/* PWA push permission prompt */
+.push-permission-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: grid;
+  place-items: center;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    18px
+    max(18px, env(safe-area-inset-bottom));
+  background: rgba(3, 31, 52, .72);
+  backdrop-filter: blur(12px);
+}
+
+.push-permission-card {
+  width: min(430px, 100%);
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+  padding: 22px;
+  background: white;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--brand-primary);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .25);
+}
+
+.push-permission-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-surface);
+  border: 1px solid var(--line);
+  font-size: 24px;
+}
+
+.push-permission-copy h2 {
+  margin: 4px 0 7px;
+  font-size: 18px;
+}
+
+.push-permission-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.push-permission-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.push-settings-actions {
+  flex-wrap: wrap;
+}
+
+.push-settings-test-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .push-permission-gate {
+    align-items: end;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .push-permission-card {
+    width: 100%;
+    grid-template-columns: 44px minmax(0, 1fr);
+    padding: 18px;
+    border-radius: 14px 14px 6px 6px;
+  }
+
+  .push-permission-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .push-permission-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .push-permission-actions .button {
+    width: 100%;
+  }
+}
+
 /* Required PWA install gate on mobile */
 .pwa-install-gate {
   position: fixed;

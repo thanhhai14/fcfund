@@ -20,7 +20,8 @@ export type PushEventType =
   | "MATCH_TEAM_CONFIRMED"
   | "MATCH_RESULT_RECORDED"
   | "MEMBER_CHARGE_CREATED"
-  | "MEMBER_PAYMENT_RECORDED";
+  | "MEMBER_PAYMENT_RECORDED"
+  | "TEST_NOTIFICATION";
 
 type NotifyInput = {
   clubId: string;
