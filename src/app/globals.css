@@ -7000,6 +7000,17 @@ label>textarea {
 }
 
 @media (max-width: 560px) {
+  .match-rsvp-disclosure .disclosure-content {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    height: auto;
+    max-height: none;
+    max-block-size: none;
+    overflow-y: auto;
+  }
+
   .player-role-fields,
   .player-position-options,
   .player-strength-options {
