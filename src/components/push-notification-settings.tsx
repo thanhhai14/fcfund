@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { OwnPushDevices } from "./push-device-manager";
 import {
   blockedPermissionHelp,
   disablePushNotifications,
@@ -29,6 +30,7 @@ export function PushNotificationSettings({
   const [testOpen, setTestOpen] = useState(false);
   const [testBody, setTestBody] = useState("");
   const [message, setMessage] = useState("");
+  const [deviceRefreshKey, setDeviceRefreshKey] = useState(0);
 
   const refreshState = useCallback(async () => {
     try {
@@ -69,6 +71,7 @@ export function PushNotificationSettings({
       }
       if (nextState.subscribed) {
         setMessage("Đã bật thông báo trên thiết bị này.");
+        setDeviceRefreshKey((value) => value + 1);
       }
     } catch {
       setMessage("Không thể bật thông báo. Hãy thử lại sau.");
@@ -83,6 +86,7 @@ export function PushNotificationSettings({
     try {
       await disablePushNotifications();
       await refreshState();
+      setDeviceRefreshKey((value) => value + 1);
       setMessage("Đã tắt thông báo trên thiết bị này.");
     } catch {
       setMessage("Không thể tắt thông báo. Hãy thử lại sau.");
@@ -203,6 +207,8 @@ export function PushNotificationSettings({
       )}
 
       {isAdmin && <p className="push-settings-test-note">Thông báo thử sẽ gửi tới toàn bộ thành viên ACTIVE đang có ít nhất một thiết bị Push đã đăng ký.</p>}
+
+      <OwnPushDevices refreshKey={deviceRefreshKey} />
     </article>
   );
 }

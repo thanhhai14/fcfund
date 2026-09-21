@@ -410,6 +410,29 @@ User đăng xuất không nhất thiết xóa Push Subscription. Tuy nhiên app 
 
 Nếu thiết bị có thể được dùng chung, khuyến nghị unsubscribe khi user chủ động chọn tắt notification; không tự chuyển subscription sang tài khoản khác sau lần đăng nhập mới.
 
+### 11.1. UI quản lý thiết bị Push đã triển khai
+
+Trong **Cài đặt → Thông báo**:
+
+- User xem được toàn bộ subscription của chính mình, nhận diện **Thiết bị này**, gửi thử và đặt tên thiết bị.
+- Subscription của thiết bị khác có thể được xóa khỏi danh sách; thiết bị hiện tại được bật/tắt bằng flow Push chính để tránh lệch trạng thái giữa browser và database.
+- `ADMIN` có panel **Thiết bị Push của thành viên** với summary coverage, tìm kiếm và filter `Có Push / Chưa có Push / Có lỗi / Đã tắt`.
+- Coverage tính trên toàn bộ `Member ACTIVE`, kể cả thành viên chưa có tài khoản liên kết; nhóm này được tính là **Chưa có Push**.
+- Admin có thể gửi thử tới đúng một subscription, bật/tắt, đặt tên hoặc xóa subscription.
+- API quản trị chỉ trả metadata an toàn; không trả `endpoint`, `p256dh` hoặc `auth` về UI.
+- `404/410` khi gửi vẫn tự disable subscription; UI giữ record để Admin troubleshoot hoặc xóa sau.
+
+API:
+
+```text
+GET    /api/push/devices
+POST   /api/push/devices   # identify current device / test one device
+PATCH  /api/push/devices   # rename / enable / disable
+DELETE /api/push/devices   # remove subscription
+```
+
+Không cần migration mới vì schema `push_subscriptions` hiện tại đã có đủ metadata quản trị.
+
 ## 12. Recipient resolver
 
 Nên có các helper tập trung:

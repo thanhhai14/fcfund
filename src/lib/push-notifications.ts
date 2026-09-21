@@ -59,6 +59,42 @@ function configureVapid() {
   return true;
 }
 
+async function deliverToSubscription(
+  subscription: typeof pushSubscriptions.$inferSelect,
+  payload: PushPayload,
+) {
+  try {
+    await webpush.sendNotification({
+      endpoint: subscription.endpoint,
+      expirationTime: subscription.expirationTime ?? null,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      },
+    }, JSON.stringify(payload), { TTL: 60 * 60 * 24 });
+
+    const now = new Date();
+    await db.update(pushSubscriptions).set({
+      lastSuccessAt: now,
+      lastSeenAt: now,
+      failureCount: 0,
+      updatedAt: now,
+    }).where(eq(pushSubscriptions.id, subscription.id));
+    return true;
+  } catch (error) {
+    const statusCode = typeof error === "object" && error && "statusCode" in error
+      ? Number((error as { statusCode?: number }).statusCode)
+      : 0;
+    await db.update(pushSubscriptions).set({
+      enabled: statusCode === 404 || statusCode === 410 ? false : subscription.enabled,
+      lastFailureAt: new Date(),
+      failureCount: subscription.failureCount + 1,
+      updatedAt: new Date(),
+    }).where(eq(pushSubscriptions.id, subscription.id));
+    return false;
+  }
+}
+
 async function dispatchEvent(event: {
   id: string;
   userId: string;
@@ -99,35 +135,8 @@ async function dispatchEvent(event: {
   let failureCount = 0;
 
   for (const subscription of subscriptions) {
-    try {
-      await webpush.sendNotification({
-        endpoint: subscription.endpoint,
-        expirationTime: subscription.expirationTime ?? null,
-        keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth,
-        },
-      }, JSON.stringify(payload), { TTL: 60 * 60 * 24 });
-
-      successCount += 1;
-      await db.update(pushSubscriptions).set({
-        lastSuccessAt: new Date(),
-        lastSeenAt: new Date(),
-        failureCount: 0,
-        updatedAt: new Date(),
-      }).where(eq(pushSubscriptions.id, subscription.id));
-    } catch (error) {
-      failureCount += 1;
-      const statusCode = typeof error === "object" && error && "statusCode" in error
-        ? Number((error as { statusCode?: number }).statusCode)
-        : 0;
-      await db.update(pushSubscriptions).set({
-        enabled: statusCode === 404 || statusCode === 410 ? false : subscription.enabled,
-        lastFailureAt: new Date(),
-        failureCount: subscription.failureCount + 1,
-        updatedAt: new Date(),
-      }).where(eq(pushSubscriptions.id, subscription.id));
-    }
+    if (await deliverToSubscription(subscription, payload)) successCount += 1;
+    else failureCount += 1;
   }
 
   await db.update(notificationEvents).set({
@@ -135,6 +144,70 @@ async function dispatchEvent(event: {
     sentAt: successCount > 0 ? new Date() : null,
     updatedAt: new Date(),
   }).where(eq(notificationEvents.id, event.id));
+}
+
+export async function notifyDevice(input: {
+  clubId: string;
+  userId: string;
+  subscriptionId: string;
+  title: string;
+  body: string;
+  url?: string;
+}) {
+  const [subscription] = await db.select()
+    .from(pushSubscriptions)
+    .where(and(
+      eq(pushSubscriptions.id, input.subscriptionId),
+      eq(pushSubscriptions.userId, input.userId),
+      eq(pushSubscriptions.enabled, true),
+    ))
+    .limit(1);
+
+  if (!subscription) return { ok: false, status: "NOT_AVAILABLE" as const };
+
+  const [event] = await db.insert(notificationEvents).values({
+    clubId: input.clubId,
+    userId: input.userId,
+    type: "TEST_NOTIFICATION",
+    title: input.title,
+    body: input.body,
+    url: input.url ?? "/settings",
+    entityType: "push_device_test",
+    dedupeKey: `PUSH_DEVICE_TEST:${input.subscriptionId}:${Date.now()}`,
+  }).returning({
+    id: notificationEvents.id,
+    userId: notificationEvents.userId,
+    type: notificationEvents.type,
+    title: notificationEvents.title,
+    body: notificationEvents.body,
+    url: notificationEvents.url,
+    entityId: notificationEvents.entityId,
+  });
+
+  if (!event) return { ok: false, status: "FAILED" as const };
+
+  if (!configureVapid()) {
+    await db.update(notificationEvents)
+      .set({ status: "SKIPPED", updatedAt: new Date() })
+      .where(eq(notificationEvents.id, event.id));
+    return { ok: false, status: "SKIPPED" as const };
+  }
+
+  const sent = await deliverToSubscription(subscription, {
+    eventId: event.id,
+    type: "TEST_NOTIFICATION",
+    title: event.title,
+    body: event.body,
+    url: event.url,
+  });
+
+  await db.update(notificationEvents).set({
+    status: sent ? "SENT" : "FAILED",
+    sentAt: sent ? new Date() : null,
+    updatedAt: new Date(),
+  }).where(eq(notificationEvents.id, event.id));
+
+  return { ok: sent, status: sent ? "SENT" as const : "FAILED" as const };
 }
 
 export async function notifyUsers(input: NotifyInput) {

@@ -1946,6 +1946,334 @@ label>textarea {
   color: var(--muted);
 }
 
+.push-own-devices {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.push-device-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.push-device-section-heading h3 {
+  margin: 3px 0 0;
+  font-size: 13px;
+}
+
+.push-device-count {
+  display: inline-grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0 8px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.push-device-list {
+  display: grid;
+}
+
+.push-device-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.push-device-row:first-child {
+  border-top: 0;
+}
+
+.push-device-row-main {
+  min-width: 0;
+}
+
+.push-device-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.push-device-title strong {
+  font-size: 11px;
+}
+
+.push-device-row-main small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.push-device-current {
+  padding: 2px 6px;
+  color: var(--forest-800);
+  background: var(--forest-50);
+  border: 1px solid color-mix(in srgb, var(--forest-700) 25%, var(--line));
+  font-size: 7px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+}
+
+.push-device-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.push-device-manager {
+  margin-top: 16px;
+}
+
+.push-manager-heading {
+  align-items: flex-start;
+}
+
+.push-manager-heading p {
+  max-width: 720px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.push-manager-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.push-manager-summary>div {
+  min-width: 0;
+  padding: 13px 14px;
+  border-left: 1px solid var(--line);
+}
+
+.push-manager-summary>div:first-child {
+  border-left: 0;
+}
+
+.push-manager-summary small,
+.push-manager-summary strong,
+.push-manager-summary span {
+  display: block;
+}
+
+.push-manager-summary small {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.push-manager-summary strong {
+  margin-top: 5px;
+  font-size: 18px;
+}
+
+.push-manager-summary span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.push-manager-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.push-manager-toolbar input,
+.push-manager-toolbar select {
+  min-width: 0;
+}
+
+.push-manager-list {
+  border: 1px solid var(--line);
+}
+
+.push-manager-row {
+  display: grid;
+  grid-template-columns: minmax(150px, .9fr) minmax(190px, 1.2fr) auto minmax(260px, auto);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.push-manager-row:first-child {
+  border-top: 0;
+}
+
+.push-manager-member,
+.push-manager-device {
+  min-width: 0;
+}
+
+.push-manager-member strong,
+.push-manager-device strong {
+  display: block;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.push-manager-member small,
+.push-manager-device small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.push-manager-status {
+  justify-self: start;
+}
+
+.push-device-manager .status-badge,
+.push-device-row>.status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.push-device-manager .status-badge.active,
+.push-device-row>.status-badge.active {
+  color: var(--forest-800);
+  background: var(--forest-50);
+}
+
+.push-device-manager .status-badge.warning,
+.push-device-row>.status-badge.warning {
+  color: #7b5a11;
+  background: #fff7dc;
+  border-color: #ead99d;
+}
+
+.push-device-manager .status-badge.inactive,
+.push-device-row>.status-badge.inactive {
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+
+.push-manager-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 900px) {
+  .push-manager-summary {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .push-manager-summary>div:nth-child(4) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .push-manager-summary>div:nth-child(5) {
+    border-top: 1px solid var(--line);
+  }
+
+  .push-manager-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .push-manager-device,
+  .push-manager-actions {
+    grid-column: 1 / -1;
+  }
+
+  .push-manager-status {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .push-manager-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .push-device-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .push-device-row>.status-badge {
+    justify-self: start;
+  }
+
+  .push-manager-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .push-manager-summary>div,
+  .push-manager-summary>div:nth-child(4),
+  .push-manager-summary>div:nth-child(5) {
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+  }
+
+  .push-manager-summary>div:nth-child(1),
+  .push-manager-summary>div:nth-child(2) {
+    border-top: 0;
+  }
+
+  .push-manager-summary>div:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .push-manager-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .push-manager-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .push-manager-status {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .push-manager-device,
+  .push-manager-actions {
+    grid-column: 1;
+  }
+
+  .push-manager-actions .button,
+  .push-device-actions .button {
+    flex: 1 1 auto;
+  }
+}
+
 .assignment-list>div,
 .ledger>div,
 .settings-list>div,

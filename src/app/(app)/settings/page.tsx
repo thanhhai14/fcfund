@@ -41,6 +41,7 @@ import { requireUser } from "@/lib/auth";
 import { MemberAvatar, MemberIdentity } from "@/components/member-identity";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
 import { PushNotificationSettings } from "@/components/push-notification-settings";
+import { PushDeviceManager } from "@/components/push-device-manager";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -217,6 +218,8 @@ export default async function SettingsPage() {
           </article>}
         </div>
       </section>
+
+      {currentUser.role === "ADMIN" && <PushDeviceManager />}
     </>
   );
 }
