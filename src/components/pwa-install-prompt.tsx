@@ -36,7 +36,7 @@ export function PwaInstallPrompt() {
   const [canPrompt, setCanPrompt] = useState(false);
 
   useEffect(() => {
-    if (isStandalone() || !isMobileDevice()) return;
+    if (isStandalone() || /Zalo/i.test(navigator.userAgent) || !isMobileDevice()) return;
 
     const gateTimer = window.setTimeout(() => {
       setMode(isIosDevice() ? "ios" : "android");

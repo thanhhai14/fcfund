@@ -9532,6 +9532,126 @@ html[data-navigation-pending="true"] .app-main::after {
 }
 
 
+/* Zalo in-app browser gate */
+.in-app-browser-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: grid;
+  place-items: center;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    18px
+    max(18px, env(safe-area-inset-bottom));
+  background: rgba(3, 31, 52, .88);
+  backdrop-filter: blur(14px);
+}
+
+.in-app-browser-card {
+  width: min(440px, 100%);
+  padding: 22px;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--brand-primary);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
+}
+
+.in-app-browser-brand {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.in-app-browser-brand img {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+}
+
+.in-app-browser-brand h2 {
+  margin: 4px 0 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.in-app-browser-description {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.in-app-browser-help {
+  margin-top: 15px;
+  padding: 13px 14px;
+  background: var(--forest-50);
+  border-left: 3px solid var(--brand-primary);
+}
+
+.in-app-browser-help strong {
+  display: block;
+  font-size: 11px;
+}
+
+.in-app-browser-help p,
+.in-app-browser-help ol {
+  margin: 7px 0 0;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.in-app-browser-help ol {
+  padding-left: 19px;
+}
+
+.in-app-browser-actions {
+  display: grid;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.in-app-browser-note {
+  display: block;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .in-app-browser-gate {
+    align-items: end;
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .in-app-browser-card {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px 14px 6px 6px;
+  }
+
+  .in-app-browser-brand {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .in-app-browser-brand img {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+  }
+
+  .in-app-browser-brand h2 {
+    font-size: 16px;
+  }
+}
+
 /* PWA push permission prompt */
 .push-permission-gate {
   position: fixed;
