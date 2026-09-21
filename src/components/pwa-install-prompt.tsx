@@ -13,10 +13,6 @@ type NavigatorWithStandalone = Navigator & {
   standalone?: boolean;
 };
 
-const DISMISS_KEY = "fcfund:pwa-install-dismissed-at";
-const DISMISS_DAYS = 7;
-const DISMISS_MS = DISMISS_DAYS * 24 * 60 * 60 * 1000;
-
 function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches
     || Boolean((navigator as NavigatorWithStandalone).standalone);
@@ -34,111 +30,114 @@ function isMobileDevice() {
     || window.matchMedia("(max-width: 820px)").matches;
 }
 
-function wasDismissedRecently() {
-  const raw = window.localStorage.getItem(DISMISS_KEY);
-  if (!raw) return false;
-  const value = Number(raw);
-  return Number.isFinite(value) && Date.now() - value < DISMISS_MS;
-}
-
 export function PwaInstallPrompt() {
   const deferredPrompt = useRef<InstallPromptEvent | null>(null);
   const [mode, setMode] = useState<"hidden" | "android" | "ios">("hidden");
-  const [showIosHelp, setShowIosHelp] = useState(false);
+  const [canPrompt, setCanPrompt] = useState(false);
 
   useEffect(() => {
-    if (isStandalone() || !isMobileDevice() || wasDismissedRecently()) return;
+    if (isStandalone() || !isMobileDevice()) return;
 
-    const ios = isIosDevice();
-    const iosTimer = ios
-      ? window.setTimeout(() => setMode("ios"), 900)
-      : null;
+    const gateTimer = window.setTimeout(() => {
+      setMode(isIosDevice() ? "ios" : "android");
+    }, 0);
 
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       deferredPrompt.current = event as InstallPromptEvent;
+      setCanPrompt(true);
       setMode("android");
     }
 
     function handleInstalled() {
       deferredPrompt.current = null;
+      setCanPrompt(false);
       setMode("hidden");
-      setShowIosHelp(false);
-      window.localStorage.removeItem(DISMISS_KEY);
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
 
     return () => {
-      if (iosTimer !== null) window.clearTimeout(iosTimer);
+      window.clearTimeout(gateTimer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
     };
   }, []);
-
-  function dismiss() {
-    window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    deferredPrompt.current = null;
-    setShowIosHelp(false);
-    setMode("hidden");
-  }
 
   async function installAndroid() {
     const prompt = deferredPrompt.current;
     if (!prompt) return;
 
     await prompt.prompt();
-    const choice = await prompt.userChoice;
+    await prompt.userChoice;
     deferredPrompt.current = null;
+    setCanPrompt(false);
+  }
 
-    if (choice.outcome === "accepted") {
-      setMode("hidden");
-      window.localStorage.removeItem(DISMISS_KEY);
-    } else {
-      dismiss();
-    }
+  function dismiss() {
+    setMode("hidden");
   }
 
   if (mode === "hidden") return null;
 
   return (
-    <aside className="pwa-install-card" role="dialog" aria-label={`Cài đặt ${APP_NAME}`}>
-      <button className="pwa-install-close" type="button" onClick={dismiss} aria-label="Đóng gợi ý cài ứng dụng">×</button>
-      <div className="pwa-install-brand">
-        <img src="/icon-192.png" alt="" width="48" height="48" />
-        <div>
-          <strong>Cài {APP_NAME}</strong>
-          <span>Mở nhanh như ứng dụng và dùng toàn màn hình.</span>
-        </div>
-      </div>
-
-      {mode === "android" ? (
-        <div className="pwa-install-actions">
-          <button className="button primary small" type="button" onClick={installAndroid}>Cài ứng dụng</button>
-          <button className="button secondary small" type="button" onClick={dismiss}>Để sau</button>
-        </div>
-      ) : (
-        <>
-          <div className="pwa-install-actions">
-            <button className="button primary small" type="button" onClick={() => setShowIosHelp((value) => !value)}>
-              Cách cài trên iPhone
-            </button>
-            <button className="button secondary small" type="button" onClick={dismiss}>Để sau</button>
+    <div className="pwa-install-gate" role="dialog" aria-modal="true" aria-label={`Cài đặt ${APP_NAME}`}>
+      <section className="pwa-install-gate-card">
+        <button
+          className="pwa-install-close"
+          type="button"
+          onClick={dismiss}
+          aria-label="Đóng thông báo cài ứng dụng"
+        >
+          ×
+        </button>
+        <div className="pwa-install-brand">
+          <img src="/icon-192.png" alt="" width="64" height="64" />
+          <div>
+            <span className="eyebrow">Gợi ý cài đặt</span>
+            <strong>Cài {APP_NAME} trên điện thoại</strong>
+            <p>Cài PWA để mở nhanh như ứng dụng, dùng toàn màn hình và có trải nghiệm ổn định hơn.</p>
           </div>
-          {showIosHelp && (
+        </div>
+
+        {mode === "android" ? (
+          <>
+            <button
+              className="button primary wide"
+              type="button"
+              onClick={installAndroid}
+              disabled={!canPrompt}
+            >
+              {canPrompt ? "Cài ứng dụng" : "Đang chuẩn bị cài đặt…"}
+            </button>
+            {!canPrompt && (
+              <div className="pwa-install-manual">
+                <strong>Nếu nút cài chưa xuất hiện</strong>
+                <p>Mở trang bằng Chrome, nhấn <b>⋮</b> → <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</p>
+              </div>
+            )}
+            <small className="pwa-install-note">
+              Sau khi cài, hãy mở {APP_NAME} từ biểu tượng trên màn hình chính.
+            </small>
+          </>
+        ) : (
+          <>
             <div className="pwa-install-ios-help">
-              <strong>Thêm vào Màn hình chính</strong>
+              <strong>Thêm {APP_NAME} vào Màn hình chính</strong>
               <ol>
-                <li>Nhấn nút <b>Chia sẻ</b> của trình duyệt.</li>
+                <li>Mở trang này bằng <b>Safari</b>.</li>
+                <li>Nhấn nút <b>Chia sẻ</b>.</li>
                 <li>Chọn <b>Thêm vào Màn hình chính</b>.</li>
-                <li>Nhấn <b>Thêm</b> để cài {APP_NAME}.</li>
+                <li>Nhấn <b>Thêm</b>, sau đó mở {APP_NAME} từ icon vừa tạo.</li>
               </ol>
-              <small>Nếu không thấy tùy chọn này trong trình duyệt đang mở, hãy mở liên kết bằng Safari rồi thực hiện lại.</small>
             </div>
-          )}
-        </>
-      )}
-    </aside>
+            <small className="pwa-install-note">
+              iPhone/iPad không cho website tự bật hộp cài ứng dụng, nên bước này cần thực hiện thủ công một lần.
+            </small>
+          </>
+        )}
+      </section>
+    </div>
   );
 }

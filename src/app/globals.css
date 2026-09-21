@@ -9231,29 +9231,39 @@ html[data-navigation-pending="true"] .app-main::after {
   }
 }
 
-/* PWA install prompt */
-.pwa-install-card {
+/* Required PWA install gate on mobile */
+.pwa-install-gate {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 90;
-  width: min(380px, calc(100vw - 36px));
-  padding: 16px;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    18px
+    max(18px, env(safe-area-inset-bottom));
+  background: rgba(3, 31, 52, .82);
+  backdrop-filter: blur(14px);
+}
+
+.pwa-install-gate-card {
+  position: relative;
+  width: min(430px, 100%);
+  padding: 22px;
   color: var(--ink);
-  background: rgba(255, 255, 255, .98);
+  background: white;
   border: 1px solid var(--line);
-  border-left: 4px solid var(--pink);
+  border-top: 4px solid var(--pink);
   border-radius: var(--radius);
-  box-shadow: 0 14px 36px rgba(4, 47, 82, .18);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
 }
 
 .pwa-install-close {
   position: absolute;
-  top: 7px;
+  top: 8px;
   right: 8px;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -9262,94 +9272,105 @@ html[data-navigation-pending="true"] .app-main::after {
   border: 0;
   font-size: 22px;
   line-height: 1;
+  cursor: pointer;
 }
 
 .pwa-install-brand {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  padding-right: 26px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
 .pwa-install-brand img {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
 }
 
+.pwa-install-brand .eyebrow,
 .pwa-install-brand strong,
-.pwa-install-brand span {
+.pwa-install-brand p {
   display: block;
 }
 
 .pwa-install-brand strong {
-  font-size: 14px;
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1.25;
 }
 
-.pwa-install-brand span {
-  margin-top: 4px;
+.pwa-install-brand p {
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
-.pwa-install-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-
+.pwa-install-manual,
 .pwa-install-ios-help {
-  margin-top: 13px;
-  padding: 12px 13px;
+  margin-top: 14px;
+  padding: 13px 14px;
   background: var(--forest-50);
   border-left: 3px solid var(--forest-700);
 }
 
+.pwa-install-manual strong,
 .pwa-install-ios-help strong {
   display: block;
   font-size: 11px;
 }
 
-.pwa-install-ios-help ol {
-  margin: 8px 0 0;
-  padding-left: 18px;
+.pwa-install-manual p {
+  margin: 6px 0 0;
   color: var(--ink);
   font-size: 10px;
-  line-height: 1.65;
+  line-height: 1.55;
 }
 
-.pwa-install-ios-help small {
+.pwa-install-ios-help ol {
+  margin: 8px 0 0;
+  padding-left: 19px;
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.75;
+}
+
+.pwa-install-note {
   display: block;
-  margin-top: 8px;
+  margin-top: 12px;
   color: var(--muted);
   font-size: 9px;
   line-height: 1.5;
-}
-
-@media (max-width: 1024px) {
-  .pwa-install-card {
-    right: 12px;
-    bottom: max(88px, calc(72px + env(safe-area-inset-bottom)));
-    width: min(390px, calc(100vw - 24px));
-  }
+  text-align: center;
 }
 
 @media (max-width: 560px) {
-  .pwa-install-card {
-    right: 10px;
-    bottom: max(86px, calc(70px + env(safe-area-inset-bottom)));
-    width: calc(100vw - 20px);
-    padding: 14px;
+  .pwa-install-gate {
+    align-items: end;
+    padding-right: 10px;
+    padding-left: 10px;
   }
 
-  .pwa-install-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .pwa-install-gate-card {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px 14px 6px 6px;
   }
 
-  .pwa-install-actions .button {
-    justify-content: center;
+  .pwa-install-brand {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .pwa-install-brand img {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+  }
+
+  .pwa-install-brand strong {
+    font-size: 16px;
   }
 }
