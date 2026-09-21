@@ -99,6 +99,13 @@
       "when": 1789707485495,
       "tag": "0013_backfill_legacy_team_draw_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789962266655,
+      "tag": "0014_faithful_frightful_four",
+      "breakpoints": true
     }
   ]
 }

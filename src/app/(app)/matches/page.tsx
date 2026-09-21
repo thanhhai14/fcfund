@@ -1,8 +1,8 @@
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { avatars, chargeTypes, matches, matchParticipants, matchTeamVersions, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, matches, matchParticipants, matchRsvps, matchTeamVersions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -15,6 +15,8 @@ import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MatchFields } from "@/components/match-fields";
 import { MemberIdentity } from "@/components/member-identity";
+import { MatchRsvpDisclosure } from "@/components/match-rsvp-disclosure";
+import { setMyMatchRsvpAction } from "./actions";
 
 export const metadata = { title: "Trận đấu" };
 
@@ -28,26 +30,46 @@ export default async function MatchesPage() {
     .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt)))
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
   const ids = matchRows.map((row) => row.id);
-  const generatedDrafts = ids.length && user.role !== "ADMIN" ? await db.select({ matchId: matchTeamVersions.matchId })
-    .from(matchTeamVersions)
-    .where(and(
-      inArray(matchTeamVersions.matchId, ids),
-      eq(matchTeamVersions.status, "DRAFT"),
-      isNotNull(matchTeamVersions.randomKey),
-    )) : [];
-  const generatedDraftMatchIds = new Set(generatedDrafts.map((row) => row.matchId));
+  const teamVersions = ids.length ? await db.select({
+    matchId: matchTeamVersions.matchId,
+    status: matchTeamVersions.status,
+    randomKey: matchTeamVersions.randomKey,
+    initialDrawSnapshot: matchTeamVersions.initialDrawSnapshot,
+  }).from(matchTeamVersions).where(inArray(matchTeamVersions.matchId, ids)) : [];
+  const generatedDraftMatchIds = new Set(teamVersions
+    .filter((row) => row.status === "DRAFT" && (row.randomKey || row.initialDrawSnapshot))
+    .map((row) => row.matchId));
+  const rsvpClosedMatchIds = new Set(teamVersions
+    .filter((row) => row.status === "CONFIRMED" || Boolean(row.randomKey) || Boolean(row.initialDrawSnapshot))
+    .map((row) => row.matchId));
   const participants = ids.length ? await db
     .select({
       matchId: matchParticipants.matchId,
       memberId: matchParticipants.memberId,
       memberName: members.fullName,
       guestName: matchParticipants.guestName,
+      goalkeeperAvailable: matchParticipants.goalkeeperAvailable,
       avatarUpdatedAt: avatars.updatedAt,
     })
     .from(matchParticipants)
     .leftJoin(members, eq(matchParticipants.memberId, members.id))
     .leftJoin(avatars, eq(matchParticipants.memberId, avatars.memberId))
     .where(inArray(matchParticipants.matchId, ids)) : [];
+  const activeMembers = await db.select({
+    id: members.id,
+    name: members.fullName,
+    avatarUpdatedAt: avatars.updatedAt,
+  }).from(members)
+    .leftJoin(avatars, eq(members.id, avatars.memberId))
+    .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE")))
+    .orderBy(members.fullName);
+  const rsvpRows = ids.length ? await db.select({
+    matchId: matchRsvps.matchId,
+    memberId: matchRsvps.memberId,
+    status: matchRsvps.status,
+    goalkeeperAvailable: matchRsvps.goalkeeperAvailable,
+  }).from(matchRsvps).where(inArray(matchRsvps.matchId, ids)) : [];
+
   const charges = ids.length ? await db
     .select({
       matchId: memberCharges.matchId,
@@ -67,6 +89,7 @@ export default async function MatchesPage() {
 
   const participantMap = new Map<string, Array<{ memberId: string | null; name: string; avatarUpdatedAt: Date | null }>>();
   const participantIdMap = new Map<string, Set<string>>();
+  const participantGoalkeeperMap = new Map<string, boolean>();
   participants.forEach((row) => {
     const name = row.memberName ?? row.guestName ?? "Khách";
     participantMap.set(row.matchId, [...(participantMap.get(row.matchId) ?? []), { memberId: row.memberId, name, avatarUpdatedAt: row.avatarUpdatedAt }]);
@@ -74,7 +97,15 @@ export default async function MatchesPage() {
       const set = participantIdMap.get(row.matchId) ?? new Set<string>();
       set.add(row.memberId);
       participantIdMap.set(row.matchId, set);
+      participantGoalkeeperMap.set(`${row.matchId}|${row.memberId}`, row.goalkeeperAvailable);
     }
+  });
+  const rsvpMap = new Map<string, { status: "GOING" | "NOT_GOING"; goalkeeperAvailable: boolean }>();
+  rsvpRows.forEach((row) => {
+    rsvpMap.set(`${row.matchId}|${row.memberId}`, {
+      status: row.status,
+      goalkeeperAvailable: row.goalkeeperAvailable,
+    });
   });
   const chargeMap = new Map<string, number>();
   const chargeQuantityMap = new Map<string, Map<string, number>>();
@@ -87,8 +118,11 @@ export default async function MatchesPage() {
     chargeQuantityMap.set(row.matchId, quantities);
   });
 
-  const memberRows = canManage ? await db.select({ id: members.id, fullName: members.fullName, avatarUpdatedAt: avatars.updatedAt }).from(members).leftJoin(avatars, eq(members.id, avatars.memberId))
-    .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE"))).orderBy(members.fullName) : [];
+  const memberRows = canManage ? activeMembers.map((member) => ({
+    id: member.id,
+    fullName: member.name,
+    avatarUpdatedAt: member.avatarUpdatedAt,
+  })) : [];
   const occurrenceTypes = canManage ? await db.select({
     id: chargeTypes.id,
     name: chargeTypes.name,
@@ -122,6 +156,22 @@ export default async function MatchesPage() {
       <section className="match-grid">
         {matchRows.map((match) => {
           const participantPreviews = participantMap.get(match.id) ?? [];
+          const participantIds = participantIdMap.get(match.id) ?? new Set<string>();
+          const rsvpMembers = activeMembers.map((member) => {
+            const rsvp = rsvpMap.get(`${match.id}|${member.id}`);
+            const participantGoing = participantIds.has(member.id);
+            return {
+              id: member.id,
+              name: member.name,
+              avatarUpdatedAt: member.avatarUpdatedAt,
+              status: participantGoing ? "GOING" as const : (rsvp?.status === "NOT_GOING" ? "NOT_GOING" as const : null),
+              goalkeeperAvailable: participantGoing
+                ? (participantGoalkeeperMap.get(`${match.id}|${member.id}`) ?? false)
+                : false,
+            };
+          });
+          const myRsvpMember = user.memberId ? rsvpMembers.find((member) => member.id === user.memberId) : null;
+          const isRsvpClosed = rsvpClosedMatchIds.has(match.id);
           return (
             <article className="match-card" key={match.id}>
               <div className="match-date">
@@ -132,7 +182,7 @@ export default async function MatchesPage() {
               <div className="match-info">
                 <span className="category-pill"><Icon name="futbol" /> Trận giao hữu</span>
                 <h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2>
-                <p>{participantPreviews.length} người tham gia</p>
+                <p>{participantPreviews.length} người tham gia · {rsvpMembers.filter((member) => member.status === "NOT_GOING").length} không đi · {rsvpMembers.filter((member) => member.status === null).length} chưa trả lời</p>
                 {!!participantPreviews.length && <div className="match-participant-preview">
                   {participantPreviews.slice(0, 4).map((participant, index) => <MemberIdentity memberId={participant.memberId} name={participant.name} avatarVersion={participant.avatarUpdatedAt} compact key={participant.memberId ?? `${participant.name}-${index}`} />)}
                   {participantPreviews.length > 4 && <span className="match-participant-more">+{participantPreviews.length - 4}</span>}
@@ -144,6 +194,14 @@ export default async function MatchesPage() {
                   <strong>{formatMoney(chargeMap.get(match.id) ?? 0)}</strong>
                 </div>
                 <div className="match-actions">
+                    {user.memberId && <MatchRsvpDisclosure
+                      matchId={match.id}
+                      disabled={isRsvpClosed}
+                      myStatus={myRsvpMember?.status ?? null}
+                      myGoalkeeperAvailable={myRsvpMember?.goalkeeperAvailable ?? false}
+                      members={rsvpMembers}
+                      action={setMyMatchRsvpAction}
+                    />}
                     {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {canManage ? "Tạo đội" : "Xem đội"}</Link>}
                     <Link href={`/matches/${match.id}`} className="match-view-link"><Icon name="eye" /> Xem</Link>
                     {canManage && <>

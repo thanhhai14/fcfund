@@ -56,6 +56,8 @@ export const memberSeedTier = pgEnum("member_seed_tier", [
   "TIER_7",
   "GOALKEEPER",
 ]);
+export const matchRsvpStatus = pgEnum("match_rsvp_status", ["GOING", "NOT_GOING"]);
+export const matchRsvpSource = pgEnum("match_rsvp_source", ["SELF", "ORGANIZER"]);
 export const matchTeamVersionStatus = pgEnum("match_team_version_status", [
   "DRAFT",
   "CONFIRMED",
@@ -268,6 +270,26 @@ export const matchParticipants = pgTable(
       .on(table.matchId, table.memberId)
       .where(sql`${table.memberId} IS NOT NULL`),
     check("participant_identity_required", sql`${table.memberId} IS NOT NULL OR ${table.guestName} IS NOT NULL`),
+  ],
+);
+
+export const matchRsvps = pgTable(
+  "match_rsvps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    matchId: uuid("match_id").references(() => matches.id, { onDelete: "cascade" }).notNull(),
+    memberId: uuid("member_id").references(() => members.id, { onDelete: "cascade" }).notNull(),
+    status: matchRsvpStatus("status").notNull(),
+    goalkeeperAvailable: boolean("goalkeeper_available").default(false).notNull(),
+    source: matchRsvpSource("source").default("SELF").notNull(),
+    respondedBy: uuid("responded_by").references(() => users.id, { onDelete: "set null" }),
+    respondedAt: timestamp("responded_at", { withTimezone: true }).defaultNow().notNull(),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("match_rsvps_match_member_unique").on(table.matchId, table.memberId),
+    index("match_rsvps_match_status_idx").on(table.matchId, table.status),
+    index("match_rsvps_member_idx").on(table.memberId),
   ],
 );
 
