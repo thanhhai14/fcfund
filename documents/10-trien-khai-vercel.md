@@ -39,7 +39,7 @@ Lưu trên Vercel Blob:
 - CSDL lưu URL;
 - khi thay ảnh, xóa blob cũ sau khi giao dịch CSDL thành công.
 
-Logo và QR không phải dữ liệu bí mật nên có thể dùng public blob. Nếu sau này có chứng từ tài chính, chứng từ phải dùng private storage.
+Source hiện tại lưu logo và QR bằng **private Vercel Blob**. Ứng dụng đọc chúng qua Route Handler có kiểm tra session/club; không phát URL Blob private trực tiếp cho client. Trang công khai có route logo riêng và chỉ trả dữ liệu trong phạm vi được phép. Chứng từ tài chính sau này cũng phải dùng private storage.
 
 ## 4. Cron đầu tháng
 
@@ -98,11 +98,19 @@ Không commit giá trị thật vào Git.
 Yêu cầu production:
 
 - HTTPS do Vercel cung cấp;
-- `app/manifest.ts`;
+- `app/manifest.ts` với `id: /`, `scope: /`, `start_url: /dashboard`, `display: standalone`;
 - icon 192×192 và 512×512;
 - service worker;
 - service worker không cache response chứa dữ liệu tài chính riêng tư;
 - logout xóa cache dữ liệu người dùng nếu có.
+
+## 7.1. Web Push trong tương lai
+
+Thiết kế Web Push nằm tại tài liệu 12. Khi triển khai production sẽ cần thêm VAPID keys, bảng Push Subscription và xử lý `push`/`notificationclick` trong Service Worker. Push failure không được làm rollback transaction nghiệp vụ.
+
+## 7.2. Migration production
+
+Migration schema phải được chạy như một bước riêng có kiểm soát. Với migration chỉ thêm bảng/cột tương thích ngược, ưu tiên migrate production DB **trước** khi deploy code mới dùng schema đó để tránh code mới query vào bảng chưa tồn tại. Không gắn `db:migrate` tùy tiện vào mọi Preview build của Vercel.
 
 ## 8. Seed lần đầu
 
@@ -110,7 +118,7 @@ Lệnh seed tạo:
 
 - một club;
 - các permission;
-- policy mặc định cho ba vai trò;
+- policy mặc định cho bốn vai trò;
 - loại thu mẫu: Quỹ tháng, Quỹ lẻ, Mời nước;
 - loại chi mẫu: Tiền sân, Tiền nước;
 - tài khoản Admin đầu tiên.

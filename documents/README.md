@@ -20,8 +20,9 @@ Thư mục này là nguồn mô tả nghiệp vụ và cấu trúc dữ liệu t
 - [`06-kien-truc-ky-thuat.md`](./06-kien-truc-ky-thuat.md): kiến trúc Next.js, PWA, xác thực và CSDL đề xuất.
 - [`07-pham-vi-mvp.md`](./07-pham-vi-mvp.md): chức năng và màn hình của phiên bản đầu tiên.
 - [`08-schema-postgresql.md`](./08-schema-postgresql.md): thiết kế bảng, khóa và công thức dữ liệu.
-- [`09-phan-quyen-va-chatter.md`](./09-phan-quyen-va-chatter.md): ba vai trò, policy và nhật ký thay đổi.
+- [`09-phan-quyen-va-chatter.md`](./09-phan-quyen-va-chatter.md): bốn vai trò, policy, self-service và nhật ký thay đổi.
 - [`10-trien-khai-vercel.md`](./10-trien-khai-vercel.md): PostgreSQL, Blob, Cron và biến môi trường trên Vercel.
 - [`11-chia-doi-random-va-seed-thanh-vien.md`](./11-chia-doi-random-va-seed-thanh-vien.md): nghiệp vụ chia đội, Seed Tier 1–7, vai trò thủ môn theo trận, phong độ và phiên bản đội hình.
+- [`12-web-push-va-thong-bao.md`](./12-web-push-va-thong-bao.md): thiết kế Web Push, thiết bị/subscription, deep link, ma trận sự kiện và lộ trình triển khai notification.
 
-> Nghiệp vụ lõi đã được xác nhận. Schema vật lý vẫn là bản thiết kế, chưa được triển khai.
+> Nghiệp vụ lõi và phần lớn schema vật lý đã được triển khai bằng Drizzle migration. Tài liệu trong thư mục này phải được đồng bộ theo source/migration hiện hành khi nghiệp vụ thay đổi.

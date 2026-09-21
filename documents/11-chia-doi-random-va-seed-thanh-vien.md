@@ -7,7 +7,7 @@
 
 - Đánh giá lại seed của từng người tham gia theo Tier 1–7 ở mỗi trận; khả năng bắt gôn được đánh dấu riêng.
 - Chia từ 2 đội trở lên từ danh sách người tham gia trận.
-- Cho phép chia đội khi có ít nhất 10 người; đội thiếu người được cảnh báo nhưng không bị chặn.
+- Chỉ cho chia đội khi có ít nhất 10 người và thỏa các ràng buộc cứng về quân số/thủ môn; không sinh đội hình nếu có đội dưới 4 cầu thủ sân hoặc tổng số thủ môn thật dưới 2.
 - Quân số được phân bổ chênh lệch tối đa 1; đội chưa có thủ môn riêng được mượn thủ môn từ đội đang nghỉ.
 - Cân bằng đồng thời trình độ và phong độ gần đây nhưng vẫn giữ tính ngẫu nhiên.
 - Cho Admin chỉnh đội hình nháp rồi xác nhận bản cuối.
@@ -33,7 +33,7 @@ Mỗi người tham gia có đúng một seed trong phạm vi **một trận**:
 
 Tier càng nhỏ thì trình độ tổng quát càng cao, bao gồm năng lực ở các vị trí người đó có thể chơi. Thủ môn không còn là một Tier: người được chọn bắt gôn vẫn có Tier 1–7, nhưng đóng góp của Tier chỉ bằng **10%** và Điểm phong độ bằng **15%** cầu thủ sân.
 
-Seed không được lưu như thuộc tính cố định của hồ sơ thành viên. Khi tạo trận mới, Admin phải đánh giá lại seed cho danh sách tham gia của chính trận đó. Seed của trận gần nhất có thể hiển thị ở một cột tham khảo, nhưng không được tự động điền hoặc tự động xác nhận cho trận mới.
+Seed không được lưu như thuộc tính cố định của hồ sơ thành viên. Với roster do Organizer/Admin quản lý thủ công, Seed gần nhất chỉ là dữ liệu tham khảo cho bước đánh giá và khóa Seed. Riêng khi chính thành viên self-RSVP `GOING`, server được phép tự copy Seed hợp lệ gần nhất vào `match_participants` để giảm thao tác; User không được tự chọn hoặc sửa Seed và người quản lý vẫn có thể đánh giá lại trước khi khóa.
 
 Thành viên được xem seed của nhau theo từng trận. Chỉ Admin hoặc tài khoản có policy quản lý seed trận được thay đổi seed.
 
@@ -116,11 +116,13 @@ Nếu có ít hơn 2 người được đánh dấu có thể bắt gôn, hệ t
 
 ### 4.1. Từ danh sách trận
 
-Mỗi trận có các thao tác:
+Mỗi trận có các thao tác tùy quyền và trạng thái:
 
 ```text
-Xem | Sửa | Xóa | Tạo đội
+Bình chọn | Xem | Tạo đội/Xem đội | Sửa | Xóa
 ```
+
+`Bình chọn` dành cho User có `member_id`. Thành viên có thể chọn `GOING` / `NOT_GOING`, khai báo khả năng chụp gôn và xem thống kê RSVP cho đến khi trận đã được bốc thăm hoặc có đội hình xác nhận.
 
 `Tạo đội` điều hướng đến trang riêng, đề xuất route `/matches/[matchId]/teams`. Không dùng popup vì màn hình có nhiều bước, bảng thống kê và thao tác kéo/thả.
 
@@ -451,4 +453,4 @@ Bài toán lập đội công bằng với nhiều tiêu chí là bài toán t�
 - [Fair Team Formation: a Multi-Objective Optimization Approach](https://arxiv.org/abs/2011.11611)
 - [Fair Team Formation in Multiple Task-oriented Groups](https://arxiv.org/abs/2002.11621)
 
-Các nguồn chỉ định hướng phương pháp tối ưu. Quy tắc tier, thủ môn, tối thiểu 5 người và suy luận phạt thua là nghiệp vụ riêng của FCFUND.
+Các nguồn chỉ định hướng phương pháp tối ưu. Quy tắc Tier, thủ môn, tối thiểu 10 người tổng, tối thiểu 4 cầu thủ sân/đội và suy luận phạt thua là nghiệp vụ riêng của FCFUND.

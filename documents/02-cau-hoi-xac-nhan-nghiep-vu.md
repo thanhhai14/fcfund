@@ -32,10 +32,11 @@
 
 ## Quyền
 
-Ba vai trò:
+Bốn vai trò:
 
 - Admin.
 - Thủ quỹ.
+- Người tổ chức (`ORGANIZER`).
 - Thành viên.
 
 Policy mặc định áp dụng theo vai trò. Có thể ghi đè policy theo từng tài khoản để quyết định người nào được xem hoặc thao tác dữ liệu nào.

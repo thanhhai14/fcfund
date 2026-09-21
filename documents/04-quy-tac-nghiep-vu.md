@@ -168,10 +168,11 @@ Một bản cài đặt FCFUND quản lý một đội bóng, gồm tên và log
 
 ## BR-28 — Vai trò
 
-Hệ thống có ba vai trò:
+Hệ thống có bốn vai trò:
 
 - Admin.
 - Thủ quỹ.
+- Người tổ chức (`ORGANIZER`).
 - Thành viên.
 
 ## BR-29 — Policy
@@ -191,8 +192,9 @@ Hệ thống có ba vai trò:
 
 - Seed được đánh giá lại riêng cho từng người tham gia ở mỗi trận, gồm Tier 1 đến Tier 7; Tier 1 mạnh nhất và Tier 7 thấp nhất.
 - Thủ môn không phải Seed. Mỗi người vẫn có Tier 1–7 và được đánh dấu riêng là có thể bắt gôn trong trận hiện tại.
-- Seed không phải thuộc tính cố định của hồ sơ thành viên và không được tự động kế thừa sang trận mới.
-- Seed trận gần nhất chỉ được hiển thị để tham khảo khi đánh giá lại.
+- Seed không phải thuộc tính cố định của hồ sơ thành viên.
+- Khi Organizer/Admin tạo roster thủ công, Seed trận gần nhất chỉ dùng làm tham khảo cho bước đánh giá và khóa Seed.
+- Khi chính thành viên tự RSVP `GOING`, server được phép tự sao chép Seed hợp lệ gần nhất vào `match_participants` để giảm thao tác; thành viên không được chọn hoặc sửa Seed. Organizer/Admin vẫn có thể đánh giá lại trước khi khóa Seed.
 - Người tham gia chưa có seed trong trận hiện tại không được đưa vào kết quả chia đội.
 - Thành viên được xem seed của nhau theo trận; quyền sửa seed được kiểm soát bằng policy.
 
@@ -216,7 +218,7 @@ Hệ thống có ba vai trò:
 - Admin tạo trận và chọn người tham gia trước.
 - Thao tác `Tạo đội` nằm cùng nhóm với Xem, Sửa và Xóa trận.
 - Trong giao diện tạo đội, Admin nhập seed còn thiếu, lưu và khóa tier, chọn số đội rồi sinh đội hình.
-- Thiếu seed hoặc không đủ tối thiểu 5 người/đội thì hệ thống chặn và báo rõ nguyên nhân.
+- Thiếu Seed, có dưới 10 người tổng, có dưới 2 thủ môn thật hoặc có đội dưới 4 cầu thủ sân thì hệ thống chặn và báo rõ nguyên nhân. Đội không có thủ môn riêng có thể chỉ có 4 cầu thủ sân và mượn thủ môn từ đội nghỉ.
 
 ## BR-35 — Chia đội cân bằng
 
@@ -280,3 +282,14 @@ Hệ thống có ba vai trò:
 - `Số dư trước kỳ = Đã đóng trước kỳ - Phát sinh trước kỳ`, có thể âm (còn nợ) hoặc dương (đóng dư). `Số dư cuối kỳ = Số dư trước kỳ + Đã đóng trong kỳ - Phát sinh trong kỳ`.
 - Khi chọn khoảng tháng và có thành viên có số dư trước kỳ khác 0, cột `Số dư trước kỳ` hiển thị cả nợ và tiền đóng dư. Nếu toàn bộ danh sách đang xem có số dư trước kỳ bằng 0, cột này được ẩn. Ẩn cột trong giao diện chỉ ẩn thông tin, không loại số dư đầu kỳ khỏi phép tính.
 - Chi tiết số dư âm trước kỳ nhóm các khoản phát sinh cũ theo tháng báo cáo và loại thu. Các kỳ còn thiếu được suy luận theo quy ước bù kỳ cũ trước; không khẳng định khoản thu cụ thể đã hoặc chưa được thanh toán vì tiền nộp không phân bổ theo khoản. Số dư dương chỉ thể hiện tiền đóng dư, không gắn với khoản phải thu cụ thể.
+
+## BR-43 — Bình chọn tham gia trận
+
+- Thành viên có User liên kết Member được tự bình chọn `GOING` hoặc `NOT_GOING` cho trận chưa bốc thăm.
+- RSVP được lưu riêng trong `match_rsvps`; `match_participants` chỉ chứa roster thực tế dùng cho trận và chia đội.
+- Chọn `GOING` tự thêm/cập nhật Member trong `match_participants`, ghi nhận `goalkeeper_available` và có thể copy Seed hợp lệ gần nhất theo BR-31.
+- Chọn `NOT_GOING` gỡ Member khỏi roster nếu đội hình chưa bốc thăm.
+- Nếu thay đổi roster/khả năng thủ môn trước khi bốc thăm làm đầu vào Draft thay đổi, Draft chưa bốc bị vô hiệu hóa để yêu cầu khóa Seed/chia lại.
+- Sau khi có `random_key`, `initial_draw_snapshot` hoặc phiên bản `CONFIRMED`, bình chọn bị khóa.
+- Danh sách RSVP thống kê ba nhóm: Tham gia, Không tham gia, Chưa trả lời; dữ liệu trận cũ chưa có RSVP nhưng đã có `match_participants` được xem là Tham gia.
+

@@ -1,6 +1,6 @@
 # Schema PostgreSQL
 
-**Trạng thái:** Thiết kế vật lý đề xuất, chưa tạo migration  
+**Trạng thái:** Đã triển khai bằng Drizzle; tài liệu này cần được đối chiếu với `src/db/schema.ts` và migration mới nhất  
 **Quy ước:** Tiền lưu bằng số nguyên VND, không lưu số thực
 
 ## 1. Kiểu dữ liệu chung
@@ -71,6 +71,20 @@ GOALKEEPER
 ```
 
 `GOALKEEPER` chỉ còn phục vụ tương thích dữ liệu cũ. Dữ liệu mới dùng Tier 1–7 và các cột boolean riêng để lưu khả năng/việc được xếp bắt gôn.
+
+### match_rsvp_status
+
+```text
+GOING
+NOT_GOING
+```
+
+### match_rsvp_source
+
+```text
+SELF
+ORGANIZER
+```
 
 ### match_team_version_status
 
@@ -257,15 +271,40 @@ COALESCE(custom_amount, charge_types.default_amount)
 | member_id | uuid | FK members, NULL nếu là khách |
 | guest_name | varchar(160) | NULL |
 | seed_tier | member_seed_tier | NULL trước khi đánh giá |
+| goalkeeper_available | boolean | mặc định false |
 | seed_evaluated_at | timestamptz | NULL |
 | seed_evaluated_by | uuid | FK users, NULL |
 | note | text | NULL |
 
 Ràng buộc: phải có `member_id` hoặc `guest_name`.
 
-Mỗi bản ghi tham gia phải được đánh giá seed trước khi chia đội, kể cả khách. Không lưu seed trong `members` và không tự động sao chép seed của trận trước. Lịch sử gần nhất chỉ được truy vấn để hiển thị tham khảo.
+Mỗi bản ghi tham gia phải có Seed hợp lệ trước khi chia đội, kể cả khách. Không lưu Seed trong `members`. Với roster quản trị thủ công, lịch sử gần nhất dùng để tham khảo khi đánh giá. Riêng self-RSVP `GOING`, server được phép copy Seed hợp lệ gần nhất vào participant; User không được gửi/chọn Seed.
 
-## 12A. match_team_versions
+## 12A. match_rsvps
+
+| Cột | Kiểu | Ràng buộc |
+|---|---|---|
+| id | uuid | PK |
+| match_id | uuid | FK matches, ON DELETE CASCADE |
+| member_id | uuid | FK members, ON DELETE CASCADE |
+| status | match_rsvp_status | GOING/NOT_GOING |
+| goalkeeper_available | boolean | mặc định false |
+| source | match_rsvp_source | mặc định SELF |
+| responded_by | uuid | FK users, NULL |
+| responded_at | timestamptz | NOT NULL |
+| created_at/updated_at | timestamptz | NOT NULL |
+
+Ràng buộc/index:
+
+```text
+UNIQUE (match_id, member_id)
+INDEX (match_id, status)
+INDEX (member_id)
+```
+
+`match_rsvps` lưu ý định tham dự, không thay thế `match_participants`. Self-RSVP đồng bộ roster chỉ khi trận chưa được bốc thăm.
+
+## 12B. match_team_versions
 
 | Cột | Kiểu | Ràng buộc |
 |---|---|---|
@@ -293,7 +332,7 @@ UNIQUE (match_id) WHERE status = 'CONFIRMED'
 
 Các lần chia lại chỉ cập nhật bản `DRAFT`. Khi xác nhận phiên bản mới, phiên bản `CONFIRMED` cũ chuyển sang `SUPERSEDED` trong cùng một transaction.
 
-## 12B. match_teams
+## 12C. match_teams
 
 | Cột | Kiểu | Ràng buộc |
 |---|---|---|
@@ -309,7 +348,7 @@ Các lần chia lại chỉ cập nhật bản `DRAFT`. Khi xác nhận phiên b
 
 `(version_id, team_index)` là duy nhất.
 
-## 12C. match_team_members
+## 12D. match_team_members
 
 | Cột | Kiểu | Ràng buộc |
 |---|---|---|

@@ -1,7 +1,7 @@
 # Mô hình dữ liệu khái niệm
 
-**Trạng thái:** Đã chốt ở mức khái niệm; schema vật lý nằm tại tài liệu 08  
-**Lưu ý:** Đây chưa phải schema SQL
+**Trạng thái:** Đã triển khai phần lõi; schema vật lý hiện hành nằm trong `src/db/schema.ts` và các Drizzle migration  
+**Lưu ý:** Tài liệu này mô tả quan hệ nghiệp vụ ở mức khái niệm, không thay thế migration thực tế
 
 ## 1. ClubSetting
 
@@ -135,9 +135,22 @@ Liên kết người tham gia trận:
 
 Các `MemberCharge` theo lần có thể liên kết người tham gia này.
 
-Seed không nằm trên `Member`. Mỗi trận phải đánh giá lại; seed của các trận trước chỉ là lịch sử tham khảo.
+Seed không nằm trên `Member`. Với roster do Organizer/Admin quản lý, lịch sử Seed dùng làm tham khảo khi đánh giá. Riêng self-RSVP `GOING`, server được phép copy Seed hợp lệ gần nhất vào participant; User không được tự chọn Seed và người quản lý vẫn có thể đánh giá lại trước khi khóa.
 
-## 9A. MatchTeamVersion
+## 9A. MatchRsvp
+
+Trạng thái bình chọn của Member cho một trận:
+
+- trận;
+- thành viên;
+- trạng thái `GOING` hoặc `NOT_GOING`;
+- khả năng chụp gôn khi chọn tham gia;
+- nguồn phản hồi `SELF` hoặc `ORGANIZER`;
+- User và thời điểm phản hồi.
+
+`MatchRsvp` không thay thế `MatchParticipant`. RSVP mô tả ý định; roster thực tế vẫn nằm trong `MatchParticipant`. Khi self-RSVP thay đổi trước lúc bốc thăm, server đồng bộ roster tương ứng.
+
+## 9B. MatchTeamVersion
 
 Phiên bản đội hình của một trận:
 
@@ -152,7 +165,7 @@ Phiên bản đội hình của một trận:
 
 Các lần chia lại trước xác nhận dùng chung một bản nháp. Sau xác nhận, mọi thay đổi tạo phiên bản mới và giữ phiên bản cũ để audit.
 
-## 9B. MatchTeam
+## 9C. MatchTeam
 
 Một đội thuộc một phiên bản:
 
@@ -161,7 +174,7 @@ Một đội thuộc một phiên bản:
 - tổng điểm cầu thủ sân;
 - chỉ số phong độ thua gần đây.
 
-## 9C. MatchTeamMember
+## 9D. MatchTeamMember
 
 Thành viên của đội:
 

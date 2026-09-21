@@ -89,12 +89,16 @@ Số lượng × đơn giá của loại thu
 
 ## 4. Quản lý trận và chia đội
 
-Trận chỉ cần:
+Trận gồm:
 
 - ngày diễn ra;
-- danh sách người tham gia;
+- bình chọn tham gia (`GOING` / `NOT_GOING`) của thành viên có tài khoản;
+- danh sách người thực sự tham gia (`match_participants`);
+- khả năng chụp gôn theo từng trận;
 - các khoản thu lẻ phát sinh cho từng người;
 - các phiên bản đội hình được tạo từ người tham gia.
+
+RSVP và danh sách người tham gia là hai lớp dữ liệu khác nhau. Khi thành viên tự chọn `GOING`, hệ thống đồng bộ người đó vào `match_participants`; khi chọn `NOT_GOING`, người đó được gỡ khỏi roster nếu trận chưa được bốc thăm. Bình chọn bị khóa sau khi đã có kết quả bốc thăm hoặc đội hình xác nhận.
 
 Không quản lý trực tiếp:
 

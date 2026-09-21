@@ -67,11 +67,13 @@
 ## 7. Trận
 
 - Tạo trận theo ngày.
-- Chọn người tham gia.
+- Thành viên có User liên kết Member được tự bình chọn Tham gia/Không tham gia trước khi trận được bốc thăm.
+- Khi tự chọn Tham gia, hệ thống ghi nhận khả năng chụp gôn, đồng bộ vào roster và tự copy Seed hợp lệ gần nhất nếu có; User không được tự sửa Seed.
+- Organizer/Admin vẫn có thể quản lý danh sách người tham gia trực tiếp.
 - Gán không, một hoặc nhiều khoản thu cho từng người.
-- Xem tổng khoản thu phát sinh từ trận.
-- Đánh giá lại Seed Tier 1–7 và khả năng bắt gôn cho người tham gia ở từng trận; không tự kế thừa xác nhận sang trận mới.
-- Chia từ 2 đội trở lên, mỗi đội tối thiểu 5 người.
+- Xem tổng khoản thu phát sinh từ trận và thống kê Tham gia/Không đi/Chưa trả lời.
+- Đánh giá lại Seed Tier 1–7 và khả năng bắt gôn cho người tham gia ở từng trận trước khi khóa Seed.
+- Chia từ 2 đội trở lên; cần ít nhất 10 người tổng, ít nhất 2 thủ môn thật và mỗi đội có tối thiểu 4 cầu thủ sân. Đội không có thủ môn riêng có thể mượn thủ môn.
 - Cân bằng quân số, thủ môn, tier và phong độ suy luận gần đây.
 - Chỉnh thủ công, khóa người, chia lại và xác nhận đội hình.
 - Sau xác nhận, thay đổi qua phiên bản mới.
@@ -107,6 +109,8 @@
 
 - Cài lên màn hình chính.
 - Responsive cho điện thoại.
+- Manifest dùng toàn scope `/` để hỗ trợ deep link trong PWA.
+- Mobile browser nhắc cài PWA; người dùng được đóng thông báo nhưng sẽ được nhắc lại ở lần tải trang tiếp theo nếu chưa chạy standalone.
 - Cache giao diện/tài nguyên tĩnh.
 - Cảnh báo offline.
 - Không ghi giao dịch khi offline trong MVP.

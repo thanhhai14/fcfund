@@ -16,15 +16,19 @@ Không chốt số phiên bản trong tài liệu. Khi khởi tạo dự án s�
 
 Next.js App Router hỗ trợ khai báo Web App Manifest bằng `app/manifest.ts`.
 
-PWA của FCFUND dự kiến có:
+PWA của FCFUND hiện có:
 
 - tên ứng dụng và tên rút gọn;
 - icon 192×192 và 512×512;
+- `id: "/"`, `scope: "/"`, `start_url: "/dashboard"`;
 - chế độ hiển thị `standalone`;
 - màu nền và màu chủ đề;
-- service worker;
-- màn hình thông báo mất kết nối;
-- khả năng cài lên màn hình chính.
+- service worker tại `public/sw.js`;
+- màn hình offline;
+- prompt cài đặt trên mobile; nếu chưa cài, người dùng có thể đóng nhưng prompt sẽ xuất hiện lại sau lần tải trang tiếp theo;
+- deep link cùng origin nằm trong toàn bộ scope của ứng dụng.
+
+Web Push chưa được triển khai nhưng đã có thiết kế riêng tại tài liệu 12. Khi triển khai, chỉ nên mời bật Push trong PWA/standalone để hành vi mở notification nhất quán.
 
 ### Phạm vi offline
 

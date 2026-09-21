@@ -57,12 +57,13 @@ Mặc định:
 - xem tổng số dư quỹ và báo cáo phong độ;
 - xem giao dịch thu chi công khai;
 - xem trận, seed theo trận và đội hình đã xác nhận;
+- tự bình chọn Tham gia/Không tham gia cho trận chưa bốc thăm khi User có `member_id`, đồng thời khai báo khả năng chụp gôn; thao tác này không cấp quyền sửa Seed;
 - xem chatter/audit;
 - sửa CV và avatar của chính Member đang liên kết;
 - xem QR và thông tin chuyển khoản;
 - đổi mật khẩu.
 
-Không được tạo, sửa, xóa hoặc quản lý dữ liệu nghiệp vụ.
+Không được tạo, sửa, xóa hoặc quản lý dữ liệu nghiệp vụ ngoài các thao tác self-service được cấp rõ ràng như sửa hồ sơ cá nhân và RSVP của chính mình.
 
 ## 5. Vai trò Người tổ chức
 
