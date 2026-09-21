@@ -2865,8 +2865,70 @@ label>textarea {
 
 .match-rsvp-list {
   display: grid;
-  max-height: 430px;
+  max-height: 300px;
   overflow: auto;
+}
+
+.match-rsvp-disclosure .disclosure-content {
+  max-height: min(78vh, 680px);
+  overflow-y: auto;
+}
+
+.match-rsvp-stats {
+  display: grid;
+  gap: 16px;
+}
+
+.match-rsvp-activity {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.match-rsvp-activity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.match-rsvp-activity-head h4 {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.match-rsvp-reminder {
+  margin: 0;
+}
+
+.match-rsvp-activity-list {
+  display: grid;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.match-rsvp-activity-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.match-rsvp-activity-item:first-child {
+  border-top: 0;
+}
+
+.match-rsvp-activity-item strong {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.match-rsvp-activity-item small {
+  color: var(--muted);
+  font-size: 8px;
 }
 
 .match-rsvp-list-head {

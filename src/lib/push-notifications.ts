@@ -21,6 +21,8 @@ export type PushEventType =
   | "MATCH_RESULT_RECORDED"
   | "MEMBER_CHARGE_CREATED"
   | "MEMBER_PAYMENT_RECORDED"
+  | "MATCH_RSVP_UPDATED"
+  | "MATCH_RSVP_REMINDER"
   | "TEST_NOTIFICATION";
 
 type NotifyInput = {
@@ -36,6 +38,7 @@ type NotifyInput = {
 };
 
 type PushPayload = {
+  eventId: string;
   type: PushEventType;
   title: string;
   body: string;
@@ -84,6 +87,7 @@ async function dispatchEvent(event: {
   }
 
   const payload: PushPayload = {
+    eventId: event.id,
     type: event.type as PushEventType,
     title: event.title,
     body: event.body,
@@ -194,6 +198,34 @@ export async function activeMemberUserIdsForClub(clubId: string) {
       eq(members.status, "ACTIVE"),
     ));
   return rows.map((row) => row.userId);
+}
+
+export async function userIdsWithoutMatchResponse(clubId: string, matchId: string) {
+  const [candidates, rsvps, participants] = await Promise.all([
+    db.select({ userId: users.id, memberId: users.memberId })
+      .from(users)
+      .innerJoin(members, eq(users.memberId, members.id))
+      .where(and(
+        eq(users.clubId, clubId),
+        eq(users.isActive, true),
+        eq(members.status, "ACTIVE"),
+      )),
+    db.select({ memberId: matchRsvps.memberId })
+      .from(matchRsvps)
+      .where(eq(matchRsvps.matchId, matchId)),
+    db.select({ memberId: matchParticipants.memberId })
+      .from(matchParticipants)
+      .where(eq(matchParticipants.matchId, matchId)),
+  ]);
+
+  const respondedMemberIds = new Set([
+    ...rsvps.map((row) => row.memberId),
+    ...participants.flatMap((row) => row.memberId ? [row.memberId] : []),
+  ]);
+
+  return candidates
+    .filter((row) => row.memberId && !respondedMemberIds.has(row.memberId))
+    .map((row) => row.userId);
 }
 
 export async function userIdsForMembers(clubId: string, memberIds: string[]) {

@@ -6,13 +6,15 @@ export function Disclosure({
   label,
   children,
   className,
+  defaultOpen = false,
 }: {
   label: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  defaultOpen?: boolean;
 }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   function close() {
     detailsRef.current?.removeAttribute("open");
@@ -40,6 +42,7 @@ export function Disclosure({
   return (
     <details
       ref={detailsRef}
+      open={open}
       className={`disclosure ${className ?? ""}`}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >

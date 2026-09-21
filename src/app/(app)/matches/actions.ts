@@ -14,6 +14,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants";
 import { requirePermission } from "@/lib/permissions";
 import { isActiveSeedTier, type SeedTier } from "@/lib/seed-tier";
+import { activeMemberUserIdsForClub, notifyUsers, userIdsWithoutMatchResponse } from "@/lib/push-notifications";
 
 export type MatchRsvpResult = { ok: boolean; message: string };
 
@@ -189,6 +190,35 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
     });
   });
 
+  const statusChanged = existingRsvp?.status !== status;
+  if (statusChanged) {
+    try {
+      const recipientIds = (await activeMemberUserIdsForClub(actor.clubId))
+        .filter((userId) => userId !== actor.id);
+      const previousLabel = existingRsvp?.status === "GOING"
+        ? "Tham gia"
+        : existingRsvp?.status === "NOT_GOING"
+          ? "Không tham gia"
+          : null;
+      const nextLabel = status === "GOING" ? "Tham gia" : "Không tham gia";
+      await notifyUsers({
+        clubId: actor.clubId,
+        userIds: recipientIds,
+        type: "MATCH_RSVP_UPDATED",
+        title: `${member.fullName} đã bình chọn`,
+        body: previousLabel
+          ? `${member.fullName} đổi bình chọn: ${previousLabel} → ${nextLabel}.`
+          : `${member.fullName}: ${nextLabel} trận ngày ${match.playedOn}.`,
+        url: `/matches?rsvp=${matchId}`,
+        entityType: "match_rsvp",
+        entityId: matchId,
+        dedupeKey: `MATCH_RSVP_UPDATED:${matchId}:${member.id}:${now.getTime()}`,
+      });
+    } catch {
+      // Push failures must not affect RSVP.
+    }
+  }
+
   revalidatePath("/matches");
   revalidatePath(`/matches/${matchId}`);
   revalidatePath(`/matches/${matchId}/teams`);
@@ -202,4 +232,61 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
     };
   }
   return { ok: true, message: "Đã ghi nhận bạn không tham gia trận này." };
+}
+
+export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRsvpResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
+  if (actor.role !== "ORGANIZER") {
+    return { ok: false, message: "Chỉ Người tổ chức mới có thể gửi nhắc bình chọn." };
+  }
+
+  const matchId = str(formData, "matchId");
+  const [match] = await db
+    .select({ id: matches.id, playedOn: matches.playedOn })
+    .from(matches)
+    .where(and(
+      eq(matches.id, matchId),
+      eq(matches.clubId, actor.clubId),
+      isNull(matches.deletedAt),
+    ))
+    .limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  if (await isRsvpClosed(matchId)) {
+    return { ok: false, message: "Bình chọn đã đóng vì trận đã được chia đội." };
+  }
+
+  const recipientIds = await userIdsWithoutMatchResponse(actor.clubId, matchId);
+  if (!recipientIds.length) {
+    return { ok: true, message: "Không còn thành viên nào chưa bình chọn." };
+  }
+
+  const now = new Date();
+  try {
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: recipientIds,
+      type: "MATCH_RSVP_REMINDER",
+      title: "Nhắc bình chọn tham gia",
+      body: `Hãy bình chọn tham gia trận ngày ${match.playedOn}.`,
+      url: `/matches?rsvp=${matchId}`,
+      entityType: "match_rsvp",
+      entityId: matchId,
+      dedupeKey: `MATCH_RSVP_REMINDER:${matchId}:${now.getTime()}`,
+    });
+  } catch {
+    return { ok: false, message: "Không thể gửi thông báo nhắc bình chọn." };
+  }
+
+  await db.insert(activityLogs).values({
+    clubId: actor.clubId,
+    entityType: "match_rsvp",
+    entityId: matchId,
+    action: "UPDATE",
+    actorId: actor.id,
+    afterData: { reminderRecipientCount: recipientIds.length },
+    message: `${actor.displayName} đã gửi nhắc bình chọn cho ${recipientIds.length} thành viên chưa trả lời`,
+  });
+
+  revalidatePath("/matches");
+  return { ok: true, message: `Đã gửi nhắc bình chọn tới ${recipientIds.length} thành viên.` };
 }

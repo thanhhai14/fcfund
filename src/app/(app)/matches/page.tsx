@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { avatars, chargeTypes, matches, matchParticipants, matchRsvps, matchTeamVersions, memberCharges, members } from "@/db/schema";
+import { activityLogs, avatars, chargeTypes, matches, matchParticipants, matchRsvps, matchTeamVersions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -16,11 +16,12 @@ import { requireUser } from "@/lib/auth";
 import { MatchFields } from "@/components/match-fields";
 import { MemberIdentity } from "@/components/member-identity";
 import { MatchRsvpDisclosure } from "@/components/match-rsvp-disclosure";
-import { setMyMatchRsvpAction } from "./actions";
+import { remindMatchRsvpAction, setMyMatchRsvpAction } from "./actions";
 
 export const metadata = { title: "Trận đấu" };
 
-export default async function MatchesPage() {
+export default async function MatchesPage({ searchParams }: { searchParams: Promise<{ rsvp?: string }> }) {
+  const params = await searchParams;
   const user = await requireUser();
   if (!(await can(PERMISSIONS.MATCHES_VIEW))) redirect("/dashboard");
   const canManage = await can(PERMISSIONS.MATCHES_MANAGE);
@@ -69,6 +70,14 @@ export default async function MatchesPage() {
     status: matchRsvps.status,
     goalkeeperAvailable: matchRsvps.goalkeeperAvailable,
   }).from(matchRsvps).where(inArray(matchRsvps.matchId, ids)) : [];
+  const rsvpActivities = ids.length ? await db.select({
+    id: activityLogs.id,
+    matchId: activityLogs.entityId,
+    message: activityLogs.message,
+    createdAt: activityLogs.createdAt,
+  }).from(activityLogs)
+    .where(and(eq(activityLogs.entityType, "match_rsvp"), inArray(activityLogs.entityId, ids)))
+    .orderBy(desc(activityLogs.createdAt)) : [];
 
   const charges = ids.length ? await db
     .select({
@@ -106,6 +115,15 @@ export default async function MatchesPage() {
       status: row.status,
       goalkeeperAvailable: row.goalkeeperAvailable,
     });
+  });
+  const rsvpActivityMap = new Map<string, Array<{ id: string; message: string; createdAt: Date }>>();
+  rsvpActivities.forEach((row) => {
+    if (!row.message) return;
+    rsvpActivityMap.set(row.matchId, [...(rsvpActivityMap.get(row.matchId) ?? []), {
+      id: row.id,
+      message: row.message,
+      createdAt: row.createdAt,
+    }]);
   });
   const chargeMap = new Map<string, number>();
   const chargeQuantityMap = new Map<string, Map<string, number>>();
@@ -194,14 +212,19 @@ export default async function MatchesPage() {
                   <strong>{formatMoney(chargeMap.get(match.id) ?? 0)}</strong>
                 </div>
                 <div className="match-actions">
-                    {user.memberId && <MatchRsvpDisclosure
+                    <MatchRsvpDisclosure
                       matchId={match.id}
                       disabled={isRsvpClosed}
+                      canVote={Boolean(user.memberId)}
+                      canRemind={user.role === "ORGANIZER"}
+                      defaultOpen={params.rsvp === match.id}
                       myStatus={myRsvpMember?.status ?? null}
                       myGoalkeeperAvailable={myRsvpMember?.goalkeeperAvailable ?? false}
                       members={rsvpMembers}
+                      activities={rsvpActivityMap.get(match.id) ?? []}
                       action={setMyMatchRsvpAction}
-                    />}
+                      reminderAction={remindMatchRsvpAction}
+                    />
                     {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {canManage ? "Tạo đội" : "Xem đội"}</Link>}
                     <Link href={`/matches/${match.id}`} className="match-view-link"><Icon name="eye" /> Xem</Link>
                     {canManage && <>

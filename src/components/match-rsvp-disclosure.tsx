@@ -17,42 +17,76 @@ type RsvpMember = {
   goalkeeperAvailable: boolean;
 };
 
+type RsvpActivity = {
+  id: string;
+  message: string;
+  createdAt: Date | string;
+};
+
 export function MatchRsvpDisclosure({
   matchId,
   disabled,
+  canVote,
+  canRemind,
+  defaultOpen,
   myStatus,
   myGoalkeeperAvailable,
   members,
+  activities,
   action,
+  reminderAction,
 }: {
   matchId: string;
   disabled: boolean;
+  canVote: boolean;
+  canRemind: boolean;
+  defaultOpen?: boolean;
   myStatus: RsvpStatus | null;
   myGoalkeeperAvailable: boolean;
   members: RsvpMember[];
+  activities: RsvpActivity[];
   action: (formData: FormData) => Promise<MatchRsvpResult>;
+  reminderAction: (formData: FormData) => Promise<MatchRsvpResult>;
 }) {
-  const [view, setView] = useState<"vote" | "going" | "not-going" | "pending">("vote");
+  const [view, setView] = useState<"vote" | "going" | "not-going" | "pending">(canVote ? "vote" : "going");
   const grouped = useMemo(() => ({
     going: members.filter((member) => member.status === "GOING"),
     notGoing: members.filter((member) => member.status === "NOT_GOING"),
     pending: members.filter((member) => member.status === null),
   }), [members]);
 
-  const label = disabled
-    ? <><Icon name="ban" /> Bình chọn đã đóng</>
-    : myStatus === "GOING"
-      ? <><Icon name="check" /> Đã tham gia</>
-      : myStatus === "NOT_GOING"
-        ? <><Icon name="ban" /> Không tham gia</>
-        : <><Icon name="thumbs-up" /> Bình chọn</>;
+  const label = !canVote
+    ? <><Icon name="eye" /> Xem bình chọn</>
+    : disabled
+      ? <><Icon name="ban" /> Bình chọn đã đóng</>
+      : myStatus === "GOING"
+        ? <><Icon name="check" /> Đã tham gia</>
+        : myStatus === "NOT_GOING"
+          ? <><Icon name="ban" /> Không tham gia</>
+          : <><Icon name="thumbs-up" /> Bình chọn</>;
+
+  const selectedMembers = view === "going"
+    ? grouped.going
+    : view === "not-going"
+      ? grouped.notGoing
+      : grouped.pending;
 
   return (
-    <Disclosure label={label} className="match-rsvp-disclosure match-popover">
+    <Disclosure
+      label={label}
+      className="match-rsvp-disclosure match-popover"
+      defaultOpen={defaultOpen}
+    >
       <div className="match-rsvp-heading">
         <span className="eyebrow">Bình chọn tham gia</span>
         <h3>Trạng thái trận đấu</h3>
-        <p>{disabled ? "Đội hình đã được bốc thăm nên bình chọn đã khóa." : "Bạn có thể thay đổi lựa chọn cho đến khi trận được chia đội."}</p>
+        <p>
+          {!canVote
+            ? "Tài khoản này không liên kết thành viên nên chỉ có thể xem kết quả bình chọn."
+            : disabled
+              ? "Đội hình đã được bốc thăm nên bình chọn đã khóa."
+              : "Bạn có thể thay đổi lựa chọn cho đến khi trận được chia đội."}
+        </p>
       </div>
 
       <div className="match-rsvp-summary">
@@ -67,7 +101,7 @@ export function MatchRsvpDisclosure({
         </button>
       </div>
 
-      {view === "vote" && (
+      {view === "vote" && canVote && (
         <MutationForm action={action} className="match-rsvp-form">
           <input type="hidden" name="matchId" value={matchId} />
           <fieldset disabled={disabled}>
@@ -95,25 +129,55 @@ export function MatchRsvpDisclosure({
       )}
 
       {view !== "vote" && (
-        <div className="match-rsvp-list">
-          <div className="match-rsvp-list-head">
-            <button type="button" className="button secondary small" onClick={() => setView("vote")}>← Quay lại bình chọn</button>
-          </div>
-          {(view === "going" ? grouped.going : view === "not-going" ? grouped.notGoing : grouped.pending).map((member) => (
-            <div className="match-rsvp-member" key={member.id}>
-              <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarUpdatedAt} compact />
-              <span className={"match-rsvp-state " + (member.status?.toLowerCase() ?? "pending")}>
-                {member.status === "GOING"
-                  ? <><Icon name="check" /> Tham gia{member.goalkeeperAvailable ? " · 🧤" : ""}</>
-                  : member.status === "NOT_GOING"
-                    ? <><Icon name="ban" /> Không đi</>
-                    : <>Chưa trả lời</>}
-              </span>
+        <div className="match-rsvp-stats">
+          <div className="match-rsvp-list">
+            <div className="match-rsvp-list-head">
+              {canVote && (
+                <button type="button" className="button secondary small" onClick={() => setView("vote")}>
+                  ← Quay lại bình chọn
+                </button>
+              )}
             </div>
-          ))}
-          {((view === "going" && !grouped.going.length) || (view === "not-going" && !grouped.notGoing.length) || (view === "pending" && !grouped.pending.length)) && (
-            <p className="empty-state-inline">Không có thành viên trong nhóm này.</p>
-          )}
+            {selectedMembers.map((member) => (
+              <div className="match-rsvp-member" key={member.id}>
+                <MemberIdentity memberId={member.id} name={member.name} avatarVersion={member.avatarUpdatedAt} compact />
+                <span className={"match-rsvp-state " + (member.status?.toLowerCase() ?? "pending")}>
+                  {member.status === "GOING"
+                    ? <><Icon name="check" /> Tham gia{member.goalkeeperAvailable ? " · 🧤" : ""}</>
+                    : member.status === "NOT_GOING"
+                      ? <><Icon name="ban" /> Không đi</>
+                      : <>Chưa trả lời</>}
+                </span>
+              </div>
+            ))}
+            {!selectedMembers.length && (
+              <p className="empty-state-inline">Không có thành viên trong nhóm này.</p>
+            )}
+          </div>
+
+          <section className="match-rsvp-activity">
+            <div className="match-rsvp-activity-head">
+              <div>
+                <span className="eyebrow">Chatter</span>
+                <h4>Lịch sử bình chọn</h4>
+              </div>
+              {canRemind && !disabled && (
+                <MutationForm action={reminderAction} className="match-rsvp-reminder">
+                  <input type="hidden" name="matchId" value={matchId} />
+                  <SubmitButton variant="secondary" pendingLabel="Đang gửi…">Thông báo</SubmitButton>
+                </MutationForm>
+              )}
+            </div>
+            <div className="match-rsvp-activity-list">
+              {activities.map((item) => (
+                <div className="match-rsvp-activity-item" key={item.id}>
+                  <strong>{item.message}</strong>
+                  <small>{new Date(item.createdAt).toLocaleString("vi-VN")}</small>
+                </div>
+              ))}
+              {!activities.length && <p className="empty-state-inline">Chưa có lịch sử bình chọn.</p>}
+            </div>
+          </section>
         </div>
       )}
     </Disclosure>

@@ -140,6 +140,16 @@ iOS không cho website tự yêu cầu permission tùy ý mà không có user in
 | `MEMBER_CHARGE_CREATED` | `createMemberChargeAction`; kết quả trận; monthly job | User liên kết đúng member | `/charges` hoặc `/reports` | Gom batch khi sinh nhiều khoản cùng lúc |
 | `MEMBER_PAYMENT_RECORDED` | `createFundTransactionAction` với `MEMBER_PAYMENT` | User liên kết đúng member | `/reports` hoặc member detail | Xác nhận tiền nộp đã được ghi nhận |
 
+### RSVP Push đã triển khai
+
+- `MATCH_RSVP_UPDATED`: gửi khi thành viên bình chọn lần đầu hoặc đổi `GOING ↔ NOT_GOING`; thay đổi riêng `goalkeeperAvailable` không phát Push.
+- Người nhận là toàn bộ User ACTIVE đang liên kết Member ACTIVE trong club, ngoại trừ chính User vừa thao tác.
+- Deep link dùng `/matches?rsvp=<matchId>`; trang Matches tự mở popup **Bình chọn tham gia** của đúng trận.
+- `MATCH_RSVP_REMINDER`: role `ORGANIZER` có nút **Thông báo** để nhắc riêng nhóm thành viên chưa trả lời.
+- ADMIN không cần liên kết Member để xem popup, thống kê và chatter RSVP; không thể tự bình chọn nếu không có `member_id`.
+- Chatter RSVP lấy từ `activity_logs`, hiển thị mới nhất ở trên và giới hạn chiều cao với scroll khi có nhiều log.
+- Mỗi Push payload có `eventId`; Service Worker dùng `eventId` làm notification tag để các RSVP liên tiếp không ghi đè nhau.
+
 ### 4.2. Ưu tiên P1 — nên triển khai sau P0
 
 | Event | Trigger | Người nhận | Deep link | Quy tắc |
