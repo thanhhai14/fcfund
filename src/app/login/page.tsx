@@ -2,11 +2,32 @@ import type { Metadata } from "next";
 import { requireAnonymous } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { APP_NAME } from "@/lib/constants";
+import {
+  buildZaloAuthorizationUrl,
+  createZaloCodeChallenge,
+  createZaloCodeVerifier,
+  createZaloOAuthState,
+  getZaloConfig,
+} from "@/lib/zalo-auth";
+import { ZaloLoginLink } from "./zalo-login-link";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
 
 export default async function LoginPage() {
   await requireAnonymous();
+
+  let externalZaloTestUrl = "";
+  if (process.env.ZALO_LOGIN_ENABLED === "true") {
+    const config = getZaloConfig();
+    const verifier = createZaloCodeVerifier();
+    externalZaloTestUrl = buildZaloAuthorizationUrl({
+      appId: config.appId,
+      redirectUri: config.redirectUri,
+      state: createZaloOAuthState(),
+      codeChallenge: createZaloCodeChallenge(verifier),
+    }).toString();
+  }
+
   return (
     <main className="login-page">
       <section className="login-visual">
@@ -35,9 +56,7 @@ export default async function LoginPage() {
           {process.env.ZALO_LOGIN_ENABLED === "true" && (
             <div className="zalo-login-poc">
               <div className="zalo-login-divider"><span>hoặc</span></div>
-              <a className="zalo-login-button" href="/api/auth/zalo/start">
-                Đăng nhập bằng Zalo
-              </a>
+              <ZaloLoginLink externalTestUrl={externalZaloTestUrl} />
               <p>Dùng Zalo đã liên kết hoặc xác minh thành viên trong lần đăng nhập đầu tiên.</p>
             </div>
           )}
