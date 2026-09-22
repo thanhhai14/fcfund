@@ -406,6 +406,7 @@ sequenceDiagram
     participant U as User
     participant F as FCFUND
     participant Z as Zalo OAuth
+    participant P as PHP Proxy VN
     participant G as Zalo Graph
 
     U->>F: Đăng nhập bằng Zalo
@@ -416,12 +417,16 @@ sequenceDiagram
     F->>F: Verify state + verifier
     F->>Z: Exchange code
     Z-->>F: access token
-    F->>G: GET profile
-    G-->>F: Zalo ID + name + picture
+    F->>P: POST signed request + access token
+    P->>G: GET /v2.0/me từ IP Việt Nam
+    G-->>P: Zalo ID + name + picture
+    P-->>F: normalized profile
     F->>F: Resolve identity / pending / candidate
 ```
 
-Access/refresh token không được lưu nếu chỉ dùng để login.
+Zalo Graph giới hạn dữ liệu cá nhân theo IP Việt Nam. Production Vercel vì vậy dùng PHP proxy đặt tại Việt Nam cho riêng bước lấy profile. Request Vercel → proxy được ký HMAC-SHA256 theo timestamp + raw body và chỉ có hiệu lực trong khoảng 60 giây.
+
+Access/refresh token không được lưu nếu chỉ dùng để login. PHP proxy cũng không log hoặc lưu access token.
 
 ## 16. Notification
 

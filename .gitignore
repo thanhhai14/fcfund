@@ -32,3 +32,6 @@ pnpm-debug.log*
 .env*
 # MCP file-write backups
 .mcp-backups/
+
+# Local secret for the PHP Zalo profile proxy
+/deploy/zalo-profile-proxy/config.php
