@@ -151,13 +151,14 @@ if (!is_array($zaloData)) {
 }
 
 $zaloError = $zaloData['error'] ?? null;
+$hasZaloError = $zaloError !== null && (string) $zaloError !== '0';
 $id = trim((string) ($zaloData['id'] ?? ''));
 $name = trim((string) ($zaloData['name'] ?? ''));
 
-if ($statusCode < 200 || $statusCode >= 300 || $zaloError !== null || $id === '' || $name === '') {
+if ($statusCode < 200 || $statusCode >= 300 || $hasZaloError || $id === '' || $name === '') {
     jsonResponse(502, [
         'error' => 'ZALO_PROFILE_ERROR',
-        'code' => $zaloError ?? $statusCode,
+        'code' => $hasZaloError ? $zaloError : $statusCode,
         'message' => trim((string) ($zaloData['message'] ?? 'Không lấy được Zalo profile.')),
     ]);
 }

@@ -97,11 +97,17 @@ WHERE u.club_id = :club_id
 
 Thành viên có record member nhưng chưa có user không nằm trong candidate pool vì không có mật khẩu để xác minh. Trường hợp này đi qua Admin approval.
 
-## 5. Fuzzy matching tên
+## 5. Matching tên
 
 Tên chỉ dùng để tìm candidate, không dùng làm bằng chứng xác thực.
 
-Chuẩn hóa:
+Thứ tự matching:
+
+1. preset exact cho các tên Zalo đã biết của Trai Làng Stown, ánh xạ tới `members.code`;
+2. nếu preset target không nằm trong candidate pool (ví dụ member chưa có user, user inactive hoặc đã link Zalo) → không fallback sang người khác, đi Admin approval;
+3. nếu không có preset → fuzzy matching.
+
+Chuẩn hóa fuzzy:
 
 1. lowercase;
 2. trim;
@@ -109,9 +115,12 @@ Chuẩn hóa:
 4. bỏ dấu tiếng Việt;
 5. chuẩn hóa Đ/đ;
 6. bỏ ký tự đặc biệt;
-7. so sánh chuỗi và token.
+7. so sánh chuỗi có thứ tự;
+8. token-sorted;
+9. bỏ khoảng trắng để nhận diện các dạng như `Vươngak ↔ Vương AK`;
+10. token-subset khi tên có ít nhất hai token, để nhận diện các dạng thêm họ/từ mô tả như `Nguyễn Thanh Hải ↔ Thanh Hải` hoặc `Tuấn Decor Luxury ↔ Tuấn Luxury`.
 
-Rule khởi đầu:
+Rule fuzzy:
 
 ~~~text
 bestScore >= 0.90
@@ -122,6 +131,15 @@ bestScore - secondScore >= 0.08
 Nếu không đạt → Admin approval.
 
 Nếu nhiều người cùng tên hoặc score gần nhau → không tự chọn.
+
+Production test với 26 Zalo display name đã biết:
+
+- matcher cũ: 7/26 tự match;
+- fuzzy cải tiến, chưa preset: 13/26 tự match;
+- fuzzy + preset: 18/26 tự match;
+- 8/26 còn lại đều là member active nhưng chưa có user, nên đúng nghiệp vụ phải đi PENDING/Admin approval.
+
+Preset chỉ chọn candidate. User vẫn phải xác nhận candidate và nhập đúng mật khẩu FCFUND trước khi tạo `auth_identities`.
 
 ## 6. Match thành công
 

@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test:teams": "tsx scripts/test-team-balancer.ts",
     "test:teams:live": "tsx scripts/test-team-balancer-live.ts",
+    "test:zalo-match:live": "tsx scripts/test-zalo-name-matching-live.ts",
+    "test:zalo-match:prd": "tsx --env-file=.env.production.local scripts/test-zalo-name-matching-live.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

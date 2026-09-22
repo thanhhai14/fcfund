@@ -12,6 +12,11 @@ import {
   zaloLinkRequests,
 } from "@/db/schema";
 import type { ZaloProfile } from "@/lib/zalo-auth";
+import {
+  passesZaloNameMatchThreshold,
+  zaloNameSimilarity,
+} from "@/lib/zalo-name-matching";
+import { getZaloPresetMemberCode } from "@/lib/zalo-name-presets";
 import { notifyUsers } from "@/lib/push-notifications";
 
 export const ZALO_LINK_CONTEXT_COOKIE = "zalo_link_context";
@@ -38,59 +43,6 @@ function signingSecret() {
     throw new Error("AUTH_SECRET chưa được cấu hình.");
   }
   return new TextEncoder().encode(value ?? "development-only-secret-change-me-please");
-}
-
-function normalizeVietnameseName(value: string) {
-  return value
-    .replace(/đ/g, "d")
-    .replace(/Đ/g, "D")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function levenshteinDistance(left: string, right: string) {
-  if (left === right) return 0;
-  if (!left.length) return right.length;
-  if (!right.length) return left.length;
-
-  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
-  for (let row = 1; row <= left.length; row += 1) {
-    const current = [row];
-    for (let column = 1; column <= right.length; column += 1) {
-      const cost = left[row - 1] === right[column - 1] ? 0 : 1;
-      current[column] = Math.min(
-        current[column - 1] + 1,
-        previous[column] + 1,
-        previous[column - 1] + cost,
-      );
-    }
-    previous = current;
-  }
-  return previous[right.length];
-}
-
-function stringSimilarity(left: string, right: string) {
-  if (!left || !right) return 0;
-  if (left === right) return 1;
-  const distance = levenshteinDistance(left, right);
-  return 1 - distance / Math.max(left.length, right.length);
-}
-
-function nameSimilarity(left: string, right: string) {
-  const a = normalizeVietnameseName(left);
-  const b = normalizeVietnameseName(right);
-  if (!a || !b) return 0;
-  if (a === b) return 1;
-
-  const ordered = stringSimilarity(a, b);
-  const sortedA = a.split(" ").sort().join(" ");
-  const sortedB = b.split(" ").sort().join(" ");
-  const tokenSorted = stringSimilarity(sortedA, sortedB);
-  return Math.max(ordered, tokenSorted);
 }
 
 export function maskPhone(phone: string) {
@@ -167,18 +119,25 @@ export async function findBestZaloCandidate(clubId: string, displayName: string)
       isNull(authIdentities.id),
     ));
 
+  const presetMemberCode = getZaloPresetMemberCode(displayName);
+  if (presetMemberCode) {
+    const presetCandidate = candidates.find((candidate) => candidate.memberCode === presetMemberCode);
+    if (!presetCandidate) return null;
+    return { ...presetCandidate, score: 1 };
+  }
+
   const ranked = candidates
     .map((candidate) => ({
       ...candidate,
-      score: nameSimilarity(displayName, candidate.memberName),
+      score: zaloNameSimilarity(displayName, candidate.memberName),
     }))
     .sort((left, right) => right.score - left.score);
 
   const best = ranked[0];
-  if (!best || best.score < 0.9) return null;
+  if (!best) return null;
 
   const second = ranked[1];
-  if (second && best.score - second.score < 0.08) return null;
+  if (!passesZaloNameMatchThreshold(best.score, second?.score)) return null;
 
   return best;
 }
