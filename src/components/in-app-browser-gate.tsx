@@ -114,7 +114,7 @@ export function InAppBrowserGate() {
           <div className="in-app-browser-help">
             <strong>Trên iPhone/iPad</strong>
             <ol>
-              <li>Nhấn menu <b>⋯</b> của Zalo.</li>
+              <li>Tại màn hình này, nhấn nút <b>⋯</b> phía trên bên phải.</li>
               <li>Chọn <b>Mở bằng Safari</b> hoặc <b>Mở trong trình duyệt</b>.</li>
               <li>Nếu không thấy tùy chọn, hãy sao chép liên kết rồi dán vào Safari.</li>
             </ol>

@@ -10220,6 +10220,35 @@ html[data-navigation-pending="true"] .app-main::after {
   line-height: 1.75;
 }
 
+.pwa-install-ios-help li + li {
+  margin-top: 3px;
+}
+
+.pwa-ios-step-line {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pwa-ios-guide-icon {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  color: #0a84ff;
+  vertical-align: middle;
+}
+
+.pwa-ios-guide-icon.safari {
+  width: 25px;
+  height: 25px;
+  flex-basis: 25px;
+}
+
+.pwa-ios-guide-icon.neutral {
+  color: #64686d;
+}
+
 .pwa-install-note {
   display: block;
   margin-top: 12px;

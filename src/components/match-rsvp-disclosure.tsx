@@ -60,7 +60,7 @@ export function MatchRsvpDisclosure({
     : disabled
       ? <><Icon name="ban" /> Bình chọn đã đóng</>
       : myStatus === "GOING"
-        ? <><Icon name="check" /> Đã tham gia</>
+        ? <><Icon name="check" /> Tham gia</>
         : myStatus === "NOT_GOING"
           ? <><Icon name="ban" /> Không tham gia</>
           : <><Icon name="thumbs-up" /> Bình chọn</>;
