@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { authIdentities, users } from "@/db/schema";
-import { createSession } from "@/lib/auth";
+import { createSession, getCurrentUser } from "@/lib/auth";
 import {
   exchangeZaloCode,
   fetchZaloProfile,
   getZaloConfig,
+  isZaloAccessTokenDebugEnabled,
   isZaloLoginEnabled,
+  ZALO_OAUTH_DEBUG_COOKIE,
   ZALO_OAUTH_STATE_COOKIE,
   ZALO_OAUTH_VERIFIER_COOKIE,
 } from "@/lib/zalo-auth";
@@ -68,6 +70,7 @@ function htmlResponse(title: string, body: string, status = 200) {
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(ZALO_OAUTH_STATE_COOKIE);
   response.cookies.delete(ZALO_OAUTH_VERIFIER_COOKIE);
+  response.cookies.delete(ZALO_OAUTH_DEBUG_COOKIE);
   return response;
 }
 
@@ -124,6 +127,22 @@ export async function GET(request: NextRequest) {
       appId: config.appId,
       appSecret: config.appSecret,
     });
+
+    const debugRequested = request.cookies.get(ZALO_OAUTH_DEBUG_COOKIE)?.value === "1";
+    if (debugRequested && isZaloAccessTokenDebugEnabled()) {
+      const currentUser = await getCurrentUser();
+      if (currentUser?.role === "ADMIN") {
+        return clearOAuthCookies(htmlResponse(
+          "Zalo OAuth debug",
+          `<h1>Zalo OAuth debug</h1>
+<p>Đã đổi authorization code thành access token thành công và dừng trước bước lấy profile.</p>
+<p><strong>Access token:</strong></p>
+<pre style="white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f4f4f5;border-radius:8px">${escapeHtml(accessToken)}</pre>
+<p>Token này chỉ dùng để debug và không được chia sẻ. Sau khi test xong hãy tắt ZALO_DEBUG_SHOW_ACCESS_TOKEN.</p>`,
+        ));
+      }
+    }
+
     const profile = await fetchZaloProfile(accessToken);
 
     const linked = await findLinkedZaloUser(profile.id);

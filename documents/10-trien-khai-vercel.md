@@ -75,7 +75,10 @@ ZALO_APP_SECRET
 ZALO_REDIRECT_URI
 ZALO_LOGIN_ENABLED
 ZALO_CLUB_ID
+ZALO_DEBUG_SHOW_ACCESS_TOKEN
 ```
+
+`ZALO_DEBUG_SHOW_ACCESS_TOKEN` mặc định phải là `false`. Chỉ bật tạm khi debug OAuth; chế độ này chỉ hoạt động khi một ADMIN đang đăng nhập chủ động mở `/api/auth/zalo/start?debug=1`. Sau khi lấy token để kiểm tra phải tắt biến này và redeploy.
 
 `ZALO_CLUB_ID` có thể để trống nếu database chỉ có đúng một club. Nếu có nhiều club thì bắt buộc cấu hình để Zalo linking không gắn nhầm liên đoàn.
 

@@ -1,19 +1,23 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   buildZaloAuthorizationUrl,
   createZaloCodeChallenge,
   createZaloCodeVerifier,
   createZaloOAuthState,
   getZaloConfig,
+  isZaloAccessTokenDebugEnabled,
   isZaloLoginEnabled,
   ZALO_OAUTH_COOKIE_MAX_AGE,
+  ZALO_OAUTH_DEBUG_COOKIE,
   ZALO_OAUTH_STATE_COOKIE,
   ZALO_OAUTH_VERIFIER_COOKIE,
 } from "@/lib/zalo-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   if (!isZaloLoginEnabled()) {
     return new NextResponse("Zalo Login đang tắt.", { status: 404 });
   }
@@ -47,6 +51,16 @@ export async function GET() {
 
   response.cookies.set(ZALO_OAUTH_STATE_COOKIE, state, cookieOptions);
   response.cookies.set(ZALO_OAUTH_VERIFIER_COOKIE, verifier, cookieOptions);
+
+  const debugRequested = request.nextUrl.searchParams.get("debug") === "1";
+  if (debugRequested && isZaloAccessTokenDebugEnabled()) {
+    const currentUser = await getCurrentUser();
+    if (currentUser?.role === "ADMIN") {
+      response.cookies.set(ZALO_OAUTH_DEBUG_COOKIE, "1", cookieOptions);
+    }
+  } else {
+    response.cookies.delete(ZALO_OAUTH_DEBUG_COOKIE);
+  }
 
   return response;
 }

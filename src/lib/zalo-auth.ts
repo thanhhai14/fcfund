@@ -9,6 +9,7 @@ const PKCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 
 export const ZALO_OAUTH_STATE_COOKIE = "zalo_oauth_state";
 export const ZALO_OAUTH_VERIFIER_COOKIE = "zalo_pkce_verifier";
+export const ZALO_OAUTH_DEBUG_COOKIE = "zalo_oauth_debug";
 export const ZALO_OAUTH_COOKIE_MAX_AGE = 10 * 60;
 
 type ZaloTokenResponse = {
@@ -33,6 +34,10 @@ function requiredEnv(name: "ZALO_APP_ID" | "ZALO_APP_SECRET" | "ZALO_REDIRECT_UR
 
 export function isZaloLoginEnabled() {
   return process.env.ZALO_LOGIN_ENABLED === "true";
+}
+
+export function isZaloAccessTokenDebugEnabled() {
+  return process.env.ZALO_DEBUG_SHOW_ACCESS_TOKEN === "true";
 }
 
 export function getZaloConfig() {
