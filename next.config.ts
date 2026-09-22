@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  htmlLimitedBots: /.*/,
   experimental: {
     serverActions: {
       bodySizeLimit: "4mb",

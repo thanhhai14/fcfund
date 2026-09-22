@@ -17,9 +17,6 @@ export const metadata: Metadata = {
   },
   description: "Quản lý quỹ minh bạch cho câu lạc bộ bóng đá",
   applicationName: APP_NAME,
-  other: {
-    "zalo-platform-site-verification": "U-QqEFhO42SC_Ba0ol4UFK3ToHIign9AD34n",
-  },
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
