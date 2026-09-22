@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { Icon } from "@/components/icon";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
-import { formatMoney, todayInTimezone } from "@/lib/format";
+import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { getBalanceReportMonth, isBalanceReportMonthInRange, compareBalanceTypes } from "@/lib/balance-report";
 import { calculateOpeningBalances } from "@/lib/opening-balance";
@@ -27,7 +27,10 @@ export default async function ReportsPage({
   searchParams: Promise<{ month?: string; tab?: string; balancePeriod?: string; balanceMonth?: string; balanceFromMonth?: string; balanceToMonth?: string }>;
 }) {
   const user = await requireUser();
-  const viewAll = await can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW);
+  const [viewAll, showClubBalance] = await Promise.all([
+    can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW),
+    can(PERMISSIONS.CLUB_BALANCE_VIEW),
+  ]);
   if (!viewAll && !user.memberId) redirect("/dashboard");
 
   const params = await searchParams;
@@ -72,6 +75,18 @@ export default async function ReportsPage({
     logoUrl: clubs.logoUrl,
     updatedAt: clubs.updatedAt,
   }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
+
+  const [fundSummary] = await db
+    .select({
+      income: sql<string>`COALESCE(SUM(CASE WHEN ${fundTransactions.direction} = 'IN' THEN ${fundTransactions.amount} ELSE 0 END), 0)`,
+      expense: sql<string>`COALESCE(SUM(CASE WHEN ${fundTransactions.direction} = 'OUT' THEN ${fundTransactions.amount} ELSE 0 END), 0)`,
+    })
+    .from(fundTransactions)
+    .where(and(
+      eq(fundTransactions.clubId, user.clubId),
+      isNull(fundTransactions.deletedAt),
+    ));
+  const currentFundBalance = Number(fundSummary?.income ?? 0) - Number(fundSummary?.expense ?? 0);
 
   const memberRows = await db.select({
     id: members.id,
@@ -248,6 +263,11 @@ export default async function ReportsPage({
     <>
       <PageHeader eyebrow="Phân tích" title="Báo cáo quỹ" description="Theo dõi phát sinh tháng và công nợ thành viên" />
       <section className="report-hero">
+        <div className="report-hero-balance">
+          <small>Số dư quỹ hiện tại</small>
+          <strong>{showClubBalance ? formatMoney(currentFundBalance) : "Ẩn theo policy"}</strong>
+          <span>{showClubBalance ? `Cập nhật đến ${formatDate(todayInTimezone())}` : "Bạn không có quyền xem số dư quỹ"}</span>
+        </div>
         <div><small>Còn phải đóng cuối kỳ</small><strong>{formatMoney(debt)}</strong><span>{balancePeriod === "all" ? "Toàn bộ thời gian" : `${balanceFromLabel} – ${balanceToLabel}`} · {balances.filter((row) => row.balance < 0).length} người còn thiếu</span></div>
         <div><small>Tổng đóng dư cuối kỳ</small><strong>{formatMoney(credit)}</strong><span>{balances.filter((row) => row.balance > 0).length} người đóng dư</span></div>
         <div><small>Tỷ lệ hoàn thành</small><strong>{balances.length ? Math.round((balances.filter((row) => row.balance >= 0).length / balances.length) * 100) : 0}%</strong><span>thành viên không còn nợ</span></div>
