@@ -47,6 +47,7 @@ export const activityAction = pgEnum("activity_action", [
 ]);
 export const jobStatus = pgEnum("job_status", ["RUNNING", "COMPLETED", "FAILED"]);
 export const notificationStatus = pgEnum("notification_status", ["PENDING", "SENT", "PARTIAL", "FAILED", "SKIPPED"]);
+export const zaloLinkRequestStatus = pgEnum("zalo_link_request_status", ["PENDING", "APPROVED", "REJECTED"]);
 export const memberSeedTier = pgEnum("member_seed_tier", [
   "TIER_1",
   "TIER_2",
@@ -117,6 +118,50 @@ export const users = pgTable(
     uniqueIndex("users_phone_unique").on(table.phoneNormalized),
     uniqueIndex("users_member_unique").on(table.memberId).where(sql`${table.memberId} IS NOT NULL`),
     index("users_club_role_idx").on(table.clubId, table.role),
+  ],
+);
+
+export const authIdentities = pgTable(
+  "auth_identities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    provider: varchar("provider", { length: 30 }).default("ZALO").notNull(),
+    providerUserId: varchar("provider_user_id", { length: 160 }).notNull(),
+    displayName: varchar("display_name", { length: 160 }),
+    avatarUrl: text("avatar_url"),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).defaultNow().notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    unique("auth_identities_provider_user_unique").on(table.provider, table.providerUserId),
+    unique("auth_identities_user_provider_unique").on(table.userId, table.provider),
+    index("auth_identities_user_idx").on(table.userId),
+  ],
+);
+
+export const zaloLinkRequests = pgTable(
+  "zalo_link_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
+    providerUserId: varchar("provider_user_id", { length: 160 }).notNull(),
+    displayName: varchar("display_name", { length: 160 }).notNull(),
+    avatarUrl: text("avatar_url"),
+    status: zaloLinkRequestStatus("status").default("PENDING").notNull(),
+    approvedUserId: uuid("approved_user_id").references(() => users.id, { onDelete: "set null" }),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    rejectionReason: text("rejection_reason"),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("zalo_link_requests_pending_provider_unique")
+      .on(table.providerUserId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index("zalo_link_requests_club_status_idx").on(table.clubId, table.status),
+    index("zalo_link_requests_provider_idx").on(table.providerUserId),
   ],
 );
 

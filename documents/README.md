@@ -24,6 +24,6 @@ Thư mục này là nguồn mô tả nghiệp vụ và cấu trúc dữ liệu t
 - [`10-trien-khai-vercel.md`](./10-trien-khai-vercel.md): PostgreSQL, Blob, Cron và biến môi trường trên Vercel.
 - [`11-chia-doi-random-va-seed-thanh-vien.md`](./11-chia-doi-random-va-seed-thanh-vien.md): nghiệp vụ chia đội, Seed Tier 1–7, vai trò thủ môn theo trận, phong độ và phiên bản đội hình.
 - [`12-web-push-va-thong-bao.md`](./12-web-push-va-thong-bao.md): thiết kế Web Push, thiết bị/subscription, deep link, ma trận sự kiện và lộ trình triển khai notification.
-- [`13-dang-nhap-zalo-cho-pwa.md`](./13-dang-nhap-zalo-cho-pwa.md): nghiên cứu khả thi Zalo Social OAuth v4 cho Web/PWA, account linking, PKCE/state, schema identity và lộ trình triển khai.
+- [`13-dang-nhap-zalo-cho-pwa.md`](./13-dang-nhap-zalo-cho-pwa.md): thiết kế đăng nhập Zalo cho Web/PWA, chỉ fuzzy-match với tài khoản chưa link Zalo, xác minh candidate và liên kết identity an toàn.
 
 > Nghiệp vụ lõi và phần lớn schema vật lý đã được triển khai bằng Drizzle migration. Tài liệu trong thư mục này phải được đồng bộ theo source/migration hiện hành khi nghiệp vụ thay đổi.

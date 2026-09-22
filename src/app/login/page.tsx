@@ -36,9 +36,9 @@ export default async function LoginPage() {
             <div className="zalo-login-poc">
               <div className="zalo-login-divider"><span>hoặc</span></div>
               <a className="zalo-login-button" href="/api/auth/zalo/start">
-                Thử đăng nhập bằng Zalo
+                Đăng nhập bằng Zalo
               </a>
-              <p>PoC: chỉ kiểm tra OAuth và đọc Zalo profile, chưa liên kết tài khoản FCFUND.</p>
+              <p>Dùng Zalo đã liên kết hoặc xác minh thành viên trong lần đăng nhập đầu tiên.</p>
             </div>
           )}
         </div>

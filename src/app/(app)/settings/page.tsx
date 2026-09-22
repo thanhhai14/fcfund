@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import Link from "next/link";
 import { and, eq, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -10,6 +11,7 @@ import {
   rolePermissions,
   userPermissionOverrides,
   users,
+  zaloLinkRequests,
 } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
@@ -49,6 +51,9 @@ export default async function SettingsPage() {
   const currentUser = await requireUser();
   const manageSettings = await can(PERMISSIONS.SETTINGS_MANAGE);
   const manageUsers = await can(PERMISSIONS.USERS_MANAGE);
+  const pendingZaloRequests = currentUser.role === "ADMIN" ? await db.select({ id: zaloLinkRequests.id })
+    .from(zaloLinkRequests)
+    .where(and(eq(zaloLinkRequests.clubId, currentUser.clubId), eq(zaloLinkRequests.status, "PENDING"))) : [];
   const [club] = await db.select().from(clubs).where(eq(clubs.id, currentUser.clubId)).limit(1);
   const types = manageSettings ? await db.select().from(chargeTypes)
     .where(eq(chargeTypes.clubId, currentUser.clubId)).orderBy(chargeTypes.name) : [];
@@ -144,6 +149,12 @@ export default async function SettingsPage() {
         </div>
 
         <div className="stack">
+          {currentUser.role === "ADMIN" && <article className="panel zalo-settings-entry">
+            <div className="panel-heading"><div><span className="eyebrow">Chủ Tịch Fifa</span><h2>Liên kết Zalo</h2></div><span className="status-pill pending">{pendingZaloRequests.length} chờ duyệt</span></div>
+            <p className="panel-note">Duyệt Zalo ID chưa xác định được thành viên, link user hiện có hoặc tạo thành viên mới.</p>
+            <Link className="button secondary" href="/settings/zalo-requests">Mở yêu cầu Zalo</Link>
+          </article>}
+
           <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} isAdmin={currentUser.role === "ADMIN"} />
 
           <article className="panel">

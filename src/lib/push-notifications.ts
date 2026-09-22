@@ -23,6 +23,7 @@ export type PushEventType =
   | "MEMBER_PAYMENT_RECORDED"
   | "MATCH_RSVP_UPDATED"
   | "MATCH_RSVP_REMINDER"
+  | "ZALO_LINK_REQUEST"
   | "TEST_NOTIFICATION";
 
 type NotifyInput = {

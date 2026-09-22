@@ -70,7 +70,14 @@ APP_URL
 NEXT_PUBLIC_VAPID_PUBLIC_KEY
 VAPID_PRIVATE_KEY
 VAPID_SUBJECT
+ZALO_APP_ID
+ZALO_APP_SECRET
+ZALO_REDIRECT_URI
+ZALO_LOGIN_ENABLED
+ZALO_CLUB_ID
 ```
+
+`ZALO_CLUB_ID` có thể để trống nếu database chỉ có đúng một club. Nếu có nhiều club thì bắt buộc cấu hình để Zalo linking không gắn nhầm liên đoàn.
 
 Không commit giá trị thật vào Git.
 

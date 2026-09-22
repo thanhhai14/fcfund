@@ -538,3 +538,52 @@ Các thao tác sau phải chạy trong PostgreSQL transaction:
 - đặt lại mật khẩu và ghi activity log.
 - xác nhận phiên bản đội hình mới và chuyển bản cũ sang superseded;
 - lưu/chia lại đội hình nháp cùng activity log.
+
+## 21. Zalo identity và yêu cầu liên kết
+
+Migration `0016_panoramic_vanisher.sql` bổ sung hai thực thể phục vụ Zalo Login.
+
+### 21.1. auth_identities
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| id | uuid | PK |
+| user_id | uuid | FK users, cascade |
+| provider | varchar(30) | hiện dùng `ZALO` |
+| provider_user_id | varchar(160) | Zalo user ID |
+| display_name | varchar(160) | snapshot tên Zalo |
+| avatar_url | text | snapshot avatar Zalo |
+| linked_at | timestamptz | thời điểm xác nhận liên kết |
+| last_login_at | timestamptz | lần đăng nhập Zalo gần nhất |
+| created_at / updated_at | timestamptz | audit |
+
+Constraint:
+
+- unique `(provider, provider_user_id)`;
+- unique `(user_id, provider)`.
+
+Bảng này chỉ chứa identity đã được xác nhận thuộc một FCFUND user.
+
+### 21.2. zalo_link_requests
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| id | uuid | PK |
+| club_id | uuid | FK clubs |
+| provider_user_id | varchar(160) | Zalo user ID |
+| display_name | varchar(160) | tên Zalo |
+| avatar_url | text | avatar Zalo |
+| status | enum | PENDING / APPROVED / REJECTED |
+| approved_user_id | uuid | FK users, nullable |
+| resolved_by | uuid | Admin xử lý, nullable |
+| resolved_at | timestamptz | thời điểm xử lý |
+| rejection_reason | text | lý do từ chối |
+| created_at / updated_at | timestamptz | audit |
+
+Index/constraint:
+
+- unique partial trên `provider_user_id` khi `status = 'PENDING'`, ngăn tạo request chờ trùng;
+- index `(club_id, status)`;
+- index `provider_user_id`.
+
+Request PENDING không tự hết hạn. Khi Admin duyệt, việc tạo/link user và chuyển request sang APPROVED phải chạy trong transaction cùng unique constraint của `auth_identities`.
