@@ -32,6 +32,15 @@ export default async function LoginPage() {
             <p>Sử dụng số điện thoại đã được Admin cấp.</p>
           </div>
           <LoginForm />
+          {process.env.ZALO_LOGIN_ENABLED === "true" && (
+            <div className="zalo-login-poc">
+              <div className="zalo-login-divider"><span>hoặc</span></div>
+              <a className="zalo-login-button" href="/api/auth/zalo/start">
+                Thử đăng nhập bằng Zalo
+              </a>
+              <p>PoC: chỉ kiểm tra OAuth và đọc Zalo profile, chưa liên kết tài khoản FCFUND.</p>
+            </div>
+          )}
         </div>
       </section>
     </main>

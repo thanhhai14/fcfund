@@ -348,6 +348,57 @@ label>textarea {
   margin: -4px 0 0;
 }
 
+.zalo-login-poc {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.zalo-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.zalo-login-divider::before,
+.zalo-login-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+.zalo-login-button {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 3px;
+  background: #0068ff;
+  color: #fff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+
+.zalo-login-button:hover {
+  filter: brightness(.96);
+}
+
+.zalo-login-poc p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .center-page {
   min-height: 100vh;
   display: grid;
