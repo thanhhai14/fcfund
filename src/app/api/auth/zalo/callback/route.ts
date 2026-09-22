@@ -13,6 +13,13 @@ import {
   ZALO_OAUTH_VERIFIER_COOKIE,
 } from "@/lib/zalo-auth";
 import {
+  findPendingZaloAuthHandoffByState,
+  markZaloHandoffApprovalPending,
+  markZaloHandoffFailed,
+  markZaloHandoffLinkRequired,
+  markZaloHandoffReady,
+} from "@/lib/zalo-handoff";
+import {
   createOrReuseZaloLinkRequest,
   createZaloLinkContextToken,
   createZaloPendingToken,
@@ -65,6 +72,13 @@ function htmlResponse(title: string, body: string, status = 200) {
   );
 }
 
+function handoffCompleteResponse(message: string) {
+  return htmlResponse(
+    "Đã xác thực Zalo",
+    `<h1>Đã xác thực Zalo</h1><p>${escapeHtml(message)}</p><p>Bạn có thể quay lại ứng dụng Trại Làng FC. Ứng dụng sẽ tự tiếp tục.</p>`,
+  );
+}
+
 function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(ZALO_OAUTH_STATE_COOKIE);
   response.cookies.delete(ZALO_OAUTH_VERIFIER_COOKIE);
@@ -90,9 +104,17 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code")?.trim() ?? "";
   const returnedState = request.nextUrl.searchParams.get("state")?.trim() ?? "";
   const expectedState = request.cookies.get(ZALO_OAUTH_STATE_COOKIE)?.value ?? "";
-  const verifier = request.cookies.get(ZALO_OAUTH_VERIFIER_COOKIE)?.value ?? "";
+  const cookieVerifier = request.cookies.get(ZALO_OAUTH_VERIFIER_COOKIE)?.value ?? "";
+
+  const handoff = returnedState
+    ? await findPendingZaloAuthHandoffByState(returnedState)
+    : null;
+  const verifier = handoff?.pkceVerifier ?? cookieVerifier;
 
   if (!code) {
+    if (handoff) {
+      await markZaloHandoffFailed(handoff.id, "Không nhận được mã xác thực từ Zalo.");
+    }
     return clearOAuthCookies(htmlResponse(
       "Zalo OAuth chưa hoàn tất",
       '<h1>Chưa nhận được mã xác thực Zalo</h1><p>Bạn có thể đã hủy đăng nhập.</p><a href="/login">Quay lại đăng nhập</a>',
@@ -100,7 +122,7 @@ export async function GET(request: NextRequest) {
     ));
   }
 
-  if (!returnedState || !expectedState || returnedState !== expectedState) {
+  if (!handoff && (!returnedState || !expectedState || returnedState !== expectedState)) {
     return clearOAuthCookies(htmlResponse(
       "Zalo OAuth không hợp lệ",
       '<h1>Phiên Zalo OAuth không hợp lệ</h1><p>State không khớp hoặc phiên đã hết hạn.</p><a href="/login">Thử lại</a>',
@@ -109,6 +131,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (!verifier) {
+    if (handoff) {
+      await markZaloHandoffFailed(handoff.id, "PKCE verifier của phiên Zalo không còn hợp lệ.");
+    }
     return clearOAuthCookies(htmlResponse(
       "Zalo OAuth hết hạn",
       '<h1>Phiên Zalo OAuth đã hết hạn</h1><p>Không còn PKCE verifier trên thiết bị này.</p><a href="/login">Thử lại</a>',
@@ -129,6 +154,9 @@ export async function GET(request: NextRequest) {
     const linked = await findLinkedZaloUser(profile.id);
     if (linked) {
       if (!linked.isActive) {
+        if (handoff) {
+          await markZaloHandoffFailed(handoff.id, "Tài khoản FCFUND đã bị khóa.");
+        }
         return clearOAuthCookies(htmlResponse(
           "Tài khoản FCFUND bị khóa",
           '<h1>Tài khoản FCFUND đã bị khóa</h1><p>Vui lòng liên hệ Chủ Tịch Fifa.</p><a href="/login">Quay lại</a>',
@@ -149,6 +177,11 @@ export async function GET(request: NextRequest) {
         db.update(users).set({ lastLoginAt: now }).where(eq(users.id, linked.userId)),
       ]);
 
+      if (handoff) {
+        await markZaloHandoffReady(handoff.id, linked.userId, profile);
+        return clearOAuthCookies(handoffCompleteResponse("Tài khoản FCFUND đã được nhận diện thành công."));
+      }
+
       await createSession({
         sub: linked.userId,
         clubId: linked.clubId,
@@ -164,6 +197,18 @@ export async function GET(request: NextRequest) {
 
     const pending = await findPendingZaloRequest(profile.id);
     if (pending) {
+      if (handoff) {
+        await markZaloHandoffApprovalPending({
+          id: handoff.id,
+          profile,
+          clubId: pending.clubId,
+          linkRequestId: pending.id,
+        });
+        return clearOAuthCookies(handoffCompleteResponse(
+          "Yêu cầu liên kết của bạn đang chờ Chủ Tịch Fifa duyệt.",
+        ));
+      }
+
       const pendingToken = await createZaloPendingToken({
         requestId: pending.id,
         providerUserId: profile.id,
@@ -175,6 +220,18 @@ export async function GET(request: NextRequest) {
     const candidate = await findBestZaloCandidate(clubId, profile.name);
 
     if (candidate) {
+      if (handoff) {
+        await markZaloHandoffLinkRequired({
+          id: handoff.id,
+          profile,
+          clubId,
+          candidateUserId: candidate.userId,
+        });
+        return clearOAuthCookies(handoffCompleteResponse(
+          "Đã tìm thấy thành viên phù hợp. Quay lại ứng dụng để xác nhận tài khoản.",
+        ));
+      }
+
       const token = await createZaloLinkContextToken({
         providerUserId: profile.id,
         displayName: profile.name,
@@ -201,14 +258,35 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    if (handoff) {
+      await markZaloHandoffApprovalPending({
+        id: handoff.id,
+        profile,
+        clubId,
+        linkRequestId: linkRequest.id,
+      });
+      return clearOAuthCookies(handoffCompleteResponse(
+        "Đã gửi yêu cầu liên kết. Quay lại ứng dụng để theo dõi trạng thái duyệt.",
+      ));
+    }
+
     const pendingToken = await createZaloPendingToken({
       requestId: linkRequest.id,
       providerUserId: profile.id,
     });
     return redirectWithPendingCookie(request, pendingToken);
   } catch (error) {
-    console.error("Zalo OAuth callback failed", error instanceof Error ? error.message : "Unknown error");
     const message = error instanceof Error ? error.message : "Không xác định được lỗi Zalo OAuth.";
+    console.error("Zalo OAuth callback failed", message);
+
+    if (handoff) {
+      try {
+        await markZaloHandoffFailed(handoff.id, message);
+      } catch {
+        // Preserve the original OAuth failure response.
+      }
+    }
+
     return clearOAuthCookies(htmlResponse(
       "Zalo OAuth thất bại",
       `<h1>Không hoàn tất được Zalo OAuth</h1><p>${escapeHtml(message)}</p><a href="/login">Thử lại</a>`,

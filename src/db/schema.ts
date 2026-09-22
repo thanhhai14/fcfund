@@ -165,6 +165,32 @@ export const zaloLinkRequests = pgTable(
   ],
 );
 
+export const zaloAuthHandoffs = pgTable(
+  "zalo_auth_handoffs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clientSecretHash: varchar("client_secret_hash", { length: 64 }).notNull(),
+    oauthState: varchar("oauth_state", { length: 160 }).notNull(),
+    pkceVerifier: varchar("pkce_verifier", { length: 160 }).notNull(),
+    status: varchar("status", { length: 32 }).default("PENDING").notNull(),
+    providerUserId: varchar("provider_user_id", { length: 160 }),
+    displayName: varchar("display_name", { length: 160 }),
+    avatarUrl: text("avatar_url"),
+    clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }),
+    candidateUserId: uuid("candidate_user_id").references(() => users.id, { onDelete: "set null" }),
+    linkRequestId: uuid("link_request_id").references(() => zaloLinkRequests.id, { onDelete: "set null" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    failureMessage: text("failure_message"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    ...auditColumns,
+  },
+  (table) => [
+    uniqueIndex("zalo_auth_handoffs_state_unique").on(table.oauthState),
+    index("zalo_auth_handoffs_status_expires_idx").on(table.status, table.expiresAt),
+  ],
+);
+
 export const pushSubscriptions = pgTable(
   "push_subscriptions",
   {

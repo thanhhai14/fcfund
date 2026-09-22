@@ -1,7 +1,7 @@
 # Thiết kế đăng nhập Zalo cho PWA FCFUND
 
 **Ngày cập nhật:** 2026-09-22
-**Trạng thái:** Thiết kế đã chốt; account linking đã triển khai; chờ migration/deploy và kiểm thử production
+**Trạng thái:** Account linking + iOS PWA OAuth handoff đã triển khai trong source; chờ migration/deploy và kiểm thử production
 **Deep link quản trị:** `/settings/zalo-requests`
 
 ## 1. Mục tiêu
@@ -360,6 +360,34 @@ Constraint/index:
 - index `club_id + status`;
 - approved_user_id/resolved_by là FK users.
 
+### zalo_auth_handoffs
+
+Bridge ngắn hạn giữa Safari OAuth và PWA session:
+
+```text
+zalo_auth_handoffs
+────────────────────────────────
+id
+client_secret_hash
+oauth_state
+pkce_verifier
+status                 PENDING / LINK_REQUIRED / APPROVAL_PENDING / READY / CONSUMED / FAILED
+provider_user_id       nullable
+display_name           nullable
+avatar_url             nullable
+club_id                nullable
+candidate_user_id      nullable
+link_request_id        nullable
+user_id                nullable
+failure_message        nullable
+expires_at
+consumed_at
+created_at
+updated_at
+```
+
+`oauth_state` là unique. Client verifier thật không lưu DB; chỉ hash SHA-256 được lưu. PKCE verifier cần được server giữ tạm để callback Safari đổi authorization code sang access token.
+
 ## 12. Pending session bảo mật
 
 Không đưa request ID trần ra làm credential.
@@ -446,6 +474,41 @@ Zalo Graph giới hạn dữ liệu cá nhân theo IP Việt Nam. Production Ver
 
 Access/refresh token không được lưu nếu chỉ dùng để login. PHP proxy cũng không log hoặc lưu access token.
 
+### 15.1. iOS PWA → Safari handoff
+
+Trên iOS, OAuth mở ngay trong Home Screen PWA không có cùng browser state với Safari, nên Zalo có thể không cung cấp luồng đăng nhập qua ứng dụng Zalo. Test production ngày 2026-09-22 xác nhận custom scheme `x-safari-https://...` có thể đưa navigation từ PWA sang Safari thật.
+
+FCFUND dùng handoff server-side cho riêng iOS PWA:
+
+```mermaid
+sequenceDiagram
+    participant P as FCFUND PWA
+    participant S as FCFUND Server
+    participant B as Safari
+    participant Z as Zalo OAuth
+
+    P->>P: Lưu handoff id + client verifier
+    P->>B: x-safari-https:// Zalo authorization URL
+    B->>Z: OAuth trong Safari
+    Z-->>S: callback code + state
+    S->>S: Tra handoff bằng state + PKCE verifier server-side
+    S->>S: Resolve linked / candidate / pending
+    S-->>B: Báo xác thực xong, quay lại PWA
+    P->>S: Poll handoff bằng id + client verifier
+    S-->>P: READY / LINK_REQUIRED / APPROVAL_PENDING
+```
+
+Nguyên tắc:
+
+- OAuth `state` + PKCE verifier của handoff nằm server-side trong DB; Safari không cần cookie OAuth của PWA.
+- PWA giữ một client verifier riêng; DB chỉ giữ SHA-256 của client verifier.
+- Handoff khởi tạo có TTL 10 phút; sau khi callback thành công, kết quả được giữ 30 phút để user quay lại PWA.
+- Nếu Zalo ID đã link → poll trong PWA tạo `fcfund_session` trực tiếp trong PWA rồi vào Dashboard.
+- Nếu cần xác nhận candidate → poll cấp lại signed `zalo_link_context` cookie ngay trong PWA rồi chuyển `/zalo/link`.
+- Nếu cần Admin duyệt → poll cấp signed `zalo_pending` cookie ngay trong PWA rồi chuyển `/zalo/pending`.
+- Browser Safari/Chrome bình thường vẫn dùng OAuth cookie flow cũ.
+- `x-safari-https` là workaround iOS đã test thực tế nhưng không phải Web API chuẩn/documented của Apple; cần regression-test khi nâng iOS.
+
 ## 16. Notification
 
 Event mới:
@@ -505,6 +568,11 @@ FCFUND deployment hiện phục vụ một liên đoàn/club chính. Server:
 | Target user vừa được link bởi request khác | Conflict |
 | Zalo ID vừa được link bởi request khác | Conflict |
 | Trang pending mở khi Admin approve | Tự login + Dashboard |
+| iOS PWA mở Zalo OAuth | Chuyển sang Safari thật qua handoff |
+| Safari callback của PWA handoff | Không phụ thuộc OAuth cookie của Safari/PWA |
+| PWA quay lại sau linked-user OAuth | Poll handoff → tạo session trong PWA → Dashboard |
+| PWA quay lại khi candidate rõ | Nhận link-context cookie trong PWA → /zalo/link |
+| PWA quay lại khi cần Admin duyệt | Nhận pending cookie trong PWA → /zalo/pending |
 
 ## 19. Trạng thái triển khai
 
@@ -526,13 +594,19 @@ FCFUND deployment hiện phục vụ một liên đoàn/club chính. Server:
 - Admin từ chối request;
 - polling 5 giây và tự tạo session khi APPROVED;
 - transaction + unique constraints chống link trùng;
-- feature flag và `ZALO_CLUB_ID` cho club resolution.
+- feature flag và `ZALO_CLUB_ID` cho club resolution;
+- iOS PWA → Safari bằng `x-safari-https`;
+- server-side OAuth handoff với state + PKCE;
+- PWA poll handoff và tái tạo session/link-context/pending-context ngay trong PWA.
 
 ### Cần kiểm thử production
 
-1. chạy migration production;
-2. OAuth trên Safari/iOS PWA;
-3. OAuth trên Chrome/Android PWA;
+1. chạy migration `0017_sudden_captain_britain.sql` trên production trước khi deploy code mới;
+2. iOS PWA → Safari → Zalo callback → quay lại PWA;
+3. linked Zalo user nhận session trực tiếp trong PWA;
+4. candidate rõ quay lại đúng `/zalo/link`;
+5. PENDING quay lại đúng `/zalo/pending`;
+6. OAuth trên Chrome/Android PWA;
 4. fuzzy match với dữ liệu tên thành viên thật;
 5. Push tới nhiều ADMIN;
 6. approve existing user;

@@ -2,13 +2,8 @@ import type { Metadata } from "next";
 import { requireAnonymous } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { APP_NAME } from "@/lib/constants";
-import {
-  buildZaloAuthorizationUrl,
-  createZaloCodeChallenge,
-  createZaloCodeVerifier,
-  createZaloOAuthState,
-  getZaloConfig,
-} from "@/lib/zalo-auth";
+import { isZaloLoginEnabled } from "@/lib/zalo-auth";
+import { createZaloAuthHandoff } from "@/lib/zalo-handoff";
 import { ZaloLoginLink } from "./zalo-login-link";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
@@ -16,16 +11,28 @@ export const metadata: Metadata = { title: "Đăng nhập" };
 export default async function LoginPage() {
   await requireAnonymous();
 
-  let externalZaloTestUrl = "";
-  if (process.env.ZALO_LOGIN_ENABLED === "true") {
-    const config = getZaloConfig();
-    const verifier = createZaloCodeVerifier();
-    externalZaloTestUrl = buildZaloAuthorizationUrl({
-      appId: config.appId,
-      redirectUri: config.redirectUri,
-      state: createZaloOAuthState(),
-      codeChallenge: createZaloCodeChallenge(verifier),
-    }).toString();
+  let pwaHandoff: {
+    handoffId: string;
+    verifier: string;
+    authorizationUrl: string;
+    expiresAt: string;
+  } | null = null;
+
+  if (isZaloLoginEnabled()) {
+    try {
+      const handoff = await createZaloAuthHandoff();
+      pwaHandoff = {
+        handoffId: handoff.id,
+        verifier: handoff.clientSecret,
+        authorizationUrl: handoff.authorizationUrl,
+        expiresAt: handoff.expiresAt.toISOString(),
+      };
+    } catch (error) {
+      console.error(
+        "Prepare Zalo PWA handoff failed",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+    }
   }
 
   return (
@@ -53,10 +60,10 @@ export default async function LoginPage() {
             <p>Sử dụng số điện thoại đã được Admin cấp.</p>
           </div>
           <LoginForm />
-          {process.env.ZALO_LOGIN_ENABLED === "true" && (
+          {isZaloLoginEnabled() && (
             <div className="zalo-login-poc">
               <div className="zalo-login-divider"><span>hoặc</span></div>
-              <ZaloLoginLink externalTestUrl={externalZaloTestUrl} />
+              <ZaloLoginLink pwaHandoff={pwaHandoff} />
               <p>Dùng Zalo đã liên kết hoặc xác minh thành viên trong lần đăng nhập đầu tiên.</p>
             </div>
           )}

@@ -132,6 +132,8 @@ Thiết kế Web Push nằm tại tài liệu 12. Khi triển khai production s�
 
 Migration schema phải được chạy như một bước riêng có kiểm soát. Với migration chỉ thêm bảng/cột tương thích ngược, ưu tiên migrate production DB **trước** khi deploy code mới dùng schema đó để tránh code mới query vào bảng chưa tồn tại. Không gắn `db:migrate` tùy tiện vào mọi Preview build của Vercel.
 
+Zalo PWA handoff thêm bảng `zalo_auth_handoffs` qua migration `0017_sudden_captain_britain.sql`. Migration này phải chạy production **trước** khi deploy source dùng handoff; nếu bảng chưa tồn tại, login bằng số điện thoại vẫn phải được giữ khả dụng nhưng PWA Zalo handoff sẽ không khởi tạo được.
+
 ## 8. Seed lần đầu
 
 Lệnh seed tạo:
