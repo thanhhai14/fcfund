@@ -47,13 +47,12 @@ function toSafariScheme(url: string) {
   return url;
 }
 
-function toChromeIntent(url: string) {
+function toChromeScheme(url: string) {
   try {
     const target = new URL(url);
     if (target.protocol !== "https:" && target.protocol !== "http:") return url;
 
-    const fallback = encodeURIComponent(target.toString());
-    return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=${target.protocol.slice(0, -1)};package=com.android.chrome;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${fallback};end`;
+    return `googlechrome://navigate?url=${target.toString()}`;
   } catch {
     return url;
   }
@@ -177,7 +176,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
     if (platform === "android") {
       setMessage("Đang mở Chrome để xác thực Zalo…");
-      event.currentTarget.href = toChromeIntent(pwaHandoff.authorizationUrl);
+      event.currentTarget.href = toChromeScheme(pwaHandoff.authorizationUrl);
       return;
     }
 
