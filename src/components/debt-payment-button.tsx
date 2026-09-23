@@ -35,10 +35,14 @@ export function DebtPaymentButton({
   reminderId,
   amount,
   initialMessage,
+  paymentPath,
+  testMode = false,
 }: {
   reminderId: string;
   amount: number;
   initialMessage?: string | null;
+  paymentPath?: string;
+  testMode?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [apps, setApps] = useState<BankApp[]>([]);
@@ -107,7 +111,7 @@ export function DebtPaymentButton({
         className="button primary debt-payment-button"
         onClick={() => void openPicker()}
       >
-        Thanh toán {formatMoney(amount)}
+        {testMode ? "Thanh toán thử" : "Thanh toán"} {formatMoney(amount)}
       </button>
 
       {message && <p className="panel-note debt-payment-message">{message}</p>}
@@ -128,9 +132,12 @@ export function DebtPaymentButton({
           >
             <header className="bank-picker-header">
               <div>
-                <span className="eyebrow">Thanh toán công nợ</span>
+                <span className="eyebrow">{testMode ? "Kiểm tra thanh toán" : "Thanh toán công nợ"}</span>
                 <h2 id="bank-picker-title">Chọn ứng dụng ngân hàng</h2>
-                <p>{formatMoney(amount)} · Mỗi lần thanh toán đều chọn lại ngân hàng.</p>
+                <p>
+                  {formatMoney(amount)} · Mỗi lần thanh toán đều chọn lại ngân hàng.
+                  {testMode ? " Đây là deeplink thật; chỉ xác nhận trong app ngân hàng nếu bạn muốn chuyển thử 1.000đ." : ""}
+                </p>
               </div>
               <button
                 type="button"
@@ -169,7 +176,7 @@ export function DebtPaymentButton({
                 <a
                   key={app.appId}
                   className="bank-picker-item"
-                  href={`/api/payments/debt-reminder/${encodeURIComponent(reminderId)}?app=${encodeURIComponent(app.appId)}`}
+                  href={`${paymentPath ?? `/api/payments/debt-reminder/${encodeURIComponent(reminderId)}`}?app=${encodeURIComponent(app.appId)}`}
                 >
                   <span className="bank-picker-logo">
                     {app.appLogo

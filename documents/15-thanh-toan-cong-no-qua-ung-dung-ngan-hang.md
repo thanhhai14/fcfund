@@ -481,6 +481,31 @@ PWA/Safari
 
 Danh sách app/deeplink phải dùng tập dữ liệu dành riêng cho iOS.
 
+### Kiểm tra thông báo / Thử nhắc nợ
+
+Luồng **Kiểm tra thông báo → Thử nhắc nợ** cũng dùng bank picker và VietQR deeplink thật để kiểm tra end-to-end.
+
+Quy tắc riêng của chế độ test:
+
+- Số tiền deeplink luôn cố định ở **1.000đ**.
+- Không lấy công nợ thật của User.
+- Không tạo hoặc cập nhật `MEMBER_PAYMENT`.
+- Không thay đổi số dư/công nợ trong FCFund.
+- Mỗi lần bấm **Thanh toán thử 1.000đ** vẫn luôn hỏi chọn ngân hàng.
+- App ngân hàng được mở thật; giao dịch ngân hàng chỉ xảy ra nếu User tiếp tục xác nhận trong app ngân hàng.
+- Nội dung chuyển khoản vẫn dùng cùng format production:
+  `<Tên Đội Bóng> <Tên Thành Viên> DD-MM-YYYY`.
+- Nếu tài khoản test chưa liên kết Member, tên hiển thị của User được dùng làm fallback cho phần tên trong nội dung chuyển khoản.
+- UI phải cảnh báo rõ đây là deeplink thật với số tiền 1.000đ để tránh User vô tình xác nhận giao dịch.
+
+Route triển khai:
+
+```text
+/api/payments/debt-reminder-test/<notificationEventId>?app=<appId>
+```
+
+Route chỉ chấp nhận event `DEBT_REMINDER_TEST` thuộc đúng User/Club đang đăng nhập và không nhận amount từ client.
+
 ## 13. Trạng thái và lỗi cần xử lý
 
 ### Club chưa cấu hình ngân hàng

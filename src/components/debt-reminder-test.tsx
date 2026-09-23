@@ -13,7 +13,7 @@ export function DebtReminderTest({ recipients }: { recipients: Recipient[] }) {
   async function sendTest() {
     const recipient = recipients.find((item) => item.id === recipientId);
     if (!recipient) return;
-    if (!window.confirm(`Gửi thông báo nhắc nợ MÔ PHỎNG cho ${recipient.name}?\nThông báo này không tạo nợ hoặc giao dịch thật.`)) return;
+    if (!window.confirm(`Gửi thông báo nhắc nợ MÔ PHỎNG cho ${recipient.name}?\nThông báo này không tạo nợ hoặc giao dịch FCFund. Trang mô phỏng có nút thử deeplink ngân hàng thật với số tiền cố định 1.000đ.`)) return;
     setPending(true);
     try {
       const response = await fetch("/api/debt-reminders/test", {
@@ -38,7 +38,7 @@ export function DebtReminderTest({ recipients }: { recipients: Recipient[] }) {
 
   return <article className="panel debt-reminder-test-panel">
     <div className="panel-heading"><div><span className="eyebrow">Kiểm tra thông báo</span><h2>Thử nhắc nợ</h2></div></div>
-    <p className="panel-note">Chọn một tài khoản nhận thông báo mẫu. Người nhận có thể mở Hộp thư để xem màn hình nhắc nợ và QR; số tiền ví dụ là 100.000 đ. Không tạo nợ, không ghi nhận tiền và không tính vào giới hạn nhắc nợ 60 phút.</p>
+    <p className="panel-note">Chọn một tài khoản nhận thông báo mẫu. Người nhận có thể mở Hộp thư và thử deeplink ngân hàng thật với số tiền cố định 1.000đ. FCFund không tạo nợ, không tự ghi nhận tiền và không tính vào giới hạn nhắc nợ 60 phút; giao dịch chỉ xảy ra nếu người nhận xác nhận trong app ngân hàng.</p>
     <div className="form-stack"><label>Tài khoản nhận<select value={recipientId} onChange={(event) => setRecipientId(event.target.value)}><option value="">Chọn một tài khoản</option>{recipients.map((recipient) => <option value={recipient.id} key={recipient.id}>{recipient.name} · {recipient.phone}</option>)}</select></label>
       <button type="button" className="button secondary" disabled={!recipientId || pending} onClick={sendTest}>{pending ? "Đang gửi…" : "Gửi nhắc nợ mô phỏng"}</button></div>
   </article>;
