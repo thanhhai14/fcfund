@@ -26,6 +26,7 @@ const mobileNavItems = [
   { href: "/matches", label: "Trận", icon: "futbol" },
   { href: "/charges", label: "Khoản thu", icon: "coins" },
   { href: "/reports", label: "Báo cáo", icon: "chart" },
+  { href: "/notifications", label: "Hộp thư", icon: "bell" },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -61,7 +62,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const visibleMobileNavItems = mobileNavItems.filter((item) => mobileNavRoutes.includes(item.href));
+  const visibleMobileNavItems = mobileNavItems.filter((item) => item.href === "/notifications" || mobileNavRoutes.includes(item.href));
   const mobilePrimaryActive = visibleMobileNavItems.some((item) => isActivePath(pathname, item.href));
 
   return (
@@ -114,7 +115,6 @@ export function AppShell({
         aria-label="Đóng menu"
       />
       <main className="app-main">
-        {!isActivePath(pathname, "/notifications") && <Link href="/notifications" className="notification-shortcut" aria-label={`Hộp thư, ${unreadNotifications} thông báo chưa đọc`}><Icon name="bell" />{unreadNotifications > 0 && <b>{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}</Link>}
         <button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Mở menu">
           <Icon name="menu" />
         </button>
@@ -132,10 +132,12 @@ export function AppShell({
               key={item.href}
               className={active ? "active" : ""}
               aria-current={active ? "page" : undefined}
+              aria-label={item.href === "/notifications" ? `Hộp thư, ${unreadNotifications} thông báo chưa đọc` : undefined}
               onClick={() => setOpen(false)}
             >
               <Icon name={item.icon} />
               <span>{item.label}</span>
+              {item.href === "/notifications" && unreadNotifications > 0 && <b className="mobile-notification-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}
             </Link>
           );
         })}

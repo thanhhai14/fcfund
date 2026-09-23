@@ -1621,6 +1621,23 @@ label>textarea {
     font-size: 19px;
   }
 
+  .mobile-notification-badge {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 5px);
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #fff;
+    background: var(--brand-primary);
+    font-size: 9px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
   .mobile-bottom-nav a::before,
   .mobile-bottom-nav button::before {
     content: "";
@@ -10836,8 +10853,7 @@ html[data-navigation-pending="true"] .app-main::after {
 }
 
 /* Inbox and per-member debt reminder */
-.notification-badge,
-.notification-shortcut b {
+.notification-badge {
   margin-left: auto;
   min-width: 21px;
   height: 21px;
@@ -10848,20 +10864,6 @@ html[data-navigation-pending="true"] .app-main::after {
   background: var(--brand-primary);
   font-size: 11px;
   border-radius: 11px;
-}
-
-.notification-shortcut {
-  position: absolute;
-  top: 23px;
-  right: 25px;
-  z-index: 5;
-  display: none;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 10px;
-  color: var(--ink);
-  background: #fff;
-  border: 1px solid var(--line);
 }
 
 .notification-page { width: min(1120px, 100%); margin-inline: auto; }
@@ -10939,7 +10941,6 @@ thead .debt-reminder-sticky { z-index: 5; background: #f7f9fb !important; }
 }
 
 @media (max-width: 600px) {
-  .notification-shortcut { display: flex; top: 18px; right: 15px; }
   .notification-page-header { padding-right: 0; }
   .balance-period-card>header { grid-template-columns: 32px minmax(0, 1fr) auto; }
   .balance-period-card>header .debt-reminder-control { grid-column: 3; }

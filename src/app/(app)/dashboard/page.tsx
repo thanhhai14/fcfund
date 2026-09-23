@@ -114,7 +114,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         eyebrow={formatLongDate()}
-        title={`Chào ${user.displayName.split(" ").slice(-1)[0] ?? "bạn"}!`}
+        title={`Chào ${user.displayName.trim() || "bạn"}!`}
         description="Đây là tình hình quỹ và công nợ mới nhất của đội."
       />
 
