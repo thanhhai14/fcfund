@@ -53,7 +53,7 @@ function toChromeIntent(url: string) {
     if (target.protocol !== "https:" && target.protocol !== "http:") return url;
 
     const fallback = encodeURIComponent(target.toString());
-    return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=${target.protocol.slice(0, -1)};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+    return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=${target.protocol.slice(0, -1)};package=com.android.chrome;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;S.browser_fallback_url=${fallback};end`;
   } catch {
     return url;
   }
@@ -160,14 +160,14 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
     const platform = getStandalonePlatform();
     if (!platform) return;
 
-    event.preventDefault();
-
     if (!pwaHandoff) {
+      event.preventDefault();
       setMessage("Không thể chuẩn bị phiên đăng nhập Zalo. Hãy tải lại ứng dụng và thử lại.");
       return;
     }
 
     if (Date.parse(pwaHandoff.expiresAt) <= Date.now()) {
+      event.preventDefault();
       setMessage("Phiên đăng nhập đã hết hạn. Đang tải lại để tạo phiên mới…");
       window.setTimeout(() => window.location.reload(), 500);
       return;
@@ -177,10 +177,11 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
     if (platform === "android") {
       setMessage("Đang mở Chrome để xác thực Zalo…");
-      window.location.assign(toChromeIntent(pwaHandoff.authorizationUrl));
+      event.currentTarget.href = toChromeIntent(pwaHandoff.authorizationUrl);
       return;
     }
 
+    event.preventDefault();
     setMessage("Đang mở Safari để xác thực Zalo…");
     window.location.assign(toSafariScheme(pwaHandoff.authorizationUrl));
   }
