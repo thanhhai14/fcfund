@@ -399,6 +399,325 @@ label>textarea {
   line-height: 1.5;
 }
 
+.zalo-android-guide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(4, 25, 42, .68);
+  backdrop-filter: blur(8px);
+}
+
+.zalo-android-guide {
+  width: min(620px, 100%);
+  max-height: min(860px, calc(100dvh - 36px));
+  overflow: auto;
+  border: 1px solid rgba(4, 47, 82, .12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(4, 25, 42, .28);
+  text-align: left;
+}
+
+.zalo-android-guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.zalo-android-guide-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #0068ff;
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: -.02em;
+}
+
+.zalo-android-guide-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f6f9;
+  color: #29445a;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zalo-android-guide-intro {
+  padding: 22px 22px 12px;
+}
+
+.zalo-android-guide-intro h2 {
+  margin: 5px 0 8px;
+  font-size: clamp(22px, 5vw, 30px);
+  letter-spacing: -.035em;
+}
+
+.zalo-login-poc .zalo-android-guide-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.zalo-android-guide-steps {
+  display: grid;
+  gap: 12px;
+  padding: 8px 22px 20px;
+}
+
+.zalo-android-guide-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px 12px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfcfd;
+}
+
+.zalo-android-step-number {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.zalo-android-step-copy {
+  min-width: 0;
+}
+
+.zalo-android-step-copy strong,
+.zalo-android-step-copy span {
+  display: block;
+}
+
+.zalo-android-step-copy strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.zalo-android-step-copy span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.zalo-android-browser-mock,
+.zalo-android-menu-mock,
+.zalo-android-zalo-mock {
+  grid-column: 2;
+  margin-top: 4px;
+}
+
+.zalo-android-browser-mock {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid #dbe3e9;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(4, 25, 42, .06);
+}
+
+.zalo-android-browser-lock {
+  color: #8293a2;
+  font-size: 7px;
+}
+
+.zalo-android-browser-address {
+  overflow: hidden;
+  color: #42596b;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zalo-android-browser-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: #0068ff;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.zalo-android-browser-menu::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 2px solid rgba(0, 104, 255, .24);
+  border-radius: 50%;
+}
+
+.zalo-android-menu-mock {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid #dbe3e9;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(4, 25, 42, .06);
+}
+
+.zalo-android-menu-mock span {
+  color: #6c7f8e;
+  font-size: 9px;
+}
+
+.zalo-android-menu-mock strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 9px;
+  border-radius: 9px;
+  background: #eef5ff;
+  color: #005bd8;
+  font-size: 10px;
+}
+
+.zalo-android-menu-mock i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  font-style: normal;
+  font-size: 14px;
+}
+
+.zalo-android-zalo-mock {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #dce7f7;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.zalo-android-zalo-mock span {
+  color: #0068ff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.zalo-android-zalo-mock strong {
+  width: min(260px, 100%);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #0068ff;
+  color: white;
+  text-align: center;
+  font-size: 10px;
+}
+
+.zalo-android-guide-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 0 22px;
+}
+
+.zalo-android-guide-continue,
+.zalo-android-guide-cancel {
+  min-height: 46px;
+}
+
+.zalo-android-guide-continue {
+  justify-content: center;
+  background: #0068ff;
+  border-color: #0068ff;
+  color: white;
+  text-decoration: none;
+}
+
+.zalo-android-guide-cancel {
+  min-width: 88px;
+}
+
+.zalo-login-poc .zalo-android-guide-note {
+  margin: 12px 22px 20px;
+  color: var(--muted);
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 560px) {
+  .zalo-android-guide-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .zalo-android-guide {
+    width: 100%;
+    max-height: 92dvh;
+    border-width: 1px 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .zalo-android-guide-intro {
+    padding: 18px 16px 10px;
+  }
+
+  .zalo-android-guide-steps {
+    padding: 6px 16px 16px;
+  }
+
+  .zalo-android-guide-step {
+    padding: 13px;
+  }
+
+  .zalo-android-guide-actions {
+    grid-template-columns: 1fr;
+    padding: 0 16px;
+  }
+
+  .zalo-android-guide-cancel {
+    order: 2;
+    width: 100%;
+  }
+
+  .zalo-login-poc .zalo-android-guide-note {
+    margin: 10px 16px 18px;
+  }
+}
+
 .zalo-auth-page {
   background: linear-gradient(180deg, #f7fbff 0%, #f5f7fa 100%);
 }

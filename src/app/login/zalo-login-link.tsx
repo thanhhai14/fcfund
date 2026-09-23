@@ -74,6 +74,7 @@ function readStoredHandoff(): Handoff | null {
 
 export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
   const [message, setMessage] = useState("");
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -144,36 +145,69 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
     };
   }, []);
 
-  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    const platform = getStandalonePlatform();
-    if (!platform) return;
+  useEffect(() => {
+    if (!showAndroidGuide) return;
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowAndroidGuide(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showAndroidGuide]);
+
+  function validateHandoff(event: MouseEvent<HTMLElement>) {
     if (!pwaHandoff) {
       event.preventDefault();
+      setShowAndroidGuide(false);
       setMessage("Không thể chuẩn bị phiên đăng nhập Zalo. Hãy tải lại ứng dụng và thử lại.");
-      return;
+      return false;
     }
 
     if (Date.parse(pwaHandoff.expiresAt) <= Date.now()) {
       event.preventDefault();
+      setShowAndroidGuide(false);
       setMessage("Phiên đăng nhập đã hết hạn. Đang tải lại để tạo phiên mới…");
       window.setTimeout(() => window.location.reload(), 500);
-      return;
+      return false;
     }
 
-    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
+    return true;
+  }
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    const platform = getStandalonePlatform();
+    if (!platform) return;
+
+    if (!validateHandoff(event)) return;
 
     if (platform === "android") {
-      setMessage("Đang mở Chrome để xác thực Zalo…");
-      event.currentTarget.href = pwaHandoff.authorizationUrl;
-      event.currentTarget.target = "_blank";
-      event.currentTarget.rel = "noopener noreferrer";
+      event.preventDefault();
+      setMessage("");
+      setShowAndroidGuide(true);
       return;
     }
 
     event.preventDefault();
+    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
     setMessage("Đang mở Safari để xác thực Zalo…");
-    window.location.assign(toSafariScheme(pwaHandoff.authorizationUrl));
+    window.location.assign(toSafariScheme(pwaHandoff!.authorizationUrl));
+  }
+
+  function handleAndroidContinue(event: MouseEvent<HTMLAnchorElement>) {
+    if (!validateHandoff(event)) return;
+
+    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
+    setShowAndroidGuide(false);
+    setMessage("Đang chờ bạn hoàn tất xác thực Zalo trong Chrome…");
   }
 
   return (
@@ -185,7 +219,111 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
       >
         Đăng nhập bằng Zalo
       </a>
+
       {message && <p className="form-message" role="status">{message}</p>}
+
+      {showAndroidGuide && pwaHandoff && (
+        <div
+          className="zalo-android-guide-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowAndroidGuide(false);
+            }
+          }}
+        >
+          <section
+            className="zalo-android-guide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="zalo-android-guide-title"
+            aria-describedby="zalo-android-guide-description"
+          >
+            <header className="zalo-android-guide-header">
+              <span className="zalo-android-guide-logo">Zalo</span>
+              <button
+                type="button"
+                className="zalo-android-guide-close"
+                onClick={() => setShowAndroidGuide(false)}
+                aria-label="Đóng hướng dẫn"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="zalo-android-guide-intro">
+              <span className="eyebrow">Android PWA</span>
+              <h2 id="zalo-android-guide-title">Mở Zalo bằng Chrome</h2>
+              <p id="zalo-android-guide-description">
+                Sau khi trang Zalo xuất hiện, làm 3 bước dưới đây để dùng nút đăng nhập bằng ứng dụng Zalo.
+              </p>
+            </div>
+
+            <div className="zalo-android-guide-steps">
+              <article className="zalo-android-guide-step">
+                <span className="zalo-android-step-number">1</span>
+                <div className="zalo-android-step-copy">
+                  <strong>Nhấn menu 3 chấm</strong>
+                  <span>Ở góc trên bên phải của trang Zalo.</span>
+                </div>
+                <div className="zalo-android-browser-mock" aria-hidden="true">
+                  <span className="zalo-android-browser-lock">●</span>
+                  <span className="zalo-android-browser-address">id.zalo.me</span>
+                  <b className="zalo-android-browser-menu">⋮</b>
+                </div>
+              </article>
+
+              <article className="zalo-android-guide-step">
+                <span className="zalo-android-step-number">2</span>
+                <div className="zalo-android-step-copy">
+                  <strong>Chọn “Mở bằng Chrome”</strong>
+                  <span>Trang đăng nhập sẽ chuyển sang ứng dụng Chrome.</span>
+                </div>
+                <div className="zalo-android-menu-mock" aria-hidden="true">
+                  <span>Chia sẻ…</span>
+                  <span>Tìm trong trang</span>
+                  <strong><i>◎</i> Mở bằng Chrome</strong>
+                </div>
+              </article>
+
+              <article className="zalo-android-guide-step">
+                <span className="zalo-android-step-number">3</span>
+                <div className="zalo-android-step-copy">
+                  <strong>Đăng nhập bằng ứng dụng Zalo</strong>
+                  <span>Trong Chrome, bấm nút màu xanh của Zalo.</span>
+                </div>
+                <div className="zalo-android-zalo-mock" aria-hidden="true">
+                  <span>ZALO</span>
+                  <strong>Đăng nhập bằng ứng dụng Zalo</strong>
+                </div>
+              </article>
+            </div>
+
+            <div className="zalo-android-guide-actions">
+              <a
+                className="button primary zalo-android-guide-continue"
+                href={pwaHandoff.authorizationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleAndroidContinue}
+              >
+                Đã hiểu – Mở Zalo
+              </a>
+              <button
+                type="button"
+                className="button secondary zalo-android-guide-cancel"
+                onClick={() => setShowAndroidGuide(false)}
+              >
+                Hủy
+              </button>
+            </div>
+
+            <p className="zalo-android-guide-note">
+              Sau khi vào Chrome, FCFUND sẽ tự tiếp tục đăng nhập khi Zalo xác thực xong.
+            </p>
+          </section>
+        </div>
+      )}
     </>
   );
 }
