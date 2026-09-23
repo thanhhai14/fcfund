@@ -10932,6 +10932,8 @@ thead .debt-reminder-sticky { z-index: 5; background: #f7f9fb !important; }
 .debt-reminder-detail dl div { display: flex; gap: 10px; flex-wrap: wrap; }
 .debt-reminder-detail dt { min-width: 135px; color: var(--muted); }
 .debt-reminder-detail dd { margin: 0; font-weight: 700; }
+.debt-reminder-detail .copy-bank-account-button { margin-bottom: 16px; }
+.debt-reminder-detail .copy-bank-account-button + .panel-note { margin-top: 0; }
 .debt-payment { display: grid; gap: 8px; margin: 18px 0 22px; }
 .debt-payment-button { width: 100%; min-height: 48px; justify-content: center; font-weight: 800; }
 .debt-payment-message { margin: 0; }
