@@ -20,14 +20,24 @@ type HandoffStatus = {
   message?: string;
 };
 
+type StandalonePlatform = "ios" | "android" | null;
+
 const HANDOFF_STORAGE_KEY = "fcfund_zalo_handoff_v1";
 
-function isIosStandalone() {
+function getStandalonePlatform(): StandalonePlatform {
   const standalone = window.matchMedia("(display-mode: standalone)").matches
     || (window.navigator as NavigatorWithStandalone).standalone === true;
+
+  if (!standalone) return null;
+
+  if (/Android/i.test(window.navigator.userAgent)) {
+    return "android";
+  }
+
   const ios = /iPad|iPhone|iPod/.test(window.navigator.userAgent)
     || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
-  return standalone && ios;
+
+  return ios ? "ios" : null;
 }
 
 function toSafariScheme(url: string) {
@@ -35,6 +45,18 @@ function toSafariScheme(url: string) {
     return `x-safari-${url}`;
   }
   return url;
+}
+
+function toChromeIntent(url: string) {
+  try {
+    const target = new URL(url);
+    if (target.protocol !== "https:" && target.protocol !== "http:") return url;
+
+    const fallback = encodeURIComponent(target.toString());
+    return `intent://${target.host}${target.pathname}${target.search}#Intent;scheme=${target.protocol.slice(0, -1)};package=com.android.chrome;S.browser_fallback_url=${fallback};end`;
+  } catch {
+    return url;
+  }
 }
 
 function readStoredHandoff(): Handoff | null {
@@ -87,7 +109,12 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
         if (!active || !data) return;
 
         if (data.status === "PENDING") {
-          setMessage("Đang chờ bạn hoàn tất xác thực Zalo trong Safari…");
+          const platform = getStandalonePlatform();
+          setMessage(
+            platform === "android"
+              ? "Đang chờ bạn hoàn tất xác thực Zalo trong Chrome…"
+              : "Đang chờ bạn hoàn tất xác thực Zalo trong Safari…",
+          );
           return;
         }
 
@@ -130,7 +157,8 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
   }, []);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (!isIosStandalone()) return;
+    const platform = getStandalonePlatform();
+    if (!platform) return;
 
     event.preventDefault();
 
@@ -146,6 +174,13 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
     }
 
     window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
+
+    if (platform === "android") {
+      setMessage("Đang mở Chrome để xác thực Zalo…");
+      window.location.assign(toChromeIntent(pwaHandoff.authorizationUrl));
+      return;
+    }
+
     setMessage("Đang mở Safari để xác thực Zalo…");
     window.location.assign(toSafariScheme(pwaHandoff.authorizationUrl));
   }

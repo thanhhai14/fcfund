@@ -72,7 +72,12 @@ function htmlResponse(title: string, body: string, status = 200) {
   );
 }
 
-function handoffCompleteResponse(message: string) {
+function handoffCompleteResponse(request: NextRequest, message: string) {
+  const userAgent = request.headers.get("user-agent") ?? "";
+  if (/Android/i.test(userAgent)) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   return htmlResponse(
     "Đã xác thực Zalo",
     `<h1>Đã xác thực Zalo</h1><p>${escapeHtml(message)}</p><p>Bạn có thể quay lại ứng dụng Trại Làng FC. Ứng dụng sẽ tự tiếp tục.</p>`,
@@ -179,7 +184,7 @@ export async function GET(request: NextRequest) {
 
       if (handoff) {
         await markZaloHandoffReady(handoff.id, linked.userId, profile);
-        return clearOAuthCookies(handoffCompleteResponse("Tài khoản FCFUND đã được nhận diện thành công."));
+        return clearOAuthCookies(handoffCompleteResponse(request, "Tài khoản FCFUND đã được nhận diện thành công."));
       }
 
       await createSession({
@@ -205,6 +210,7 @@ export async function GET(request: NextRequest) {
           linkRequestId: pending.id,
         });
         return clearOAuthCookies(handoffCompleteResponse(
+          request,
           "Yêu cầu liên kết của bạn đang chờ Chủ Tịch Fifa duyệt.",
         ));
       }
@@ -228,6 +234,7 @@ export async function GET(request: NextRequest) {
           candidateUserId: candidate.userId,
         });
         return clearOAuthCookies(handoffCompleteResponse(
+          request,
           "Đã tìm thấy thành viên phù hợp. Quay lại ứng dụng để xác nhận tài khoản.",
         ));
       }
@@ -266,6 +273,7 @@ export async function GET(request: NextRequest) {
         linkRequestId: linkRequest.id,
       });
       return clearOAuthCookies(handoffCompleteResponse(
+        request,
         "Đã gửi yêu cầu liên kết. Quay lại ứng dụng để theo dõi trạng thái duyệt.",
       ));
     }
