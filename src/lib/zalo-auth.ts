@@ -10,6 +10,8 @@ const PKCE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 export const ZALO_OAUTH_STATE_COOKIE = "zalo_oauth_state";
 export const ZALO_OAUTH_VERIFIER_COOKIE = "zalo_pkce_verifier";
 export const ZALO_OAUTH_COOKIE_MAX_AGE = 10 * 60;
+export const ZALO_ANDROID_READY_COOKIE = "zalo_android_ready";
+export const ZALO_ANDROID_READY_MAX_AGE = 60 * 60 * 24 * 30;
 
 type ZaloTokenResponse = {
   access_token?: string;

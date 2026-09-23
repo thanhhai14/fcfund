@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { and, eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { zaloLinkRequests } from "@/db/schema";
 import { requireAnonymous } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { APP_NAME } from "@/lib/constants";
-import { isZaloLoginEnabled } from "@/lib/zalo-auth";
+import {
+  isZaloLoginEnabled,
+  ZALO_ANDROID_READY_COOKIE,
+} from "@/lib/zalo-auth";
 import { createZaloAuthHandoff } from "@/lib/zalo-handoff";
 import { readZaloPendingSession } from "@/lib/zalo-linking";
 import { ZaloLoginLink } from "./zalo-login-link";
@@ -22,6 +26,8 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const androidRetry14019 = params.zaloRetry === "14019";
+  const cookieStore = await cookies();
+  const androidZaloReady = cookieStore.get(ZALO_ANDROID_READY_COOKIE)?.value === "1";
 
   const pendingSession = await readZaloPendingSession();
   if (pendingSession) {
@@ -94,6 +100,7 @@ export default async function LoginPage({
               <ZaloLoginLink
                 pwaHandoff={pwaHandoff}
                 androidRetry14019={androidRetry14019}
+                androidZaloReady={androidZaloReady}
               />
               <p>Dùng Zalo đã liên kết hoặc xác minh thành viên trong lần đăng nhập đầu tiên.</p>
             </div>

@@ -13,6 +13,16 @@ type NavigatorWithStandalone = Navigator & {
   standalone?: boolean;
 };
 
+type InstalledRelatedApp = {
+  platform?: string;
+  id?: string;
+  url?: string;
+};
+
+type NavigatorWithInstalledRelatedApps = Navigator & {
+  getInstalledRelatedApps?: () => Promise<InstalledRelatedApp[]>;
+};
+
 function SafariGuideIcon() {
   return (
     <svg className="pwa-ios-guide-icon safari" viewBox="0 0 5120 5120" aria-hidden="true">
@@ -82,15 +92,13 @@ function isMobileDevice() {
 
 export function PwaInstallPrompt() {
   const deferredPrompt = useRef<InstallPromptEvent | null>(null);
-  const [mode, setMode] = useState<"hidden" | "android" | "ios">("hidden");
+  const [mode, setMode] = useState<"hidden" | "android" | "ios" | "installed">("hidden");
   const [canPrompt, setCanPrompt] = useState(false);
 
   useEffect(() => {
     if (isStandalone() || /Zalo/i.test(navigator.userAgent) || !isMobileDevice()) return;
 
-    const gateTimer = window.setTimeout(() => {
-      setMode(isIosDevice() ? "ios" : "android");
-    }, 0);
+    let cancelled = false;
 
     function handleBeforeInstallPrompt(event: Event) {
       event.preventDefault();
@@ -102,13 +110,45 @@ export function PwaInstallPrompt() {
     function handleInstalled() {
       deferredPrompt.current = null;
       setCanPrompt(false);
-      setMode("hidden");
+      setMode("installed");
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleInstalled);
 
+    const gateTimer = window.setTimeout(() => {
+      void (async () => {
+        if (isIosDevice()) {
+          if (!cancelled) setMode("ios");
+          return;
+        }
+
+        const relatedAppsNavigator = navigator as NavigatorWithInstalledRelatedApps;
+        if (/Android/i.test(navigator.userAgent) && relatedAppsNavigator.getInstalledRelatedApps) {
+          try {
+            const installedApps = await relatedAppsNavigator.getInstalledRelatedApps();
+            if (cancelled) return;
+
+            const pwaInstalled = installedApps.some((app) => app.platform === "webapp");
+            if (pwaInstalled) {
+              deferredPrompt.current = null;
+              setCanPrompt(false);
+              setMode("installed");
+              return;
+            }
+          } catch {
+            // Fall back to beforeinstallprompt/manual instructions below.
+          }
+        }
+
+        if (!cancelled && !deferredPrompt.current) {
+          setMode("android");
+        }
+      })();
+    }, 0);
+
     return () => {
+      cancelled = true;
       window.clearTimeout(gateTimer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
@@ -120,9 +160,12 @@ export function PwaInstallPrompt() {
     if (!prompt) return;
 
     await prompt.prompt();
-    await prompt.userChoice;
+    const choice = await prompt.userChoice;
     deferredPrompt.current = null;
     setCanPrompt(false);
+    if (choice.outcome === "accepted") {
+      setMode("installed");
+    }
   }
 
   function dismiss() {
@@ -145,26 +188,48 @@ export function PwaInstallPrompt() {
         <div className="pwa-install-brand">
           <img src="/icon-192.png" alt="" width="64" height="64" />
           <div>
-            <span className="eyebrow">Gợi ý cài đặt</span>
-            <strong>Cài {APP_NAME} trên điện thoại</strong>
-            <p>Cài PWA để mở nhanh như ứng dụng, dùng toàn màn hình và có trải nghiệm ổn định hơn.</p>
+            <span className="eyebrow">
+              {mode === "installed" ? "Ứng dụng đã được cài" : "Gợi ý cài đặt"}
+            </span>
+            <strong>
+              {mode === "installed" ? `${APP_NAME} đã có trên điện thoại` : `Cài ${APP_NAME} trên điện thoại`}
+            </strong>
+            <p>
+              {mode === "installed"
+                ? "Mở liên kết bằng ứng dụng đã cài để dùng giao diện toàn màn hình và tiếp tục đúng phiên làm việc."
+                : "Cài PWA để mở nhanh như ứng dụng, dùng toàn màn hình và có trải nghiệm ổn định hơn."}
+            </p>
           </div>
         </div>
 
-        {mode === "android" ? (
+        {mode === "installed" ? (
           <>
-            <button
+            <a
               className="button primary wide"
-              type="button"
-              onClick={installAndroid}
-              disabled={!canPrompt}
+              href="/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {canPrompt ? "Cài ứng dụng" : "Đang chuẩn bị cài đặt…"}
-            </button>
-            {!canPrompt && (
+              Mở bằng ứng dụng
+            </a>
+            <small className="pwa-install-note">
+              Nếu Android hỏi cách mở liên kết, hãy chọn {APP_NAME} để tiếp tục trong ứng dụng.
+            </small>
+          </>
+        ) : mode === "android" ? (
+          <>
+            {canPrompt ? (
+              <button
+                className="button primary wide"
+                type="button"
+                onClick={installAndroid}
+              >
+                Cài ứng dụng
+              </button>
+            ) : (
               <div className="pwa-install-manual">
-                <strong>Nếu nút cài chưa xuất hiện</strong>
-                <p>Mở trang bằng Chrome, nhấn <b>⋮</b> → <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</p>
+                <strong>Cài bằng menu Chrome</strong>
+                <p>Nhấn <b>⋮</b> → <b>Cài đặt ứng dụng</b> hoặc <b>Thêm vào màn hình chính</b>.</p>
               </div>
             )}
             <small className="pwa-install-note">

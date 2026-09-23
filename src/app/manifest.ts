@@ -9,6 +9,12 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     start_url: "/dashboard",
     scope: "/",
+    related_applications: [
+      {
+        platform: "webapp",
+        url: "/manifest.webmanifest",
+      },
+    ],
     display: "standalone",
     background_color: "#f7f4f5",
     theme_color: "#06385f",

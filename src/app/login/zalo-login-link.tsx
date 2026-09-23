@@ -75,9 +75,11 @@ function readStoredHandoff(): Handoff | null {
 export function ZaloLoginLink({
   pwaHandoff,
   androidRetry14019 = false,
+  androidZaloReady = false,
 }: {
   pwaHandoff: Handoff | null;
   androidRetry14019?: boolean;
+  androidZaloReady?: boolean;
 }) {
   const [message, setMessage] = useState("");
   const [showAndroidGuide, setShowAndroidGuide] = useState(androidRetry14019);
@@ -199,8 +201,14 @@ export function ZaloLoginLink({
     if (!platform) return;
 
     if (platform === "android") {
-      event.preventDefault();
       window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
+
+      if (androidZaloReady && !androidRetry14019) {
+        setMessage("Đang đăng nhập bằng phiên Zalo đã có…");
+        return;
+      }
+
+      event.preventDefault();
       setMessage("");
       setShowAndroidGuide(true);
       return;
