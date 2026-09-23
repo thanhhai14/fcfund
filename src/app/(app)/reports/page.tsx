@@ -75,8 +75,9 @@ export default async function ReportsPage({
   const [club] = await db.select({
     name: clubs.name,
     logoUrl: clubs.logoUrl,
-    qrUrl: clubs.qrUrl,
     bankName: clubs.bankName,
+    bankCode: clubs.bankCode,
+    bankBin: clubs.bankBin,
     bankAccountNumber: clubs.bankAccountNumber,
     bankAccountHolder: clubs.bankAccountHolder,
     updatedAt: clubs.updatedAt,
@@ -321,7 +322,7 @@ export default async function ReportsPage({
           toLabel={balanceToLabel}
           canRemind={canRemind}
           currentMonth={currentMonth}
-          paymentReady={!!(club?.qrUrl && club.bankName && club.bankAccountNumber && club.bankAccountHolder)}
+          paymentReady={!!(club?.bankCode && club.bankBin && club.bankAccountNumber && club.bankAccountHolder)}
         />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>

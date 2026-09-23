@@ -4,6 +4,8 @@ const VIETQR_BANKS_URL = "https://api.vietqr.io/v2/banks";
 const VIETQR_ANDROID_APPS_URL = "https://api.vietqr.io/v2/android-app-deeplinks";
 const VIETQR_IOS_APPS_URL = "https://api.vietqr.io/v2/ios-app-deeplinks";
 const VIETQR_PAY_URL = "https://dl.vietqr.io/pay";
+const VIETQR_IMAGE_URL = "https://img.vietqr.io/image";
+export const VIETQR_QR_TEMPLATE = "LAZD3qS";
 const CACHE_SECONDS = 24 * 60 * 60;
 
 export type VietQrBank = {
@@ -195,6 +197,41 @@ export function buildDebtTransferContent(input: {
   }
 
   return fitTransferSegments(input.clubName, input.memberName, `${day}${month}${year}`);
+}
+
+export function buildVietQrQuickLink(input: {
+  bankBin: string;
+  bankAccountNumber: string;
+  amount: number;
+  transferContent: string;
+  bankAccountHolder: string;
+  template?: string;
+}) {
+  if (!/^\d{6}$/.test(input.bankBin.trim())) {
+    throw new Error("BIN ngân hàng không hợp lệ.");
+  }
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
+    throw new Error("Số tiền thanh toán không hợp lệ.");
+  }
+
+  const account = input.bankAccountNumber.replace(/\s+/g, "").trim();
+  const holder = normalizeBankText(input.bankAccountHolder).toUpperCase().slice(0, 50).trim();
+  const transferContent = normalizeBankText(input.transferContent)
+    .slice(0, TRANSFER_NOTE_MAX_LENGTH)
+    .trim();
+  const template = (input.template ?? VIETQR_QR_TEMPLATE).trim();
+
+  if (!account || account.length > 19 || !holder || !transferContent || !template) {
+    throw new Error("Thiếu thông tin tạo VietQR.");
+  }
+
+  const url = new URL(
+    `${VIETQR_IMAGE_URL}/${encodeURIComponent(input.bankBin.trim())}-${encodeURIComponent(account)}-${encodeURIComponent(template)}.png`,
+  );
+  url.searchParams.set("amount", String(input.amount));
+  url.searchParams.set("addInfo", transferContent);
+  url.searchParams.set("accountName", holder);
+  return url.toString();
 }
 
 export function buildVietQrPaymentUrl(input: {

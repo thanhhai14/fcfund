@@ -366,17 +366,50 @@ Asia/Ho_Chi_Minh
 
 Không dùng UTC trực tiếp để tránh trường hợp gần nửa đêm sinh sai ngày.
 
-## 9. VietQR động làm fallback
+## 9. VietQR động làm fallback — Đã triển khai
 
-Ảnh QR upload hiện tại có thể tiếp tục tồn tại trong giai đoạn chuyển đổi, nhưng về lâu dài nên tạo QR động cho chính reminder đang mở.
+Trang reminder không còn phụ thuộc ảnh QR upload tĩnh. QR thanh toán được tạo động từ Quick Link VietQR và dùng **custom template `LAZD3qS`**.
+
+Cú pháp:
+
+```text
+https://img.vietqr.io/image/<BANK_BIN>-<ACCOUNT_NO>-LAZD3qS.png
+  ?amount=<AMOUNT>
+  &addInfo=<TRANSFER_CONTENT>
+  &accountName=<ACCOUNT_HOLDER>
+```
 
 QR động dùng cùng:
 
 - Bank/BIN nhận tiền.
 - STK nhận tiền.
 - Số công nợ hiện tại.
-- Nội dung chuyển khoản.
+- Nội dung chuyển khoản đã chuẩn hóa.
 - Chủ tài khoản.
+- Template VietQR `LAZD3qS`.
+
+Route QR production tự xác thực User/Member/Reminder và tự tính lại current debt:
+
+```text
+/api/payments/debt-reminder/<reminderId>/qr
+```
+
+Route QR test chỉ chấp nhận event `DEBT_REMINDER_TEST` và cố định số tiền **1.000đ**:
+
+```text
+/api/payments/debt-reminder-test/<notificationEventId>/qr
+```
+
+UI reminder theo thứ tự:
+
+```text
+Thanh toán X đồng
+→ Hoặc quét mã QR bên dưới
+→ VietQR động, căn giữa
+→ Hoặc thanh toán theo STK
+→ Thông tin ngân hàng/STK/chủ tài khoản
+→ Sao chép số tài khoản
+```
 
 Như vậy deeplink và QR luôn cùng dữ liệu:
 
@@ -674,7 +707,7 @@ Tên file chỉ là đề xuất; khi triển khai cần kiểm tra conventions 
 - CTA reminder đổi thành `Thanh toán X đồng` khi cấu hình ngân hàng mới đầy đủ.
 - QR và sao chép số tài khoản vẫn giữ làm fallback.
 
-### Phase 2 — QR động
+### Phase 2 — QR động — Đã triển khai
 
 - Không phụ thuộc ảnh QR upload cố định.
 - QR sinh theo current debt.

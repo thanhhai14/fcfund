@@ -40,31 +40,42 @@ export default async function DebtReminderTestPage({
   if (!event) notFound();
   const [club] = await db.select({
     name: clubs.name,
-    qrUrl: clubs.qrUrl,
     bankName: clubs.bankName,
     bankCode: clubs.bankCode,
+    bankBin: clubs.bankBin,
     bankAccountNumber: clubs.bankAccountNumber,
     bankAccountHolder: clubs.bankAccountHolder,
   }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
-  const paymentReady = !!(club?.bankCode && club.bankAccountNumber && club.bankAccountHolder);
+  const paymentReady = !!(club?.bankCode && club.bankBin && club.bankAccountNumber && club.bankAccountHolder);
 
   return <><MarkReminderRead eventId={event.id} /><PageHeader eyebrow="Hộp thư · Mô phỏng" title="Nhắc đóng quỹ thử" description={`${club?.name ?? "Đội bóng"} · ${formatDateTime(event.createdAt)}`} />
     <article className="panel debt-reminder-detail">
       <p className="push-settings-warning"><strong>ĐÂY LÀ THÔNG BÁO MÔ PHỎNG.</strong> Công nợ không thay đổi. Nút thanh toán bên dưới dùng deeplink ngân hàng THẬT với số tiền thử cố định 1.000đ; chỉ xác nhận trong app ngân hàng nếu bạn thực sự muốn chuyển 1.000đ.</p>
       <div className="debt-reminder-figures"><div><small>Số tiền thanh toán thử</small><strong>{formatMoney(TEST_AMOUNT)}</strong></div><div><small>Công nợ thực tế</small><strong>Không thay đổi</strong></div></div>
       {paymentReady ? (
-        <DebtPaymentButton
-          reminderId={id}
-          amount={TEST_AMOUNT}
-          initialMessage={paymentMessage}
-          paymentPath={`/api/payments/debt-reminder-test/${encodeURIComponent(id)}`}
-          testMode
-        />
+        <>
+          <DebtPaymentButton
+            reminderId={id}
+            amount={TEST_AMOUNT}
+            initialMessage={paymentMessage}
+            paymentPath={`/api/payments/debt-reminder-test/${encodeURIComponent(id)}`}
+            testMode
+          />
+          <div className="debt-payment-divider"><span>Hoặc quét mã QR bên dưới</span></div>
+          <div className="debt-dynamic-qr">
+            <img
+              className="debt-reminder-qr"
+              src={`/api/payments/debt-reminder-test/${encodeURIComponent(id)}/qr`}
+              alt="VietQR thanh toán thử 1.000đ"
+            />
+            <small>QR thử dùng deeplink thật với số tiền cố định 1.000đ.</small>
+          </div>
+          <div className="debt-payment-divider"><span>Hoặc thanh toán theo STK</span></div>
+        </>
       ) : (
-        <p className="panel-note debt-payment-message">Thanh toán thử chưa sẵn sàng vì đội bóng chưa chọn ngân hàng nhận tiền theo danh sách VietQR.</p>
+        <p className="panel-note debt-payment-message">Thanh toán thử và QR động chưa sẵn sàng vì đội bóng chưa cấu hình đủ ngân hàng nhận tiền.</p>
       )}
-      <h2>Thông tin chuyển khoản hiện hành</h2>{club?.qrUrl ? <img className="debt-reminder-qr" src="/api/club-assets/qr" alt="Mã QR chuyển khoản của đội" /> : <p className="panel-note">Đội chưa cấu hình ảnh QR trong Cài đặt.</p>}
-      <dl><div><dt>Ngân hàng</dt><dd>{club?.bankName || "Chưa cấu hình"}</dd></div><div><dt>Số tài khoản</dt><dd>{club?.bankAccountNumber || "Chưa cấu hình"}</dd></div><div><dt>Chủ tài khoản</dt><dd>{club?.bankAccountHolder || "Chưa cấu hình"}</dd></div></dl>
+      <dl className="debt-bank-details"><div><dt>Ngân hàng</dt><dd>{club?.bankName || "Chưa cấu hình"}</dd></div><div><dt>Số tài khoản</dt><dd>{club?.bankAccountNumber || "Chưa cấu hình"}</dd></div><div><dt>Chủ tài khoản</dt><dd>{club?.bankAccountHolder || "Chưa cấu hình"}</dd></div></dl>
       {club?.bankAccountNumber && <CopyBankAccount account={club.bankAccountNumber} />}
       <p className="panel-note">Nếu bấm Thanh toán thử, FCFund sẽ mở app ngân hàng với số tiền cố định 1.000đ. Không có giao dịch FCFund nào được tạo tự động.</p>
     </article></>;

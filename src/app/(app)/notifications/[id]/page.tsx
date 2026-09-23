@@ -42,28 +42,38 @@ export default async function DebtReminderPage({
   const [event] = await db.select({ id: notificationEvents.id }).from(notificationEvents).where(and(eq(notificationEvents.userId, user.id), eq(notificationEvents.clubId, user.clubId), eq(notificationEvents.entityType, "debt_reminder"), eq(notificationEvents.entityId, id))).limit(1);
   const [club] = await db.select({
     name: clubs.name,
-    qrUrl: clubs.qrUrl,
     bankName: clubs.bankName,
     bankCode: clubs.bankCode,
+    bankBin: clubs.bankBin,
     bankAccountNumber: clubs.bankAccountNumber,
     bankAccountHolder: clubs.bankAccountHolder,
     timezone: clubs.timezone,
   }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
   const currentBalance = (await currentMemberBalances(user.clubId, club?.timezone)).get(reminder.memberId) ?? 0;
   const currentDebt = Math.max(0, -currentBalance);
-  const paymentReady = !!(club?.bankCode && club.bankAccountNumber && club.bankAccountHolder);
+  const paymentReady = !!(club?.bankCode && club.bankBin && club.bankAccountNumber && club.bankAccountHolder);
   return <><MarkReminderRead eventId={event?.id ?? null} /><PageHeader eyebrow="Hộp thư" title="Nhắc đóng quỹ" description={`${club?.name ?? "Đội bóng"} · ${formatDateTime(reminder.createdAt)}`} />
     <article className="panel debt-reminder-detail"><p>Nhắc cho kỳ {reminder.fromMonth.slice(0, 7)} → {reminder.toMonth.slice(0, 7)} · Người gửi: {reminder.sender ?? "Thủ quỹ đội"}</p><div className="debt-reminder-figures"><div><small>Nợ tại lúc nhắc</small><strong>{formatMoney(reminder.debt)}</strong></div><div><small>Hiện tại</small><strong className={currentBalance < 0 ? "money-out" : "money-in"}>{currentBalance < 0 ? `Còn nợ ${formatMoney(-currentBalance)}` : currentBalance > 0 ? `Đóng dư ${formatMoney(currentBalance)}` : "Không còn nợ"}</strong></div></div>
       {currentDebt > 0 && paymentReady && (
-        <DebtPaymentButton reminderId={id} amount={currentDebt} initialMessage={paymentMessage} />
+        <>
+          <DebtPaymentButton reminderId={id} amount={currentDebt} initialMessage={paymentMessage} />
+          <div className="debt-payment-divider"><span>Hoặc quét mã QR bên dưới</span></div>
+          <div className="debt-dynamic-qr">
+            <img
+              className="debt-reminder-qr"
+              src={`/api/payments/debt-reminder/${encodeURIComponent(id)}/qr`}
+              alt={`VietQR thanh toán ${formatMoney(currentDebt)}`}
+            />
+            <small>QR đã gồm số tiền và nội dung chuyển khoản.</small>
+          </div>
+          <div className="debt-payment-divider"><span>Hoặc thanh toán theo STK</span></div>
+        </>
       )}
       {currentDebt > 0 && !paymentReady && (
-        <p className="panel-note debt-payment-message">Thanh toán trực tiếp chưa sẵn sàng vì đội bóng chưa chọn ngân hàng nhận tiền theo danh sách VietQR.</p>
+        <p className="panel-note debt-payment-message">Thanh toán trực tiếp và QR động chưa sẵn sàng vì đội bóng chưa cấu hình đủ ngân hàng nhận tiền.</p>
       )}
       {currentDebt <= 0 && paymentMessage && <p className="panel-note debt-payment-message">{paymentMessage}</p>}
-      <h2>Thông tin chuyển khoản hiện hành</h2>
-      {club?.qrUrl && <img className="debt-reminder-qr" src="/api/club-assets/qr" alt="Mã QR chuyển khoản của đội" />}
-      <dl>
+      <dl className="debt-bank-details">
         <div><dt>Ngân hàng</dt><dd>{club?.bankName || "Chưa cấu hình"}</dd></div>
         <div><dt>Số tài khoản</dt><dd>{club?.bankAccountNumber || "Chưa cấu hình"}</dd></div>
         <div><dt>Chủ tài khoản</dt><dd>{club?.bankAccountHolder || "Chưa cấu hình"}</dd></div>
