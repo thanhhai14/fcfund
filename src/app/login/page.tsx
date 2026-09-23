@@ -13,8 +13,15 @@ import { ZaloLoginLink } from "./zalo-login-link";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ zaloRetry?: string | string[] }>;
+}) {
   await requireAnonymous();
+
+  const params = await searchParams;
+  const androidRetry14019 = params.zaloRetry === "14019";
 
   const pendingSession = await readZaloPendingSession();
   if (pendingSession) {
@@ -84,7 +91,10 @@ export default async function LoginPage() {
           {isZaloLoginEnabled() && (
             <div className="zalo-login-poc">
               <div className="zalo-login-divider"><span>hoặc</span></div>
-              <ZaloLoginLink pwaHandoff={pwaHandoff} />
+              <ZaloLoginLink
+                pwaHandoff={pwaHandoff}
+                androidRetry14019={androidRetry14019}
+              />
               <p>Dùng Zalo đã liên kết hoặc xác minh thành viên trong lần đăng nhập đầu tiên.</p>
             </div>
           )}

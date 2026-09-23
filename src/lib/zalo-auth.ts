@@ -19,6 +19,24 @@ type ZaloTokenResponse = {
   error_name?: string;
 };
 
+export class ZaloTokenExchangeError extends Error {
+  code: number | string;
+  errorName: string | null;
+  httpStatus: number;
+
+  constructor(input: {
+    code: number | string;
+    errorName?: string | null;
+    httpStatus: number;
+  }) {
+    super(`Không đổi được authorization code sang Zalo access token (code: ${input.code}).`);
+    this.name = "ZaloTokenExchangeError";
+    this.code = input.code;
+    this.errorName = input.errorName?.trim() || null;
+    this.httpStatus = input.httpStatus;
+  }
+}
+
 export type ZaloProfile = {
   id: string;
   name: string;
@@ -99,8 +117,11 @@ export async function exchangeZaloCode(input: {
   const accessToken = data?.access_token?.trim();
 
   if (!response.ok || !accessToken) {
-    const errorCode = data?.error ?? response.status;
-    throw new Error(`Không đổi được authorization code sang Zalo access token (code: ${errorCode}).`);
+    throw new ZaloTokenExchangeError({
+      code: data?.error ?? response.status,
+      errorName: data?.error_name,
+      httpStatus: response.status,
+    });
   }
 
   return accessToken;

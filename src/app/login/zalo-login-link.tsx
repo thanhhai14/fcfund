@@ -72,9 +72,16 @@ function readStoredHandoff(): Handoff | null {
   }
 }
 
-export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
+export function ZaloLoginLink({
+  pwaHandoff,
+  androidRetry14019 = false,
+}: {
+  pwaHandoff: Handoff | null;
+  androidRetry14019?: boolean;
+}) {
   const [message, setMessage] = useState("");
-  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
+  const [showAndroidGuide, setShowAndroidGuide] = useState(androidRetry14019);
+  const [showRetryNotice, setShowRetryNotice] = useState(androidRetry14019);
 
   useEffect(() => {
     const platform = getStandalonePlatform();
@@ -147,7 +154,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("pageshow", resume);
     };
-  }, []);
+  }, [androidRetry14019]);
 
   useEffect(() => {
     if (!showAndroidGuide) return;
@@ -209,6 +216,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
   function handleAndroidContinue() {
     window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
+    setShowRetryNotice(false);
     setShowAndroidGuide(false);
   }
 
@@ -255,9 +263,13 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
             <div className="zalo-android-guide-intro">
               <span className="eyebrow">Android PWA</span>
-              <h2 id="zalo-android-guide-title">Mở Zalo bằng Chrome</h2>
+              <h2 id="zalo-android-guide-title">
+                {showRetryNotice ? "Xác thực lại Zalo một lần" : "Mở Zalo bằng Chrome"}
+              </h2>
               <p id="zalo-android-guide-description">
-                Sau khi trang Zalo xuất hiện, làm 3 bước dưới đây để dùng nút đăng nhập bằng ứng dụng Zalo.
+                {showRetryNotice
+                  ? "Zalo chưa hoàn tất bước cấp access token ở lần vừa rồi. Hãy mở lại Zalo bằng Chrome và xác thực thêm một lần."
+                  : "Sau khi trang Zalo xuất hiện, làm 3 bước dưới đây để dùng nút đăng nhập bằng ứng dụng Zalo."}
               </p>
             </div>
 

@@ -9,6 +9,7 @@ import {
   fetchZaloProfile,
   getZaloConfig,
   isZaloLoginEnabled,
+  ZaloTokenExchangeError,
   ZALO_OAUTH_STATE_COOKIE,
   ZALO_OAUTH_VERIFIER_COOKIE,
 } from "@/lib/zalo-auth";
@@ -35,6 +36,9 @@ import {
 } from "@/lib/zalo-linking";
 
 export const dynamic = "force-dynamic";
+
+const ZALO_14019_RETRY_COOKIE = "zalo_14019_retry";
+const ZALO_14019_RETRY_MAX_AGE = 2 * 60;
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => {
@@ -94,6 +98,24 @@ function redirectWithPendingCookie(request: NextRequest, token: string) {
   const response = NextResponse.redirect(new URL("/zalo/pending", request.url));
   response.cookies.set(ZALO_PENDING_COOKIE, token, zaloPendingCookieOptions());
   response.cookies.delete(ZALO_LINK_CONTEXT_COOKIE);
+  response.cookies.delete(ZALO_14019_RETRY_COOKIE);
+  return clearOAuthCookies(response);
+}
+
+function clearZalo14019RetryCookie(response: NextResponse) {
+  response.cookies.delete(ZALO_14019_RETRY_COOKIE);
+  return response;
+}
+
+function recoverAndroidZalo14019(request: NextRequest) {
+  const response = NextResponse.redirect(new URL("/login?zaloRetry=14019", request.url));
+  response.cookies.set(ZALO_14019_RETRY_COOKIE, "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: ZALO_14019_RETRY_MAX_AGE,
+  });
   return clearOAuthCookies(response);
 }
 
@@ -197,6 +219,7 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.redirect(new URL("/dashboard", request.url));
       response.cookies.delete(ZALO_LINK_CONTEXT_COOKIE);
       response.cookies.delete(ZALO_PENDING_COOKIE);
+      clearZalo14019RetryCookie(response);
       return clearOAuthCookies(response);
     }
 
@@ -249,6 +272,7 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.redirect(new URL("/zalo/link", request.url));
       response.cookies.set(ZALO_LINK_CONTEXT_COOKIE, token, zaloLinkCookieOptions());
       response.cookies.delete(ZALO_PENDING_COOKIE);
+      clearZalo14019RetryCookie(response);
       return clearOAuthCookies(response);
     }
 
@@ -284,6 +308,21 @@ export async function GET(request: NextRequest) {
     });
     return redirectWithPendingCookie(request, pendingToken);
   } catch (error) {
+    if (error instanceof ZaloTokenExchangeError) {
+      console.error("Zalo token exchange failed", {
+        code: error.code,
+        errorName: error.errorName,
+        httpStatus: error.httpStatus,
+        android: /Android/i.test(request.headers.get("user-agent") ?? ""),
+      });
+
+      const isAndroid = /Android/i.test(request.headers.get("user-agent") ?? "");
+      const alreadyRetried = request.cookies.get(ZALO_14019_RETRY_COOKIE)?.value === "1";
+      if (!handoff && isAndroid && String(error.code) === "-14019" && !alreadyRetried) {
+        return recoverAndroidZalo14019(request);
+      }
+    }
+
     const message = error instanceof Error ? error.message : "Không xác định được lỗi Zalo OAuth.";
     console.error("Zalo OAuth callback failed", message);
 
