@@ -1,6 +1,24 @@
 "use client";
 
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+const PUSH_EVER_ENABLED_KEY = "fcfund_push_ever_enabled";
+export const PUSH_STATE_CHANGED_EVENT = "fcfund:push-state-changed";
+
+export function wasPushEnabledBefore() {
+  try {
+    return window.localStorage.getItem(PUSH_EVER_ENABLED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function rememberPushEnabled() {
+  try {
+    window.localStorage.setItem(PUSH_EVER_ENABLED_KEY, "true");
+  } catch {
+    // Keep Push usable if local storage is unavailable.
+  }
+}
 
 export type PushClientState = {
   supported: boolean;
@@ -37,7 +55,7 @@ export function pushPlatformName() {
 export function blockedPermissionHelp() {
   const platform = pushPlatformName();
   if (platform === "ios") {
-    return "Quyền thông báo đang bị chặn. Hãy mở Cài đặt trên iPhone/iPad → Thông báo → FCFUND (hoặc tên ứng dụng) → bật Cho phép thông báo, rồi quay lại đây.";
+    return "Quyền thông báo đang bị chặn. Hãy mở Cài đặt trên iPhone/iPad → Ứng dụng (hoặc Thông báo) → Trai Làng FC → Thông báo → bật Cho phép thông báo, rồi quay lại đây.";
   }
   if (platform === "android") {
     return "Quyền thông báo đang bị chặn. Hãy mở Cài đặt Android → Ứng dụng/Thông báo → FCFUND (hoặc tên ứng dụng) → cho phép thông báo, rồi quay lại đây.";
@@ -81,6 +99,8 @@ async function saveSubscription(subscription: PushSubscription) {
     }),
   });
   if (!response.ok) throw new Error("save-failed");
+  rememberPushEnabled();
+  window.dispatchEvent(new Event(PUSH_STATE_CHANGED_EVENT));
 }
 
 export async function enablePushNotifications(publicKey: string) {
@@ -132,4 +152,5 @@ export async function disablePushNotifications() {
   });
   if (!response.ok) throw new Error("disable-failed");
   await subscription.unsubscribe();
+  window.dispatchEvent(new Event(PUSH_STATE_CHANGED_EVENT));
 }

@@ -141,7 +141,7 @@ export async function PATCH(request: Request) {
 
   const target = await findTarget(id, user.clubId);
   if (!target) return NextResponse.json({ ok: false, error: "Không tìm thấy thiết bị." }, { status: 404 });
-  if (!canManage(user, target.userId)) {
+  if (user.role !== "ADMIN") {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 
@@ -181,7 +181,7 @@ export async function DELETE(request: Request) {
 
   const target = await findTarget(id, user.clubId);
   if (!target) return NextResponse.json({ ok: false, error: "Không tìm thấy thiết bị." }, { status: 404 });
-  if (!canManage(user, target.userId)) {
+  if (user.role !== "ADMIN") {
     return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
 

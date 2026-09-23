@@ -81,6 +81,7 @@ export function PushNotificationSettings({
   }
 
   async function disable() {
+    if (!isAdmin) return;
     setBusy(true);
     setMessage("");
     try {
@@ -146,13 +147,14 @@ export function PushNotificationSettings({
         : null;
 
   const blocked = state.permission === "denied";
+  const active = state.subscribed && state.permission === "granted";
 
   return (
     <article className="panel push-settings-card">
       <div className="panel-heading">
         <div><span className="eyebrow">PWA</span><h2>Thông báo</h2></div>
-        <span className={"status-badge " + (state.subscribed ? "active" : "inactive")}>
-          {state.subscribed ? "Đang bật" : blocked ? "Bị chặn" : "Đang tắt"}
+        <span className={"status-badge " + (active ? "active" : "inactive")}>
+          {active ? "Đang bật" : blocked ? "Bị chặn" : "Đang tắt"}
         </span>
       </div>
       <p className="panel-note">Nhận thông báo về trận đấu, đội hình, kết quả, khoản phải đóng và tiền nộp.</p>
@@ -161,9 +163,13 @@ export function PushNotificationSettings({
       {message && <p className="push-settings-message">{message}</p>}
 
       <div className="form-actions push-settings-actions">
-        {state.subscribed
-          ? <button className="button secondary" type="button" onClick={disable} disabled={busy}>{busy ? "Đang tắt…" : "Tắt thông báo"}</button>
-          : <button className="button primary" type="button" onClick={enable} disabled={busy || Boolean(unavailable)}>{busy ? "Đang kiểm tra…" : blocked ? "Bật lại thông báo" : "Bật thông báo"}</button>}
+        {active ? (
+          isAdmin
+            ? <button className="button secondary" type="button" onClick={disable} disabled={busy}>{busy ? "Đang tắt…" : "Tắt thông báo"}</button>
+            : <span className="push-settings-readonly">Thông báo đang hoạt động trên thiết bị này.</span>
+        ) : (
+          <button className="button primary" type="button" onClick={enable} disabled={busy || Boolean(unavailable)}>{busy ? "Đang kiểm tra…" : blocked ? "Bật lại thông báo" : "Bật thông báo"}</button>
+        )}
 
         {isAdmin && (
           <button
@@ -208,7 +214,7 @@ export function PushNotificationSettings({
 
       {isAdmin && <p className="push-settings-test-note">Thông báo thử sẽ gửi tới toàn bộ thành viên ACTIVE đang có ít nhất một thiết bị Push đã đăng ký.</p>}
 
-      <OwnPushDevices refreshKey={deviceRefreshKey} />
+      <OwnPushDevices refreshKey={deviceRefreshKey} isAdmin={isAdmin} />
     </article>
   );
 }

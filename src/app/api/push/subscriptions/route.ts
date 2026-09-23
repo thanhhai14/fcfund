@@ -68,6 +68,9 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  if (user.role !== "ADMIN") {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
   const body = await request.json().catch(() => null) as { endpoint?: string } | null;
   const endpoint = body?.endpoint?.trim();
   if (!endpoint) return NextResponse.json({ ok: false, error: "Invalid endpoint" }, { status: 400 });

@@ -95,7 +95,7 @@ async function currentPushEndpoint() {
   }
 }
 
-export function OwnPushDevices({ refreshKey = 0 }: { refreshKey?: number }) {
+export function OwnPushDevices({ refreshKey = 0, isAdmin = false }: { refreshKey?: number; isAdmin?: boolean }) {
   const [devices, setDevices] = useState<PushDevice[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -224,15 +224,15 @@ export function OwnPushDevices({ refreshKey = 0 }: { refreshKey?: number }) {
                 >
                   Gửi thử
                 </button>
-                <button
+                {isAdmin && <button
                   className="button secondary small"
                   type="button"
                   onClick={() => renameDevice(device)}
                   disabled={busyId === device.id}
                 >
                   Đổi tên
-                </button>
-                {!current && (
+                </button>}
+                {isAdmin && !current && (
                   <button
                     className="button danger small"
                     type="button"

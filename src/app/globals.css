@@ -2490,6 +2490,129 @@ label>textarea {
   align-items: start;
 }
 
+.settings-page-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+}
+
+.settings-group {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--pink);
+  box-shadow: var(--shadow);
+}
+
+.settings-group > summary,
+.settings-subgroup > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.settings-group > summary::-webkit-details-marker,
+.settings-subgroup > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-group-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 14px 16px;
+  user-select: none;
+}
+
+.settings-group[open] > .settings-group-summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-group-icon {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--forest-900);
+  background: rgba(239, 113, 152, .16);
+  border-left: 3px solid var(--pink);
+}
+
+.settings-group-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.settings-group-copy strong,
+.settings-subgroup > summary strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.settings-group-copy small,
+.settings-subgroup > summary small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.settings-group-chevron {
+  flex: 0 0 9px;
+  width: 9px;
+  height: 9px;
+  margin-left: auto;
+  border-right: 2px solid var(--forest-800);
+  border-bottom: 2px solid var(--forest-800);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform .16s ease;
+}
+
+.settings-group[open] > summary .settings-group-chevron,
+.settings-subgroup[open] > summary .settings-group-chevron {
+  transform: rotate(225deg) translate(-2px, -1px);
+}
+
+.settings-group-content {
+  min-width: 0;
+  padding: 14px;
+}
+
+.settings-group-content > .stack {
+  gap: 12px;
+}
+
+.settings-subgroup {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+
+.settings-subgroup > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 13px;
+}
+
+.settings-subgroup > summary > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-subgroup[open] > summary {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft, #f5f7f8);
+}
+
+.settings-subgroup > .panel {
+  border: 0;
+  box-shadow: none;
+}
+
 .stack {
   display: grid;
   gap: 16px;
@@ -10634,6 +10757,37 @@ html[data-navigation-pending="true"] .app-main::after {
 
 .push-settings-actions {
   flex-wrap: wrap;
+}
+
+.push-settings-readonly {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  color: var(--forest-800);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .settings-group-content {
+    padding: 10px;
+  }
+
+  .settings-group-summary {
+    min-height: 68px;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .settings-group-copy strong,
+  .settings-subgroup > summary strong {
+    font-size: 13px;
+  }
+
+  .settings-group-copy small,
+  .settings-subgroup > summary small {
+    font-size: 10px;
+  }
 }
 
 .push-settings-test-note {

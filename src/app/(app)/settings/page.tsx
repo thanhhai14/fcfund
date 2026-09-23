@@ -46,8 +46,34 @@ import { PushNotificationSettings } from "@/components/push-notification-setting
 import { PushDeviceManager } from "@/components/push-device-manager";
 import { DebtReminderTest } from "@/components/debt-reminder-test";
 import { getVietQrBanks } from "@/lib/vietqr";
+import type { ReactNode } from "react";
 
 export const metadata = { title: "Cài đặt" };
+
+function SettingsGroup({
+  title,
+  description,
+  icon,
+  children,
+  open = false,
+}: {
+  title: string;
+  description: string;
+  icon: string;
+  children: ReactNode;
+  open?: boolean;
+}) {
+  return (
+    <details className="settings-group" open={open}>
+      <summary className="settings-group-summary">
+        <span className="settings-group-icon"><Icon name={icon} /></span>
+        <span className="settings-group-copy"><strong>{title}</strong><small>{description}</small></span>
+        <span className="settings-group-chevron" aria-hidden="true" />
+      </summary>
+      <div className="settings-group-content">{children}</div>
+    </details>
+  );
+}
 
 export default async function SettingsPage() {
   const currentUser = await requireUser();
@@ -93,7 +119,12 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader eyebrow="Hệ thống" title="Cài đặt" description="Đội bóng, loại thu, tài khoản và policy" />
-      <section className="settings-layout">
+      <section className="settings-layout settings-page-layout">
+        {manageSettings && <SettingsGroup
+          title="Đội bóng & quỹ"
+          description="Nhận diện đội, các loại khoản thu và danh mục thu chi"
+          icon="coins"
+        >
         <div className="stack">
           {manageSettings && club && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Nhận diện</span><h2>Thông tin đội bóng</h2></div></div>
@@ -180,40 +211,25 @@ export default async function SettingsPage() {
             <div className="tag-list">{categories.map((category) => <span className={category.direction.toLowerCase()} key={category.id}>{category.direction === "IN" ? "Thu" : "Chi"} · {category.name}</span>)}</div>
           </article>}
         </div>
+        </SettingsGroup>}
 
         <div className="stack">
+          {(currentUser.role === "ADMIN" || manageUsers) && <SettingsGroup
+            title="Tài khoản & truy cập"
+            description="Tài khoản, policy, liên kết Zalo và thiết bị Push của thành viên"
+            icon="users"
+          >
+          <div className="stack">
           {currentUser.role === "ADMIN" && <article className="panel zalo-settings-entry">
             <div className="panel-heading"><div><span className="eyebrow">Chủ Tịch Fifa</span><h2>Liên kết Zalo</h2></div><span className="status-pill pending">{pendingZaloRequests.length} chờ duyệt</span></div>
             <p className="panel-note">Duyệt Zalo ID chưa xác định được thành viên, link user hiện có hoặc tạo thành viên mới.</p>
             <Link className="button secondary" href="/settings/zalo-requests">Mở yêu cầu Zalo</Link>
           </article>}
 
-          <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} isAdmin={currentUser.role === "ADMIN"} />
-          {currentUser.role === "ADMIN" && <DebtReminderTest recipients={accounts.filter((account) => account.active).map((account) => ({ id: account.id, name: account.displayName, phone: account.phone }))} />}
+          {manageUsers && <details className="settings-subgroup">
+            <summary><span><strong>Tài khoản & policy</strong><small>{accounts.length} tài khoản · phân quyền và liên kết thành viên</small></span><span className="settings-group-chevron" aria-hidden="true" /></summary>
 
           <article className="panel">
-            <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>
-            <div className="account-avatar-editor">
-              <MemberAvatar userId={currentUser.id} memberId={currentUser.memberId} name={currentUser.displayName} avatarVersion={currentUser.avatarUpdatedAt} />
-              <MutationForm action={updateOwnAvatarAction} className="form-stack" optimizeAvatar>
-                <label>Ảnh đại diện<input name="avatar" type="file" accept="image/*" /></label>
-                <p className="panel-note">Ảnh lớn sẽ tự động resize và nén trên thiết bị trước khi tải lên.</p>
-                {currentUser.avatarUpdatedAt && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}
-                <SubmitButton pendingLabel="Đang tối ưu ảnh…">Lưu avatar</SubmitButton>
-              </MutationForm>
-            </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading"><div><span className="eyebrow">Bảo mật</span><h2>Đổi mật khẩu</h2></div></div>
-            <MutationForm action={changeOwnPasswordAction} className="form-stack">
-              <label>Mật khẩu hiện tại<input name="currentPassword" type="password" required /></label>
-              <label>Mật khẩu mới<input name="newPassword" type="password" minLength={8} required /></label>
-              <SubmitButton>Đổi mật khẩu</SubmitButton>
-            </MutationForm>
-          </article>
-
-          {manageUsers && <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Phân quyền</span><h2>Tài khoản & policy</h2></div>
               <Disclosure label="+ Tạo tài khoản" className="inline-disclosure user-create-disclosure">
                 <MutationForm action={createUserAccountAction} className="form-stack" closeDisclosureOnSuccess>
@@ -255,17 +271,71 @@ export default async function SettingsPage() {
                 </Disclosure>;
               })}
             </div>
-          </article>}
+          </article>
+          </details>}
 
-          {!manageSettings && club && <article className="panel transfer-card">
-            <span className="eyebrow">Chuyển khoản</span><h2>{club.bankName || "Thông tin quỹ đội"}</h2>
-            {club.qrUrl && <img src={`/api/club-assets/qr?v=${club.updatedAt.getTime()}`} alt="QR chuyển khoản" />}
-            <strong>{club.bankAccountNumber}</strong><p>{club.bankAccountHolder}</p>
-          </article>}
+          {currentUser.role === "ADMIN" && <details className="settings-subgroup">
+            <summary><span><strong>Thiết bị Push của thành viên</strong><small>Tra cứu trạng thái thiết bị đã đăng ký</small></span><span className="settings-group-chevron" aria-hidden="true" /></summary>
+            <PushDeviceManager />
+          </details>}
+          </div>
+          </SettingsGroup>}
+
+          <SettingsGroup
+            title="Thông báo"
+            description="Trạng thái PWA, kiểm tra Push và nhắc nợ"
+            icon="bell"
+            open={currentUser.role !== "ADMIN"}
+          >
+          <div className="stack">
+            <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} isAdmin={currentUser.role === "ADMIN"} />
+            {currentUser.role === "ADMIN" && <DebtReminderTest recipients={accounts.filter((account) => account.active).map((account) => ({ id: account.id, name: account.displayName, phone: account.phone }))} />}
+          </div>
+          </SettingsGroup>
+
+          <SettingsGroup
+            title="Cá nhân & bảo mật"
+            description="Ảnh đại diện tài khoản và mật khẩu"
+            icon="shield"
+          >
+          <div className="stack">
+          <article className="panel">
+            <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>
+            <div className="account-avatar-editor">
+              <MemberAvatar userId={currentUser.id} memberId={currentUser.memberId} name={currentUser.displayName} avatarVersion={currentUser.avatarUpdatedAt} />
+              <MutationForm action={updateOwnAvatarAction} className="form-stack" optimizeAvatar>
+                <label>Ảnh đại diện<input name="avatar" type="file" accept="image/*" /></label>
+                <p className="panel-note">Ảnh lớn sẽ tự động resize và nén trên thiết bị trước khi tải lên.</p>
+                {currentUser.avatarUpdatedAt && <label className="check-field"><input name="removeAvatar" type="checkbox" /> Xóa avatar hiện tại</label>}
+                <SubmitButton pendingLabel="Đang tối ưu ảnh…">Lưu avatar</SubmitButton>
+              </MutationForm>
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading"><div><span className="eyebrow">Bảo mật</span><h2>Đổi mật khẩu</h2></div></div>
+            <MutationForm action={changeOwnPasswordAction} className="form-stack">
+              <label>Mật khẩu hiện tại<input name="currentPassword" type="password" required /></label>
+              <label>Mật khẩu mới<input name="newPassword" type="password" minLength={8} required /></label>
+              <SubmitButton>Đổi mật khẩu</SubmitButton>
+            </MutationForm>
+          </article>
+          </div>
+          </SettingsGroup>
+
+          {!manageSettings && club && <SettingsGroup
+            title="Thông tin chuyển khoản"
+            description="Mã QR và tài khoản nhận tiền của đội"
+            icon="credit-card"
+          >
+            <article className="panel transfer-card">
+              <span className="eyebrow">Chuyển khoản</span><h2>{club.bankName || "Thông tin quỹ đội"}</h2>
+              {club.qrUrl && <img src={`/api/club-assets/qr?v=${club.updatedAt.getTime()}`} alt="QR chuyển khoản" />}
+              <strong>{club.bankAccountNumber}</strong><p>{club.bankAccountHolder}</p>
+            </article>
+          </SettingsGroup>}
         </div>
       </section>
-
-      {currentUser.role === "ADMIN" && <PushDeviceManager />}
     </>
   );
 }

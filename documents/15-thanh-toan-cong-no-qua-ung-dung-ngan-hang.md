@@ -1,7 +1,8 @@
 # Thanh toán công nợ bằng ứng dụng ngân hàng
 
-**Trạng thái:** Phase 1 đã triển khai trong source; cần chạy migration `0019_lying_shiver_man` trước khi deploy.  
-**Phạm vi:** Thay CTA chính `Sao chép số tài khoản` trên trang chi tiết nhắc công nợ bằng luồng `Thanh toán <số tiền>` → chọn ứng dụng ngân hàng → mở app ngân hàng qua VietQR deeplink. QR và sao chép số tài khoản vẫn được giữ làm fallback.
+**Trạng thái:** Phase 1 (deeplink) và Phase 2 (VietQR động) đã triển khai trong source. Migration `0019_lying_shiver_man` bổ sung `bankCode`/`bankBin` phải được áp dụng trước khi sử dụng tính năng thanh toán. Phase 3 (xác nhận thanh toán tự động) chưa triển khai.
+
+**Phạm vi:** Trang chi tiết nhắc công nợ hỗ trợ `Thanh toán <số tiền>` → chọn ứng dụng ngân hàng → mở app ngân hàng qua VietQR deeplink, đồng thời sinh VietQR động theo current debt làm fallback. Sao chép số tài khoản vẫn được giữ làm phương án cuối.
 
 ## 1. Mục tiêu
 
@@ -97,14 +98,7 @@ Có hai khái niệm khác nhau:
 
 Được cấu hình một lần bởi Admin trong **Cài đặt → Thông tin đội bóng**.
 
-Hiện đã có:
-
-- Tên ngân hàng.
-- Số tài khoản.
-- Chủ tài khoản.
-- Ảnh QR.
-
-Cần nâng cấp trường ngân hàng để lưu thêm định danh chuẩn:
+Cấu hình thanh toán hiện tại của Club gồm:
 
 ```text
 bankName
@@ -113,6 +107,8 @@ bankBin
 bankAccountNumber
 bankAccountHolder
 ```
+
+`qrUrl`/ảnh QR upload cũ có thể vẫn tồn tại như dữ liệu legacy trong Settings nhưng không còn là dependency của reminder/payment flow.
 
 Trong đó:
 
@@ -177,7 +173,7 @@ flowchart TD
 
 ### 5.1. Trang chi tiết nhắc công nợ
 
-Ví dụ:
+UI production hiện tại đi theo đúng thứ tự:
 
 ```text
 Nhắc đóng quỹ
@@ -190,16 +186,23 @@ Còn nợ 350.000đ
 
 [ Thanh toán 350.000đ ]
 
-Thông tin nhận tiền
-MB Bank
-0123456789
-NGUYEN VAN A
+──── Hoặc quét mã QR bên dưới ────
 
-[ Hiện VietQR ]
+[ VietQR động - template LAZD3qS ]
+QR đã gồm số tiền và nội dung chuyển khoản
+
+──── Hoặc thanh toán theo STK ────
+
+Ngân hàng
+Số tài khoản
+Chủ tài khoản
+
 [ Sao chép số tài khoản ]
+
+Ghi chú / trạng thái công nợ
 ```
 
-QR và sao chép tài khoản chuyển thành fallback, không còn là CTA chính.
+QR được căn giữa panel. Nút sao chép là fallback cuối và có khoảng cách riêng với `.panel-note` để tránh chồng giao diện trên mobile.
 
 ### 5.2. Mỗi lần bấm Thanh toán
 
@@ -248,7 +251,7 @@ Sau khi User chọn ngân hàng và deeplink được mở:
 
 ## 6. Cấu trúc VietQR deeplink
 
-Deeplink thanh toán dự kiến dùng dạng:
+Deeplink thanh toán hiện dùng dạng:
 
 ```text
 https://dl.vietqr.io/pay
@@ -286,15 +289,19 @@ Luôn truyền đầy đủ các tham số ngay cả khi một số ngân hàng 
 
 ## 7. Dữ liệu thanh toán phải được dựng từ server
 
-Không nên tạo toàn bộ deeplink từ các giá trị client có thể sửa.
+Không tạo toàn bộ deeplink từ các giá trị client có thể sửa.
 
-Đề xuất tạo endpoint:
+Route production đã triển khai:
 
 ```text
 GET /api/payments/debt-reminder/<reminderId>?app=mb
 ```
 
-hoặc route tương đương.
+Route test tương ứng:
+
+```text
+GET /api/payments/debt-reminder-test/<notificationEventId>?app=mb
+```
 
 Server thực hiện:
 
@@ -334,9 +341,9 @@ sequenceDiagram
     end
 ```
 
-## 8. Hàm tạo nội dung chuyển khoản
+## 8. Hàm tạo nội dung chuyển khoản — Đã triển khai
 
-Đề xuất helper server-side:
+Helper server-side:
 
 ```ts
 buildDebtTransferContent({
@@ -411,6 +418,8 @@ Thanh toán X đồng
 → Sao chép số tài khoản
 ```
 
+Không thêm nút tải QR riêng. QR là ảnh PNG hiển thị trực tiếp; trên mobile User có thể nhấn giữ để lưu/chia sẻ ảnh nếu trình duyệt/PWA cho phép. Nếu app ngân hàng hỗ trợ đọc QR từ thư viện ảnh, User có thể dùng ảnh đã lưu; khả năng này phụ thuộc từng app ngân hàng.
+
 Như vậy deeplink và QR luôn cùng dữ liệu:
 
 ```mermaid
@@ -428,50 +437,55 @@ flowchart LR
 
 Payment payload logic nên chỉ có một nguồn để tránh trường hợp QR ghi 350.000đ nhưng deeplink lại ghi 500.000đ.
 
-## 10. Cấu hình Admin cần bổ sung
+## 10. Cấu hình Admin — Đã triển khai
 
-Không tạo menu mới. Nâng cấp section **Thông tin đội bóng** hiện có.
+Không tạo menu mới. Section **Thông tin đội bóng** trong Settings là nơi cấu hình tài khoản nhận tiền.
 
-Hiện tại:
-
-```text
-Ngân hàng:          <text>
-Số tài khoản:       <text>
-Chủ tài khoản:      <text>
-Ảnh QR:             <file>
-```
-
-Đề xuất:
+Luồng hiện tại:
 
 ```text
-Ngân hàng nhận tiền: [searchable bank select]
-Bank Code:           tự lấy
-BIN:                 tự lấy
+Ngân hàng nhận tiền: [select từ danh sách VietQR]
+Bank Code:           server tự lưu theo ngân hàng đã chọn
+BIN:                 server tự lưu theo ngân hàng đã chọn
 Số tài khoản:        <text>
 Chủ tài khoản:       <text>
-
-[Kiểm tra cấu hình thanh toán]
 ```
 
-Admin chỉ chọn tên ngân hàng. `bankCode` và `bankBin` lấy tự động từ dữ liệu ngân hàng.
+Admin chỉ chọn ngân hàng từ dữ liệu chuẩn VietQR. Khi lưu, server xác thực lại mã ngân hàng và tự đồng bộ `bankName`, `bankCode`, `bankBin`.
 
-## 11. Data model đề xuất
+Nếu Club chỉ còn `bankName` legacy nhưng chưa có `bankCode`/`bankBin`, Admin phải chọn lại ngân hàng trước khi deeplink/QR động được bật.
 
-Bảng `clubs` hiện có:
+Không có yêu cầu phải upload ảnh QR tĩnh để gửi reminder hoặc sử dụng payment flow.
+
+## 11. Data model hiện tại
+
+Các field thanh toán của `clubs` đang dùng:
 
 ```text
 bankName
+bankCode
+bankBin
 bankAccountNumber
 bankAccountHolder
-qrUrl
+qrUrl          # legacy, không dùng cho QR động của reminder
 ```
 
-Bổ sung:
+`bankCode` và `bankBin` được thêm bằng migration:
 
 ```text
-bankCode varchar(...)
-bankBin  varchar(6)
+drizzle/0019_lying_shiver_man.sql
 ```
+
+Điều kiện `paymentReady` hiện tại là phải có đủ:
+
+```text
+bankCode
+bankBin
+bankAccountNumber
+bankAccountHolder
+```
+
+`qrUrl` không còn tham gia điều kiện này.
 
 Không cần thêm vào `users` bất kỳ trường nào để lưu app ngân hàng thanh toán.
 
@@ -558,7 +572,24 @@ Theo changelog VietQR tại thời điểm triển khai, các app đã công b�
 - ACB ONE (`acb`).
 - OCB (`ocb`).
 
-Vietcombank hiện chỉ được VietQR mô tả ở mức mở ứng dụng; không đảm bảo tự điền người nhận/số tiền/nội dung hoặc mở đúng màn hình chuyển khoản. UI bank picker phải hiển thị rõ:
+Vietcombank hiện chỉ được VietQR mô tả ở mức mở ứng dụng; không đảm bảo tự điền người nhận/số tiền/nội dung hoặc mở đúng màn hình chuyển khoản.
+
+Phải phân biệt hai capability:
+
+```text
+Vietcombank deeplink
+→ có thể chỉ mở VCB Digibank
+→ không đảm bảo mở màn hình chuyển khoản
+→ không đảm bảo autofill STK/số tiền/nội dung
+
+VietQR động
+→ chứa STK + amount + addInfo + accountName
+→ là fallback ưu tiên khi deeplink không autofill
+```
+
+Với VCB, User nên ưu tiên QR động nếu cần đảm bảo số tiền và nội dung đã được đóng gói sẵn trong mã QR.
+
+UI bank picker phải hiển thị rõ:
 
 ```text
 Hỗ trợ điền sẵn thông tin
@@ -624,6 +655,16 @@ Có thể:
 2. Nếu không có cache, giữ QR/copy fallback.
 3. Không chặn toàn bộ trang reminder.
 
+### VietQR Image/Quick Link lỗi
+
+Nếu `img.vietqr.io` hoặc Quick Link không tải được ảnh QR:
+
+- Trang reminder vẫn phải render được.
+- Thông tin ngân hàng/STK/chủ tài khoản vẫn hiển thị.
+- Nút **Sao chép số tài khoản** vẫn hoạt động.
+- Deeplink vẫn có thể dùng nếu API deeplink còn hoạt động.
+- Không được coi lỗi tải QR là bằng chứng payment flow thất bại hoàn toàn.
+
 ## 14. Bảo mật và tính đúng dữ liệu
 
 - Không tin `amount` từ client.
@@ -637,6 +678,8 @@ Có thể:
 - Không lưu access token hay credential ngân hàng.
 - Không tích hợp login internet banking.
 - User tự kiểm tra và xác nhận giao dịch trong app ngân hàng.
+- Deeplink/Quick Link gửi một số dữ liệu thanh toán cần thiết qua URL của VietQR, gồm STK nhận, số tiền, tên chủ tài khoản và nội dung chuyển khoản. Không đưa credential, token, password hoặc dữ liệu xác thực ngân hàng vào URL.
+- QR route production/test đều dựng payload từ dữ liệu server; client không được truyền `amount`, STK nhận hoặc tên người nhận để thay đổi payload.
 
 ## 15. Quan hệ với Push công nợ hiện tại
 
@@ -666,33 +709,44 @@ flowchart TD
     H --> I[Bank App]
 ```
 
-## 16. Các file dự kiến liên quan khi triển khai
+## 16. Các file đang triển khai tính năng
 
-Hiện trạng:
+Các file chính hiện tại:
 
 - `src/app/(app)/notifications/[id]/page.tsx`
-  - đang hiển thị QR/tài khoản và `CopyBankAccount`.
+  - trang reminder thật; hiển thị current debt, CTA thanh toán, QR động và thông tin STK.
+- `src/app/(app)/notifications/demo/[id]/page.tsx`
+  - trang reminder test; số tiền test cố định 1.000đ.
+- `src/components/debt-payment-button.tsx`
+  - CTA thanh toán + bank picker; tự phát hiện Android/iOS; iOS mở Safari trước khi chuyển sang VietQR.
 - `src/components/copy-bank-account.tsx`
-  - fallback hiện tại.
+  - fallback sao chép STK.
+- `src/lib/vietqr.ts`
+  - danh sách bank/app VietQR, normalize nội dung, build deeplink và Quick Link QR.
+- `src/app/api/payments/bank-apps/route.ts`
+  - trả danh sách app ngân hàng theo platform.
+- `src/app/api/payments/debt-reminder/[id]/route.ts`
+  - payment deeplink production.
+- `src/app/api/payments/debt-reminder-test/[id]/route.ts`
+  - payment deeplink test.
+- `src/app/api/payments/debt-reminder/[id]/qr/route.ts`
+  - QR production; xác thực reminder/User/Member và tính lại current debt.
+- `src/app/api/payments/debt-reminder-test/[id]/qr/route.ts`
+  - QR test; amount cố định 1.000đ.
 - `src/app/(app)/settings/page.tsx`
-  - cấu hình ngân hàng của Club.
+  - chọn ngân hàng nhận tiền từ danh sách VietQR.
 - `src/app/(app)/mutations.ts`
-  - update thông tin Club.
+  - validate và lưu `bankName`/`bankCode`/`bankBin`.
 - `src/db/schema.ts`
-  - cần thêm bank code/BIN nếu chưa có.
+  - schema Club payment fields.
 - `src/lib/current-member-balance.ts`
-  - nguồn current debt hiện tại.
+  - nguồn current debt.
+- `src/app/globals.css`
+  - layout QR/bank picker/divider/copy-button spacing.
+- `drizzle/0019_lying_shiver_man.sql`
+  - migration thêm `bank_code` và `bank_bin`.
 
-Dự kiến thêm:
-
-```text
-src/components/debt-payment-button.tsx
-src/components/bank-app-picker.tsx
-src/lib/vietqr.ts
-src/app/api/payments/debt-reminder/[id]/route.ts
-```
-
-Tên file chỉ là đề xuất; khi triển khai cần kiểm tra conventions hiện tại của project trước.
+Không có file `bank-app-picker.tsx` riêng; bank picker hiện nằm trong `debt-payment-button.tsx`.
 
 ## 17. Roadmap triển khai
 
@@ -710,9 +764,16 @@ Tên file chỉ là đề xuất; khi triển khai cần kiểm tra conventions 
 ### Phase 2 — QR động — Đã triển khai
 
 - Không phụ thuộc ảnh QR upload cố định.
-- QR sinh theo current debt.
-- QR dùng đúng transfer content của deeplink.
-- Có thể giữ QR upload legacy trong thời gian migration.
+- Dùng custom template VietQR `LAZD3qS`.
+- QR production lấy current debt mới nhất từ server.
+- QR test cố định amount **1.000đ**.
+- QR dùng cùng STK/chủ tài khoản/transfer content với payment flow.
+- QR production route không nhận amount từ client.
+- QR test route không nhận amount từ client.
+- QR được căn giữa trong reminder.
+- UI theo thứ tự: CTA thanh toán → QR động → thông tin STK → sao chép STK.
+- `qrUrl` legacy có thể tiếp tục tồn tại trong Settings nhưng không còn bắt buộc.
+- Có thể nhấn giữ ảnh QR để lưu/chia sẻ; không thêm nút download riêng.
 
 ### Phase 3 — Xác nhận thanh toán tự động
 
@@ -729,33 +790,46 @@ Có thể nghiên cứu sau:
 
 Không triển khai Phase 3 cùng Phase 1 để tránh làm phức tạp feature mở app ngân hàng.
 
-## 18. Tiêu chí hoàn thành Phase 1
+## 18. Tiêu chí hoàn thành Phase 1 + Phase 2
 
 Feature được xem là đạt khi:
 
-1. Admin chọn được ngân hàng nhận tiền bằng dữ liệu chuẩn.
+1. Admin chọn được ngân hàng nhận tiền bằng dữ liệu chuẩn và lưu đủ `bankCode` + `bankBin`.
 2. Reminder còn nợ hiển thị đúng `Thanh toán <current debt>`.
 3. Mỗi lần click Thanh toán đều hỏi app ngân hàng.
 4. Không lưu app ngân hàng đã chọn vào DB, cookie, localStorage hoặc sessionStorage.
 5. Sau khi User chọn ngân hàng, FCFund tạo deeplink cho đúng app của lần thanh toán đó.
-6. Deeplink chứa đúng STK nhận tiền.
-7. Deeplink chứa đúng current debt.
-8. Nội dung là:
-   `<Tên Đội Bóng> <Tên Thành Viên> DD-MM-YYYY`, trong đó tên đội bóng lấy từ `clubs.name`.
-9. App ngân hàng được mở khi thiết bị hỗ trợ.
-10. QR/copy vẫn hoạt động khi deeplink không dùng được.
-11. Không tạo transaction FCFund chỉ vì User đã click Thanh toán.
-12. Không có dữ liệu payment quan trọng nào được tin trực tiếp từ client.
+6. Deeplink chứa đúng STK nhận tiền và current debt.
+7. Business content lấy từ `clubs.name` + tên Member + ngày; payload gửi bank được normalize ASCII, bỏ ký tự đặc biệt và giới hạn độ dài.
+8. Android mở deeplink trực tiếp; iOS lấy payment URL từ server rồi mở qua Safari trước khi sang VietQR/bank app.
+9. UI bank picker phân biệt app có autofill và app chỉ mở ứng dụng.
+10. Vietcombank không được mô tả như thể chắc chắn autofill; QR động là fallback ưu tiên khi deeplink VCB chỉ mở app.
+11. QR production dùng template `LAZD3qS`, current debt hiện tại và transfer content server-side.
+12. QR test dùng template `LAZD3qS` và amount cố định 1.000đ.
+13. QR production/test không nhận amount tùy ý từ client.
+14. UI reminder đúng thứ tự: Thanh toán → QR động → STK → Sao chép STK.
+15. QR được căn giữa và nút copy không chồng `.panel-note` trên mobile.
+16. Nếu QR provider lỗi, STK/copy fallback vẫn dùng được.
+17. Không tạo transaction FCFund chỉ vì User đã click Thanh toán hoặc mở app ngân hàng.
+18. Không có dữ liệu payment quan trọng nào được tin trực tiếp từ client.
+19. `qrUrl` tĩnh không còn là điều kiện để reminder/payment hoạt động.
 
 ## 19. Nguồn kỹ thuật tham khảo
 
-Thiết kế deeplink/QR dựa trên tài liệu chính thức VietQR hiện tại:
+Thiết kế deeplink/QR dựa trên tài liệu chính thức VietQR:
 
-- Deeplink App ngân hàng.
-- API danh sách Android App Deeplinks.
-- API danh sách iOS App Deeplinks.
-- VietQR Quick Link.
-- API tạo mã QR.
-- VietQR changelog về hỗ trợ autofill của từng app ngân hàng.
+- Deeplink App ngân hàng: https://www.vietqr.io/danh-sach-api/deeplink-app-ngan-hang/
+  - Tài liệu hiện ghi rõ ví dụ Vietcombank chỉ mở app và chưa tự động điền người nhận/số tiền.
+- VietQR Quick Link: https://www.vietqr.io/en/danh-sach-api/link-tao-ma-nhanh/
+  - Cú pháp `https://img.vietqr.io/image/<BANK_ID>-<ACCOUNT_NO>-<TEMPLATE>.png`.
+  - Hỗ trợ `amount`, `addInfo`, `accountName` và custom template.
+- VietQR Intro / custom template: https://vietqr.io/intro/
+  - Custom template được dùng bằng cách thay `<TEMPLATE>` bằng ID template đã tạo trên My VietQR.
+- API danh sách ngân hàng: https://vietqr.io/danh-sach-api/api-danh-sach-ma-ngan-hang/
+  - Endpoint: `GET https://api.vietqr.io/v2/banks`.
+- Android app deeplink endpoint: `https://api.vietqr.io/v2/android-app-deeplinks`.
+- iOS app deeplink endpoint: `https://api.vietqr.io/v2/ios-app-deeplinks`.
+- VietQR changelog: https://vietqr.io/changelog/
+  - Dùng để theo dõi từng app ngân hàng được bổ sung autofill.
 
-Các API/provider là dependency bên ngoài, vì vậy khi bắt đầu implementation cần kiểm tra lại response schema thực tế và capability của các app ngân hàng ở thời điểm triển khai.
+Các API/provider là dependency bên ngoài. Khi thay đổi implementation hoặc capability matrix, cần kiểm tra lại response schema thực tế và changelog VietQR ở thời điểm đó; không giả định một bank đang hỗ trợ autofill chỉ vì bank đó có mặt trong danh sách deeplink.
