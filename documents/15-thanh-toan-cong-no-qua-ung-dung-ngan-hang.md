@@ -79,6 +79,9 @@ Quy tắc:
 - Tên thành viên lấy từ Member đang liên kết với User nhận lời nhắc.
 - Ngày dùng định dạng `DD-MM-YYYY`.
 - Ngày được tạo tại thời điểm thành viên bấm **Thanh toán**, theo múi giờ `Asia/Ho_Chi_Minh`.
+- Khi truyền sang app ngân hàng, nội dung được chuẩn hóa để tương thích tốt hơn: bỏ dấu tiếng Việt, bỏ ký tự đặc biệt, ngày chuyển thành `DDMMYYYY`, giữ tối đa 40 ký tự.
+- Ví dụ business content `Trai Lang FC Nguyễn Thanh Hải 23-09-2026` được truyền thành dạng tương thích ngân hàng như `Trai Lang FC Nguyen Thanh Hai 23092026` nếu nằm trong giới hạn.
+- Nếu vượt giới hạn, phần tên đội/thành viên được rút gọn nhưng ngày vẫn được giữ.
 - Không thêm reminder ID, user ID, mã giao dịch nội bộ hoặc dữ liệu kỹ thuật khác vào nội dung chuyển khoản.
 - Client không được tự truyền tên thành viên hoặc số nợ tùy ý; dữ liệu thanh toán phải được dựng từ dữ liệu server đã xác thực.
 
@@ -469,17 +472,21 @@ Nếu thiết bị không cài app đã chọn:
 
 ### iOS
 
-Luồng nghiệp vụ giống Android:
+Để giảm lỗi chuyển từ PWA/WebView sang app ngân hàng, khi User chọn ngân hàng trên iOS, FCFund không điều hướng trực tiếp từ PWA sang VietQR.
+
+Luồng:
 
 ```text
-PWA/Safari
+PWA
 → Thanh toán
 → chọn app ngân hàng
-→ VietQR deeplink iOS
+→ PWA gọi server lấy payment URL đã kiểm tra
+→ mở payment URL bằng Safari qua x-safari-https
+→ Safari mở VietQR deeplink
 → bank app
 ```
 
-Danh sách app/deeplink phải dùng tập dữ liệu dành riêng cho iOS.
+Như vậy phần xác thực/reminder/current debt vẫn được xử lý trong phiên PWA hiện tại, còn bước mở deeplink ngân hàng được chuyển sang Safari. Danh sách app/deeplink phải dùng tập dữ liệu dành riêng cho iOS.
 
 ### Kiểm tra thông báo / Thử nhắc nợ
 
@@ -505,6 +512,32 @@ Route triển khai:
 ```
 
 Route chỉ chấp nhận event `DEBT_REMINDER_TEST` thuộc đúng User/Club đang đăng nhập và không nhận amount từ client.
+
+### Khả năng autofill theo app ngân hàng
+
+Không phải app nào trong danh sách deeplink cũng hỗ trợ mở thẳng màn hình chuyển khoản và điền sẵn dữ liệu.
+
+Theo changelog VietQR tại thời điểm triển khai, các app đã công bố hỗ trợ autofill gồm:
+
+- MBBank (`mb`).
+- VietinBank iPay (`icb`).
+- BIDV SmartBanking (`bidv`).
+- ACB ONE (`acb`).
+- OCB (`ocb`).
+
+Vietcombank hiện chỉ được VietQR mô tả ở mức mở ứng dụng; không đảm bảo tự điền người nhận/số tiền/nội dung hoặc mở đúng màn hình chuyển khoản. UI bank picker phải hiển thị rõ:
+
+```text
+Hỗ trợ điền sẵn thông tin
+```
+
+hoặc:
+
+```text
+Chỉ mở ứng dụng ngân hàng
+```
+
+để User không hiểu nhầm.
 
 ## 13. Trạng thái và lỗi cần xử lý
 

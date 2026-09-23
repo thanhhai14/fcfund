@@ -24,7 +24,11 @@ export type VietQrBankApp = {
   bankName: string;
   monthlyInstall: number;
   deeplink: string;
+  autofillSupported: boolean;
 };
+
+const AUTOFILL_APP_IDS = new Set(["mb", "icb", "bidv", "acb", "ocb"]);
+const TRANSFER_NOTE_MAX_LENGTH = 40;
 
 type VietQrBanksResponse = {
   code?: string;
@@ -130,16 +134,54 @@ export async function getVietQrBankApps(platform: "android" | "ios"): Promise<Vi
         bankName,
         monthlyInstall: Number.isFinite(row.monthlyInstall) ? Number(row.monthlyInstall) : 0,
         deeplink,
+        autofillSupported: AUTOFILL_APP_IDS.has(appId),
       };
     })
     .filter((row): row is VietQrBankApp => Boolean(row))
-    .sort((a, b) => b.monthlyInstall - a.monthlyInstall || a.appName.localeCompare(b.appName, "vi"));
+    .sort((a, b) =>
+      Number(b.autofillSupported) - Number(a.autofillSupported)
+      || b.monthlyInstall - a.monthlyInstall
+      || a.appName.localeCompare(b.appName, "vi")
+    );
 }
 
 export function detectBankAppPlatform(userAgent: string): "android" | "ios" | null {
   if (/Android/i.test(userAgent)) return "android";
   if (/iPad|iPhone|iPod/i.test(userAgent) || /Macintosh.*Mobile/i.test(userAgent)) return "ios";
   return null;
+}
+
+function normalizeBankText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g, "D")
+    .replace(/đ/g, "d")
+    .replace(/[^A-Za-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function fitTransferSegments(clubName: string, memberName: string, date: string) {
+  let club = normalizeBankText(clubName);
+  let member = normalizeBankText(memberName);
+  const suffix = normalizeBankText(date);
+  if (!club || !member || !suffix) throw new Error("Nội dung chuyển khoản không hợp lệ.");
+
+  const compose = () => [club, member, suffix].join(" ").replace(/\s+/g, " ").trim();
+  while (compose().length > TRANSFER_NOTE_MAX_LENGTH) {
+    if (member.length >= club.length && member.length > 4) {
+      member = member.slice(0, -1).trimEnd();
+      continue;
+    }
+    if (club.length > 4) {
+      club = club.slice(0, -1).trimEnd();
+      continue;
+    }
+    break;
+  }
+
+  return compose().slice(0, TRANSFER_NOTE_MAX_LENGTH).trim();
 }
 
 export function buildDebtTransferContent(input: {
@@ -152,11 +194,7 @@ export function buildDebtTransferContent(input: {
     throw new Error("Ngày thanh toán không hợp lệ.");
   }
 
-  return [input.clubName.trim(), input.memberName.trim(), `${day}-${month}-${year}`]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return fitTransferSegments(input.clubName, input.memberName, `${day}${month}${year}`);
 }
 
 export function buildVietQrPaymentUrl(input: {
@@ -175,8 +213,10 @@ export function buildVietQrPaymentUrl(input: {
   const appId = input.appId.trim().toLowerCase();
   const bankCode = input.bankCode.trim().toLowerCase();
   const account = input.bankAccountNumber.replace(/\s+/g, "").trim();
-  const holder = input.bankAccountHolder.trim();
-  const transferContent = input.transferContent.trim();
+  const holder = normalizeBankText(input.bankAccountHolder).toUpperCase().slice(0, 50).trim();
+  const transferContent = normalizeBankText(input.transferContent)
+    .slice(0, TRANSFER_NOTE_MAX_LENGTH)
+    .trim();
 
   if (!appId || !bankCode || !account || !holder || !transferContent) {
     throw new Error("Thiếu thông tin thanh toán.");

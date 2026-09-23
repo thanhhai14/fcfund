@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { formatMoney } from "@/lib/format";
 
 type BankApp = {
@@ -11,12 +11,22 @@ type BankApp = {
   bankName: string;
   monthlyInstall: number;
   deeplink: string;
+  autofillSupported: boolean;
 };
 
 type BankAppsResponse = {
   ok?: boolean;
   apps?: BankApp[];
   error?: string;
+};
+
+const PAYMENT_ERROR_MESSAGES: Record<string, string> = {
+  invalid: "Yêu cầu thanh toán không hợp lệ.",
+  "not-configured": "Đội bóng chưa cấu hình đầy đủ ngân hàng nhận tiền.",
+  "unsupported-device": "Thiết bị này chưa hỗ trợ mở ứng dụng ngân hàng trực tiếp.",
+  "bank-app": "Ứng dụng ngân hàng được chọn không hợp lệ hoặc không còn được hỗ trợ.",
+  settled: "Bạn hiện không còn khoản cần thanh toán.",
+  failed: "Chưa thể tạo liên kết thanh toán. Vui lòng thử lại.",
 };
 
 function detectPlatform(): "android" | "ios" | null {
@@ -29,6 +39,13 @@ function detectPlatform(): "android" | "ios" | null {
     return "ios";
   }
   return null;
+}
+
+function toSafariScheme(url: string) {
+  if (url.startsWith("https://") || url.startsWith("http://")) {
+    return `x-safari-${url}`;
+  }
+  return url;
 }
 
 export function DebtPaymentButton({
@@ -101,6 +118,35 @@ export function DebtPaymentButton({
       setMessage("Không kết nối được danh sách ứng dụng ngân hàng. Vui lòng thử lại.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function openBankApp(event: MouseEvent<HTMLAnchorElement>, app: BankApp) {
+    const platform = detectPlatform();
+    if (platform !== "ios") return;
+
+    event.preventDefault();
+    setMessage("Đang mở Safari để tiếp tục thanh toán…");
+
+    const endpoint = paymentPath ?? `/api/payments/debt-reminder/${encodeURIComponent(reminderId)}`;
+    const requestUrl = `${endpoint}?app=${encodeURIComponent(app.appId)}&format=json`;
+
+    try {
+      const response = await fetch(requestUrl, { cache: "no-store" });
+      const data = await response.json().catch(() => null) as {
+        ok?: boolean;
+        paymentUrl?: string;
+        error?: string;
+      } | null;
+
+      if (!response.ok || !data?.ok || !data.paymentUrl) {
+        setMessage(PAYMENT_ERROR_MESSAGES[data?.error ?? ""] || data?.error || "Chưa tạo được liên kết thanh toán.");
+        return;
+      }
+
+      window.location.assign(toSafariScheme(data.paymentUrl));
+    } catch {
+      setMessage("Không thể mở Safari để thanh toán. Vui lòng thử lại.");
     }
   }
 
@@ -177,6 +223,7 @@ export function DebtPaymentButton({
                   key={app.appId}
                   className="bank-picker-item"
                   href={`${paymentPath ?? `/api/payments/debt-reminder/${encodeURIComponent(reminderId)}`}?app=${encodeURIComponent(app.appId)}`}
+                  onClick={(event) => void openBankApp(event, app)}
                 >
                   <span className="bank-picker-logo">
                     {app.appLogo
@@ -186,6 +233,7 @@ export function DebtPaymentButton({
                   <span className="bank-picker-copy">
                     <strong>{app.appName}</strong>
                     <small>{app.bankName}</small>
+                    <small>{app.autofillSupported ? "Hỗ trợ điền sẵn thông tin" : "Chỉ mở ứng dụng ngân hàng"}</small>
                   </span>
                   <span className="bank-picker-open" aria-hidden="true">›</span>
                 </a>

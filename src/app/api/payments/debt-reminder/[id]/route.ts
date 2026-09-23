@@ -37,9 +37,15 @@ export async function GET(
     return NextResponse.redirect(reminderUrl(request, id, "invalid"), 302);
   }
 
-  const appId = new URL(request.url).searchParams.get("app")?.trim().toLowerCase() ?? "";
+  const requestUrl = new URL(request.url);
+  const appId = requestUrl.searchParams.get("app")?.trim().toLowerCase() ?? "";
+  const wantsJson = requestUrl.searchParams.get("format") === "json";
+  const fail = (code: string, status = 400) => wantsJson
+    ? NextResponse.json({ ok: false, error: code }, { status })
+    : NextResponse.redirect(reminderUrl(request, id, code), 302);
+
   if (!appId) {
-    return NextResponse.redirect(reminderUrl(request, id, "bank-app"), 302);
+    return fail("bank-app");
   }
 
   const [record] = await db
@@ -65,29 +71,29 @@ export async function GET(
     .limit(1);
 
   if (!record) {
-    return NextResponse.redirect(reminderUrl(request, id, "invalid"), 302);
+    return fail("invalid", 404);
   }
 
   if (!record.bankCode || !record.bankAccountNumber || !record.bankAccountHolder) {
-    return NextResponse.redirect(reminderUrl(request, id, "not-configured"), 302);
+    return fail("not-configured", 409);
   }
 
   const platform = detectBankAppPlatform(request.headers.get("user-agent") ?? "");
   if (!platform) {
-    return NextResponse.redirect(reminderUrl(request, id, "unsupported-device"), 302);
+    return fail("unsupported-device");
   }
 
   try {
     const apps = await getVietQrBankApps(platform);
     if (!apps.some((app) => app.appId === appId)) {
-      return NextResponse.redirect(reminderUrl(request, id, "bank-app"), 302);
+      return fail("bank-app");
     }
 
     const currentBalance = (await currentMemberBalances(user.clubId, record.timezone))
       .get(record.memberId) ?? 0;
     const amount = Math.max(0, -currentBalance);
     if (amount <= 0) {
-      return NextResponse.redirect(reminderUrl(request, id, "settled"), 302);
+      return fail("settled", 409);
     }
 
     const paymentDate = todayInTimezone(record.timezone);
@@ -108,6 +114,9 @@ export async function GET(
       returnUrl,
     });
 
+    if (wantsJson) {
+      return NextResponse.json({ ok: true, paymentUrl });
+    }
     return NextResponse.redirect(paymentUrl, 302);
   } catch (error) {
     console.error("[debt-payment] Failed to prepare bank deeplink", {
@@ -115,6 +124,6 @@ export async function GET(
       appId,
       message: error instanceof Error ? error.message : "Unknown error",
     });
-    return NextResponse.redirect(reminderUrl(request, id, "failed"), 302);
+    return fail("failed", 502);
   }
 }
