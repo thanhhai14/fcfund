@@ -47,5 +47,6 @@ export async function loginAction(
     memberId: user.memberId ?? undefined,
     role: user.role,
   });
-  redirect("/dashboard");
+  const next = String(formData.get("next") ?? "");
+  redirect(/^\/notifications\/[0-9a-f-]{36}$/i.test(next) ? next : "/dashboard");
 }

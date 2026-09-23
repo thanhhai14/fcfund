@@ -231,6 +231,7 @@ export const notificationEvents = pgTable(
     dedupeKey: varchar("dedupe_key", { length: 255 }).notNull(),
     status: notificationStatus("status").default("PENDING").notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    readAt: timestamp("read_at", { withTimezone: true }),
     ...auditColumns,
   },
   (table) => [
@@ -239,6 +240,19 @@ export const notificationEvents = pgTable(
     index("notification_events_created_idx").on(table.createdAt),
   ],
 );
+
+export const debtReminders = pgTable("debt_reminders", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
+  memberId: uuid("member_id").references(() => members.id, { onDelete: "restrict" }).notNull(),
+  recipientUserId: uuid("recipient_user_id").references(() => users.id, { onDelete: "restrict" }).notNull(),
+  createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reportFromMonth: date("report_from_month").notNull(),
+  reportToMonth: date("report_to_month").notNull(),
+  balanceSnapshot: bigint("balance_snapshot", { mode: "number" }).notNull(),
+  debtAmountSnapshot: bigint("debt_amount_snapshot", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("debt_reminders_member_created_idx").on(table.clubId, table.memberId, table.createdAt)]);
 
 export const memberProfiles = pgTable("member_profiles", {
   memberId: uuid("member_id").primaryKey().references(() => members.id, { onDelete: "cascade" }),

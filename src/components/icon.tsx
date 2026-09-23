@@ -3,6 +3,7 @@ import {
   faArrowRightArrowLeft,
   faAward,
   faBars,
+  faBell,
   faBan,
   faBeerMugEmpty,
   faBolt,
@@ -76,6 +77,7 @@ import {
 
 const icons: Record<string, IconDefinition> = {
   house: faHouse,
+  bell: faBell,
   wallet: faWallet,
   users: faUsers,
   user: faUser,

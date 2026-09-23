@@ -1,7 +1,7 @@
-import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { avatars, chargeTypes, clubs, fundTransactions, memberCharges, members } from "@/db/schema";
+import { avatars, chargeTypes, clubs, debtReminders, fundTransactions, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Icon } from "@/components/icon";
 import { can } from "@/lib/permissions";
@@ -12,6 +12,7 @@ import { getBalanceReportMonth, isBalanceReportMonthInRange, compareBalanceTypes
 import { calculateOpeningBalances } from "@/lib/opening-balance";
 import { BalanceCollection, MonthlyReportCollection } from "@/components/report-collections";
 import { ReportTabs, type ReportTab } from "@/components/report-tabs";
+import { currentMemberBalances } from "@/lib/current-member-balance";
 
 export const metadata = { title: "Báo cáo" };
 
@@ -31,6 +32,7 @@ export default async function ReportsPage({
     can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW),
     can(PERMISSIONS.CLUB_BALANCE_VIEW),
   ]);
+  const canRemind = ["ADMIN", "TREASURER"].includes(user.role) && await can(PERMISSIONS.DEBT_REMINDERS_SEND);
   if (!viewAll && !user.memberId) redirect("/dashboard");
 
   const params = await searchParams;
@@ -73,6 +75,10 @@ export default async function ReportsPage({
   const [club] = await db.select({
     name: clubs.name,
     logoUrl: clubs.logoUrl,
+    qrUrl: clubs.qrUrl,
+    bankName: clubs.bankName,
+    bankAccountNumber: clubs.bankAccountNumber,
+    bankAccountHolder: clubs.bankAccountHolder,
     updatedAt: clubs.updatedAt,
   }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
 
@@ -257,6 +263,11 @@ export default async function ReportsPage({
       })),
     }));
   const debt = balances.reduce((sum, row) => sum + Math.max(-row.balance, 0), 0);
+  const latestBalances = canRemind ? await currentMemberBalances(user.clubId) : new Map<string, number>();
+  const [databaseClock] = canRemind ? await db.select({ now: sql<Date>`now()` }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1) : [{ now: new Date(0) }];
+  const reminderHistory = canRemind ? await db.select({ memberId: debtReminders.memberId, createdAt: debtReminders.createdAt }).from(debtReminders).where(eq(debtReminders.clubId, user.clubId)).orderBy(desc(debtReminders.createdAt)) : [];
+  const latestReminderAt = new Map<string, number>();
+  for (const row of reminderHistory) if (!latestReminderAt.has(row.memberId)) latestReminderAt.set(row.memberId, row.createdAt.getTime());
   const credit = balances.reduce((sum, row) => sum + Math.max(row.balance, 0), 0);
 
   return (
@@ -300,13 +311,16 @@ export default async function ReportsPage({
         balances={<BalanceCollection
           clubName={club?.name ?? "Đội bóng"}
           logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
-          rows={balances.map((row) => ({ ...row, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))}
+          rows={balances.map((row) => ({ ...row, currentBalance: latestBalances.get(row.id) ?? 0, reminderAvailableAt: (latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000 > databaseClock.now.getTime() ? new Date((latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : null, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))}
           groups={balanceGroups}
           period={balancePeriod}
           fromMonth={balanceFromMonth}
           toMonth={balanceToMonth}
           fromLabel={balanceFromLabel}
           toLabel={balanceToLabel}
+          canRemind={canRemind}
+          currentMonth={currentMonth}
+          paymentReady={!!(club?.qrUrl && club.bankName && club.bankAccountNumber && club.bankAccountHolder)}
         />}
         structure={<article className="panel report-structure-panel">
           <div className="panel-heading"><div><span className="eyebrow">Cơ cấu lũy kế</span><h2>Khoản phải thu theo loại</h2></div></div>

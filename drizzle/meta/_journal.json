@@ -127,6 +127,13 @@
       "when": 1790075973382,
       "tag": "0017_sudden_captain_britain",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790140280705,
+      "tag": "0018_swift_sabretooth",
+      "breakpoints": true
     }
   ]
 }

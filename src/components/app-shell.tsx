@@ -17,6 +17,7 @@ const navItems = [
   { href: "/transactions", label: "Thu & chi", icon: "transactions" },
   { href: "/matches", label: "Trận đấu", icon: "futbol" },
   { href: "/reports", label: "Báo cáo", icon: "chart" },
+  { href: "/notifications", label: "Hộp thư", icon: "bell" },
   { href: "/settings", label: "Cài đặt", icon: "settings" },
 ];
 
@@ -40,6 +41,7 @@ export function AppShell({
   userMemberId,
   userAvatarVersion,
   roleLabel,
+  unreadNotifications,
   pushPublicKey,
   mobileNavRoutes,
   logoutAction,
@@ -52,6 +54,7 @@ export function AppShell({
   userMemberId?: string | null;
   userAvatarVersion?: Date | string | number | null;
   roleLabel: string;
+  unreadNotifications: number;
   pushPublicKey: string | null;
   mobileNavRoutes: string[];
   logoutAction: () => Promise<void>;
@@ -87,7 +90,7 @@ export function AppShell({
                 aria-current={active ? "page" : undefined}
                 onClick={() => setOpen(false)}
               >
-                <Icon name={item.icon} /><span>{item.label}</span>
+                <Icon name={item.icon} /><span>{item.label}</span>{item.href === "/notifications" && unreadNotifications > 0 && <b className="notification-badge">{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}
               </Link>
             );
           })}
@@ -111,6 +114,7 @@ export function AppShell({
         aria-label="Đóng menu"
       />
       <main className="app-main">
+        <Link href="/notifications" className="notification-shortcut" aria-label={`Hộp thư, ${unreadNotifications} thông báo chưa đọc`}><Icon name="bell" />{unreadNotifications > 0 && <b>{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}</Link>
         <button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Mở menu">
           <Icon name="menu" />
         </button>

@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { clubs } from "@/db/schema";
+import { clubs, notificationEvents } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
 import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
@@ -16,6 +16,7 @@ export default async function DashboardLayout({
 }) {
   const user = await requireUser();
   const [club] = await db.select().from(clubs).where(eq(clubs.id, user.clubId)).limit(1);
+  const [unread] = await db.select({ count: sql<number>`count(*)` }).from(notificationEvents).where(and(eq(notificationEvents.clubId, user.clubId), eq(notificationEvents.userId, user.id), isNull(notificationEvents.readAt), ne(notificationEvents.type, "TEST_NOTIFICATION")));
   const [canDashboard, canMatches, canChargesOwn, canChargesAll, canViewOtherBalances] = await Promise.all([
     can(PERMISSIONS.DASHBOARD_VIEW),
     can(PERMISSIONS.MATCHES_VIEW),
@@ -39,6 +40,7 @@ export default async function DashboardLayout({
       userMemberId={user.memberId}
       userAvatarVersion={user.avatarUpdatedAt}
       roleLabel={ROLE_LABELS[user.role]}
+      unreadNotifications={Number(unread?.count ?? 0)}
       pushPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
       mobileNavRoutes={mobileNavRoutes}
       logoutAction={logoutAction}

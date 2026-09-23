@@ -24,6 +24,7 @@ export type PushEventType =
   | "MATCH_RSVP_UPDATED"
   | "MATCH_RSVP_REMINDER"
   | "ZALO_LINK_REQUEST"
+  | "DEBT_REMINDER"
   | "TEST_NOTIFICATION";
 
 type NotifyInput = {
@@ -96,7 +97,7 @@ async function deliverToSubscription(
   }
 }
 
-async function dispatchEvent(event: {
+export async function dispatchEvent(event: {
   id: string;
   userId: string;
   type: string;
@@ -215,18 +216,14 @@ export async function notifyUsers(input: NotifyInput) {
   const userIds = [...new Set(input.userIds)];
   if (!userIds.length) return;
 
-  const subscribedUsers = await db.select({ id: users.id })
+  const activeUsers = await db.select({ id: users.id })
     .from(users)
-    .innerJoin(pushSubscriptions, and(
-      eq(pushSubscriptions.userId, users.id),
-      eq(pushSubscriptions.enabled, true),
-    ))
     .where(and(
       eq(users.clubId, input.clubId),
       eq(users.isActive, true),
       inArray(users.id, userIds),
     ));
-  const allowedIds = new Set(subscribedUsers.map((row) => row.id));
+  const allowedIds = new Set(activeUsers.map((row) => row.id));
 
   await Promise.allSettled(userIds
     .filter((userId) => allowedIds.has(userId))

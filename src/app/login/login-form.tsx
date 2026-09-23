@@ -5,11 +5,12 @@ import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(loginAction, initialState);
 
   return (
     <form action={action} className="login-form">
+      {next && <input type="hidden" name="next" value={next} />}
       <label>
         Số điện thoại
         <input

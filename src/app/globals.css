@@ -10835,6 +10835,73 @@ html[data-navigation-pending="true"] .app-main::after {
   text-align: center;
 }
 
+/* Inbox and per-member debt reminder */
+.notification-badge,
+.notification-shortcut b {
+  margin-left: auto;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  background: var(--brand-primary);
+  font-size: 11px;
+  border-radius: 11px;
+}
+
+.notification-shortcut {
+  position: absolute;
+  top: 23px;
+  right: 25px;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+.notification-inbox { padding: 18px; }
+.notification-inbox-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.notification-inbox-top nav { display: flex; flex-wrap: wrap; gap: 5px; }
+.notification-inbox-top nav a { padding: 8px 10px; border: 1px solid var(--line); color: var(--ink); font-weight: 700; }
+.notification-inbox-top nav a.active { color: #fff; background: var(--brand-primary); border-color: var(--brand-primary); }
+.notification-list { margin-top: 16px; display: grid; }
+.notification-item { width: 100%; display: flex; gap: 13px; align-items: flex-start; text-align: left; padding: 14px; background: #fff; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); cursor: pointer; }
+.notification-item.unread { background: #fff5f8; }
+.notification-item-icon { width: 35px; height: 35px; flex: 0 0 35px; display: grid; place-items: center; color: var(--brand-primary); background: #f8e4eb; }
+.notification-item-copy { display: grid; gap: 3px; min-width: 0; }
+.notification-item-copy span { line-height: 1.4; }
+.notification-item-copy small { color: var(--muted); }
+.notification-item i { width: 8px; height: 8px; margin-left: auto; border-radius: 50%; background: var(--brand-primary); }
+.debt-reminder-sticky { position: sticky !important; right: 0; min-width: 65px; width: 65px; text-align: center; background: #fff !important; z-index: 3; box-shadow: -2px 0 0 var(--line); }
+thead .debt-reminder-sticky { z-index: 5; background: #f7f9fb !important; }
+.debt-reminder-control { display: inline-flex; align-items: center; position: relative; }
+.debt-reminder-bell { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--brand-primary); background: #fff3f7; color: var(--brand-primary); cursor: pointer; }
+.debt-reminder-bell:disabled { opacity: .35; cursor: not-allowed; }
+.debt-reminder-feedback { position: absolute; right: 0; bottom: 100%; width: min(260px, 75vw); padding: 7px; color: var(--ink); background: #fff; border: 1px solid var(--line); box-shadow: 2px 2px 0 #dedee4; z-index: 10; text-align: left; }
+.balance-period-card>header { grid-template-columns: 32px minmax(0, 1fr) auto auto; }
+.debt-reminder-detail { max-width: 760px; padding: 22px; }
+.debt-reminder-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.debt-reminder-figures>div { display: grid; gap: 7px; padding: 17px; border: 1px solid var(--line); }
+.debt-reminder-figures strong { font-size: 20px; }
+.debt-reminder-qr { display: block; max-width: min(300px, 100%); max-height: 300px; object-fit: contain; margin: 15px 0; }
+.debt-reminder-detail dl { display: grid; gap: 8px; }
+.debt-reminder-detail dl div { display: flex; gap: 10px; flex-wrap: wrap; }
+.debt-reminder-detail dt { min-width: 135px; color: var(--muted); }
+.debt-reminder-detail dd { margin: 0; font-weight: 700; }
+
+@media (max-width: 600px) {
+  .notification-shortcut { display: flex; top: 18px; right: 15px; }
+  .notification-inbox { padding: 12px; }
+  .balance-period-card>header { grid-template-columns: 32px minmax(0, 1fr) auto; }
+  .balance-period-card>header .debt-reminder-control { grid-column: 3; }
+  .debt-reminder-figures { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 560px) {
   .pwa-install-gate {
     align-items: end;
