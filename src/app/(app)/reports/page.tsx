@@ -264,7 +264,8 @@ export default async function ReportsPage({
     }));
   const debt = balances.reduce((sum, row) => sum + Math.max(-row.balance, 0), 0);
   const latestBalances = canRemind ? await currentMemberBalances(user.clubId) : new Map<string, number>();
-  const [databaseClock] = canRemind ? await db.select({ now: sql<Date>`now()` }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1) : [{ now: new Date(0) }];
+  const [databaseClock] = canRemind ? await db.select({ epochSeconds: sql<string>`extract(epoch from now())` }).from(clubs).where(eq(clubs.id, user.clubId)).limit(1) : [{ epochSeconds: "0" }];
+  const nowMs = Number(databaseClock?.epochSeconds ?? 0) * 1000;
   const reminderHistory = canRemind ? await db.select({ memberId: debtReminders.memberId, createdAt: debtReminders.createdAt }).from(debtReminders).where(eq(debtReminders.clubId, user.clubId)).orderBy(desc(debtReminders.createdAt)) : [];
   const latestReminderAt = new Map<string, number>();
   for (const row of reminderHistory) if (!latestReminderAt.has(row.memberId)) latestReminderAt.set(row.memberId, row.createdAt.getTime());
@@ -311,7 +312,7 @@ export default async function ReportsPage({
         balances={<BalanceCollection
           clubName={club?.name ?? "Đội bóng"}
           logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
-          rows={balances.map((row) => ({ ...row, currentBalance: latestBalances.get(row.id) ?? 0, reminderAvailableAt: (latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000 > databaseClock.now.getTime() ? new Date((latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : null, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))}
+          rows={balances.map((row) => ({ ...row, currentBalance: latestBalances.get(row.id) ?? 0, reminderAvailableAt: (latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000 > nowMs ? new Date((latestReminderAt.get(row.id) ?? 0) + 60 * 60 * 1000).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : null, avatarVersion: row.avatarUpdatedAt?.getTime() ?? null }))}
           groups={balanceGroups}
           period={balancePeriod}
           fromMonth={balanceFromMonth}
