@@ -44,6 +44,7 @@ import { MemberAvatar, MemberIdentity } from "@/components/member-identity";
 import { SearchableMemberSelect } from "@/components/searchable-member-select";
 import { PushNotificationSettings } from "@/components/push-notification-settings";
 import { PushDeviceManager } from "@/components/push-device-manager";
+import { DebtReminderTest } from "@/components/debt-reminder-test";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -156,6 +157,7 @@ export default async function SettingsPage() {
           </article>}
 
           <PushNotificationSettings publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} isAdmin={currentUser.role === "ADMIN"} />
+          {currentUser.role === "ADMIN" && <DebtReminderTest recipients={accounts.filter((account) => account.active).map((account) => ({ id: account.id, name: account.displayName, phone: account.phone }))} />}
 
           <article className="panel">
             <div className="panel-heading"><div><span className="eyebrow">Cá nhân</span><h2>Avatar tài khoản</h2></div></div>

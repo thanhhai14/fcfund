@@ -93,7 +93,7 @@ export default async function LoginPage({
             <h2>Đăng nhập tài khoản</h2>
             <p>Sử dụng số điện thoại đã được Admin cấp.</p>
           </div>
-          <LoginForm next={typeof params.next === "string" && /^\/notifications\/[0-9a-f-]{36}$/i.test(params.next) ? params.next : undefined} />
+          <LoginForm next={typeof params.next === "string" && /^\/notifications\/(?:demo\/)?[0-9a-f-]{36}$/i.test(params.next) ? params.next : undefined} />
           {isZaloLoginEnabled() && (
             <div className="zalo-login-poc">
               <div className="zalo-login-divider"><span>hoặc</span></div>

@@ -48,5 +48,5 @@ export async function loginAction(
     role: user.role,
   });
   const next = String(formData.get("next") ?? "");
-  redirect(/^\/notifications\/[0-9a-f-]{36}$/i.test(next) ? next : "/dashboard");
+  redirect(/^\/notifications\/(?:demo\/)?[0-9a-f-]{36}$/i.test(next) ? next : "/dashboard");
 }

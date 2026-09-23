@@ -25,6 +25,7 @@ export type PushEventType =
   | "MATCH_RSVP_REMINDER"
   | "ZALO_LINK_REQUEST"
   | "DEBT_REMINDER"
+  | "DEBT_REMINDER_TEST"
   | "TEST_NOTIFICATION";
 
 type NotifyInput = {
