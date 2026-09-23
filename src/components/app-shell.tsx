@@ -65,7 +65,7 @@ export function AppShell({
   const mobilePrimaryActive = visibleMobileNavItems.some((item) => isActivePath(pathname, item.href));
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isActivePath(pathname, "/notifications") ? " notifications-screen" : ""}`}>
       <Suspense fallback={null}>
         <NavigationFeedback />
       </Suspense>
@@ -114,7 +114,7 @@ export function AppShell({
         aria-label="Đóng menu"
       />
       <main className="app-main">
-        <Link href="/notifications" className="notification-shortcut" aria-label={`Hộp thư, ${unreadNotifications} thông báo chưa đọc`}><Icon name="bell" />{unreadNotifications > 0 && <b>{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}</Link>
+        {!isActivePath(pathname, "/notifications") && <Link href="/notifications" className="notification-shortcut" aria-label={`Hộp thư, ${unreadNotifications} thông báo chưa đọc`}><Icon name="bell" />{unreadNotifications > 0 && <b>{unreadNotifications > 99 ? "99+" : unreadNotifications}</b>}</Link>}
         <button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Mở menu">
           <Icon name="menu" />
         </button>
