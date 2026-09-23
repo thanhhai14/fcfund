@@ -47,17 +47,6 @@ function toSafariScheme(url: string) {
   return url;
 }
 
-function toChromeScheme(url: string) {
-  try {
-    const target = new URL(url);
-    if (target.protocol !== "https:" && target.protocol !== "http:") return url;
-
-    return `googlechrome://navigate?url=${target.toString()}`;
-  } catch {
-    return url;
-  }
-}
-
 function readStoredHandoff(): Handoff | null {
   try {
     const raw = window.localStorage.getItem(HANDOFF_STORAGE_KEY);
@@ -176,7 +165,9 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
     if (platform === "android") {
       setMessage("Đang mở Chrome để xác thực Zalo…");
-      event.currentTarget.href = toChromeScheme(pwaHandoff.authorizationUrl);
+      event.currentTarget.href = pwaHandoff.authorizationUrl;
+      event.currentTarget.target = "_blank";
+      event.currentTarget.rel = "noopener noreferrer";
       return;
     }
 
