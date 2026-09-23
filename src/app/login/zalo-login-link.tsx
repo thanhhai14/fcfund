@@ -77,6 +77,15 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
   const [showAndroidGuide, setShowAndroidGuide] = useState(false);
 
   useEffect(() => {
+    const platform = getStandalonePlatform();
+
+    if (platform === "android") {
+      window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
+      return;
+    }
+
+    if (platform !== "ios") return;
+
     let active = true;
 
     async function checkHandoff() {
@@ -98,12 +107,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
         if (!active || !data) return;
 
         if (data.status === "PENDING") {
-          const platform = getStandalonePlatform();
-          setMessage(
-            platform === "android"
-              ? "Đang chờ bạn hoàn tất xác thực Zalo trong Chrome…"
-              : "Đang chờ bạn hoàn tất xác thực Zalo trong Safari…",
-          );
+          setMessage("Đang chờ bạn hoàn tất xác thực Zalo trong Safari…");
           return;
         }
 
@@ -187,14 +191,15 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
     const platform = getStandalonePlatform();
     if (!platform) return;
 
-    if (!validateHandoff(event)) return;
-
     if (platform === "android") {
       event.preventDefault();
+      window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
       setMessage("");
       setShowAndroidGuide(true);
       return;
     }
+
+    if (!validateHandoff(event)) return;
 
     event.preventDefault();
     window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
@@ -202,12 +207,9 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
     window.location.assign(toSafariScheme(pwaHandoff!.authorizationUrl));
   }
 
-  function handleAndroidContinue(event: MouseEvent<HTMLAnchorElement>) {
-    if (!validateHandoff(event)) return;
-
-    window.localStorage.setItem(HANDOFF_STORAGE_KEY, JSON.stringify(pwaHandoff));
+  function handleAndroidContinue() {
+    window.localStorage.removeItem(HANDOFF_STORAGE_KEY);
     setShowAndroidGuide(false);
-    setMessage("Đang chờ bạn hoàn tất xác thực Zalo trong Chrome…");
   }
 
   return (
@@ -222,7 +224,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
 
       {message && <p className="form-message" role="status">{message}</p>}
 
-      {showAndroidGuide && pwaHandoff && (
+      {showAndroidGuide && (
         <div
           className="zalo-android-guide-backdrop"
           role="presentation"
@@ -302,9 +304,7 @@ export function ZaloLoginLink({ pwaHandoff }: { pwaHandoff: Handoff | null }) {
             <div className="zalo-android-guide-actions">
               <a
                 className="button primary zalo-android-guide-continue"
-                href={pwaHandoff.authorizationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/api/auth/zalo/start"
                 onClick={handleAndroidContinue}
               >
                 Đã hiểu – Mở Zalo
