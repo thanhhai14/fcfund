@@ -34,6 +34,7 @@ import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
 import { can, requirePermission } from "@/lib/permissions";
 import { isPlayerPosition, isPlayerStrength, type PlayerPosition } from "@/lib/player-profile";
+import { findVietQrBank } from "@/lib/vietqr";
 import {
   activeMemberUserIdsForClub,
   notifyUsers,
@@ -1341,6 +1342,29 @@ export async function updateClubAction(formData: FormData): Promise<MutationResu
 
   let logoUrl = before.logoUrl;
   let qrUrl = before.qrUrl;
+  let bankName = before.bankName;
+  let bankCode = before.bankCode;
+  let bankBin = before.bankBin;
+
+  if (formData.has("bankCode")) {
+    const submittedBankCode = str(formData, "bankCode");
+    if (!submittedBankCode) {
+      bankName = null;
+      bankCode = null;
+      bankBin = null;
+    } else {
+      try {
+        const bank = await findVietQrBank(submittedBankCode);
+        if (!bank) return { ok: false, message: "Ngân hàng được chọn không còn trong danh sách VietQR." };
+        bankName = bank.shortName;
+        bankCode = bank.code;
+        bankBin = bank.bin;
+      } catch {
+        return { ok: false, message: "Không xác thực được ngân hàng với VietQR. Vui lòng thử lại." };
+      }
+    }
+  }
+
   const logo = formData.get("logo");
   const qr = formData.get("qr");
   const images = [logo, qr].filter((file): file is File => file instanceof File && file.size > 0);
@@ -1374,7 +1398,9 @@ export async function updateClubAction(formData: FormData): Promise<MutationResu
     const [after] = await tx.update(clubs).set({
       name: str(formData, "name") || before.name,
       logoUrl, qrUrl,
-      bankName: str(formData, "bankName") || null,
+      bankName,
+      bankCode,
+      bankBin,
       bankAccountNumber: str(formData, "bankAccountNumber") || null,
       bankAccountHolder: str(formData, "bankAccountHolder") || null,
       updatedAt: new Date(),

@@ -45,6 +45,7 @@ import { SearchableMemberSelect } from "@/components/searchable-member-select";
 import { PushNotificationSettings } from "@/components/push-notification-settings";
 import { PushDeviceManager } from "@/components/push-device-manager";
 import { DebtReminderTest } from "@/components/debt-reminder-test";
+import { getVietQrBanks } from "@/lib/vietqr";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -56,6 +57,12 @@ export default async function SettingsPage() {
     .from(zaloLinkRequests)
     .where(and(eq(zaloLinkRequests.clubId, currentUser.clubId), eq(zaloLinkRequests.status, "PENDING"))) : [];
   const [club] = await db.select().from(clubs).where(eq(clubs.id, currentUser.clubId)).limit(1);
+  const bankOptions = manageSettings
+    ? await getVietQrBanks().catch((error) => {
+        console.error("[settings] VietQR bank list failed", error instanceof Error ? error.message : "Unknown error");
+        return [];
+      })
+    : [];
   const types = manageSettings ? await db.select().from(chargeTypes)
     .where(eq(chargeTypes.clubId, currentUser.clubId)).orderBy(chargeTypes.name) : [];
   const categories = manageSettings ? await db.select().from(fundCategories)
@@ -93,7 +100,32 @@ export default async function SettingsPage() {
             <MutationForm action={updateClubAction} className="form-stack">
               <label>Tên đội bóng<input name="name" defaultValue={club.name} required /></label>
               <div className="form-row"><label>Logo đội<input name="logo" type="file" accept="image/png,image/jpeg,image/webp" /></label><label>Ảnh QR<input name="qr" type="file" accept="image/png,image/jpeg,image/webp" /></label></div>
-              <div className="form-row"><label>Ngân hàng<input name="bankName" defaultValue={club.bankName ?? ""} /></label><label>Số tài khoản<input name="bankAccountNumber" defaultValue={club.bankAccountNumber ?? ""} /></label></div>
+              <div className="form-row">
+                {bankOptions.length ? (
+                  <label>Ngân hàng nhận tiền
+                    <select name="bankCode" defaultValue={club.bankCode ?? ""}>
+                      <option value="">Chưa cấu hình</option>
+                      {club.bankCode && !bankOptions.some((bank) => bank.code === club.bankCode) && (
+                        <option value={club.bankCode}>{club.bankName ?? club.bankCode} · cấu hình hiện tại</option>
+                      )}
+                      {bankOptions.map((bank) => (
+                        <option key={bank.code} value={bank.code}>
+                          {bank.shortName} · {bank.name}
+                        </option>
+                      ))}
+                    </select>
+                    {!club.bankCode && club.bankName && (
+                      <small>Đang dùng cấu hình cũ: {club.bankName}. Hãy chọn lại ngân hàng để bật thanh toán trực tiếp.</small>
+                    )}
+                  </label>
+                ) : (
+                  <label>Ngân hàng nhận tiền
+                    <input value={club.bankName ?? "Chưa cấu hình"} readOnly />
+                    <small>Chưa tải được danh sách VietQR. Cấu hình ngân hàng hiện tại được giữ nguyên.</small>
+                  </label>
+                )}
+                <label>Số tài khoản<input name="bankAccountNumber" defaultValue={club.bankAccountNumber ?? ""} /></label>
+              </div>
               <label>Chủ tài khoản<input name="bankAccountHolder" defaultValue={club.bankAccountHolder ?? ""} /></label>
               <SubmitButton>Lưu thông tin đội</SubmitButton>
             </MutationForm>

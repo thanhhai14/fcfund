@@ -134,6 +134,13 @@
       "when": 1790140280705,
       "tag": "0018_swift_sabretooth",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790149674065,
+      "tag": "0019_lying_shiver_man",
+      "breakpoints": true
     }
   ]
 }

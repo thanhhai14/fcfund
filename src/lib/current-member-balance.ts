@@ -6,8 +6,8 @@ import { fundTransactions, memberCharges } from "@/db/schema";
 import { getBalanceReportMonth } from "./balance-report";
 import { todayInTimezone } from "./format";
 
-export async function currentMemberBalances(clubId: string) {
-  const today = todayInTimezone();
+export async function currentMemberBalances(clubId: string, timezone?: string) {
+  const today = todayInTimezone(timezone);
   const month = today.slice(0, 7);
   const [charges, payments] = await Promise.all([
     db.select({ memberId: memberCharges.memberId, chargeDate: memberCharges.chargeDate, amount: memberCharges.totalAmount, nextMonth: memberCharges.reportNextMonthSnapshot })

@@ -74,6 +74,8 @@ export const clubs = pgTable("clubs", {
   logoUrl: text("logo_url"),
   qrUrl: text("qr_url"),
   bankName: varchar("bank_name", { length: 160 }),
+  bankCode: varchar("bank_code", { length: 24 }),
+  bankBin: varchar("bank_bin", { length: 6 }),
   bankAccountNumber: varchar("bank_account_number", { length: 80 }),
   bankAccountHolder: varchar("bank_account_holder", { length: 160 }),
   timezone: varchar("timezone", { length: 80 }).default("Asia/Ho_Chi_Minh").notNull(),
