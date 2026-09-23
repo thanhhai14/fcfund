@@ -1,15 +1,36 @@
 import type { Metadata } from "next";
+import { and, eq } from "drizzle-orm";
+import { redirect } from "next/navigation";
+import { db } from "@/db";
+import { zaloLinkRequests } from "@/db/schema";
 import { requireAnonymous } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { APP_NAME } from "@/lib/constants";
 import { isZaloLoginEnabled } from "@/lib/zalo-auth";
 import { createZaloAuthHandoff } from "@/lib/zalo-handoff";
+import { readZaloPendingSession } from "@/lib/zalo-linking";
 import { ZaloLoginLink } from "./zalo-login-link";
 
 export const metadata: Metadata = { title: "Đăng nhập" };
 
 export default async function LoginPage() {
   await requireAnonymous();
+
+  const pendingSession = await readZaloPendingSession();
+  if (pendingSession) {
+    const [pendingRequest] = await db
+      .select({ status: zaloLinkRequests.status })
+      .from(zaloLinkRequests)
+      .where(and(
+        eq(zaloLinkRequests.id, pendingSession.requestId),
+        eq(zaloLinkRequests.providerUserId, pendingSession.providerUserId),
+      ))
+      .limit(1);
+
+    if (pendingRequest?.status === "PENDING" || pendingRequest?.status === "APPROVED") {
+      redirect("/zalo/pending");
+    }
+  }
 
   let pwaHandoff: {
     handoffId: string;

@@ -58,7 +58,9 @@ export default async function ZaloPendingPage() {
           </p>
         )}
 
-        <a className="button secondary" href="/login">Quay lại đăng nhập</a>
+        {request.status === "REJECTED" && (
+          <a className="button secondary" href="/login">Thử đăng nhập lại</a>
+        )}
       </section>
     </main>
   );
