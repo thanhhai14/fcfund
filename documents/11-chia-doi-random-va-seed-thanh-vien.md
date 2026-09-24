@@ -1,7 +1,7 @@
 # Chia đội random, seed và phong độ thành viên
 
-**Trạng thái:** Cập nhật Tier 1–7 và vai trò thủ môn ngày 17/08/2026
-**Phạm vi:** Mở rộng module Trận đấu; tài liệu thiết kế trước khi triển khai
+**Trạng thái:** Cập nhật Tier 1–7 và vai trò thủ môn ngày 17/08/2026. Lifecycle và các guard sửa/xóa/tạo version đang được chuẩn hóa theo tài liệu số 16.
+**Phạm vi:** Mở rộng module Trận đấu; tài liệu chia đội/Seed. Quy tắc lifecycle mới nhất xem [16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md](./16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md).
 
 ## 1. Mục tiêu
 

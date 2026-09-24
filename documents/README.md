@@ -26,5 +26,7 @@ Thư mục này là nguồn mô tả nghiệp vụ và cấu trúc dữ liệu t
 - [`12-web-push-va-thong-bao.md`](./12-web-push-va-thong-bao.md): thiết kế Web Push, thiết bị/subscription, deep link, ma trận sự kiện và lộ trình triển khai notification.
 - [`13-dang-nhap-zalo-cho-pwa.md`](./13-dang-nhap-zalo-cho-pwa.md): thiết kế đăng nhập Zalo cho Web/PWA, chỉ fuzzy-match với tài khoản chưa link Zalo, xác minh candidate và liên kết identity an toàn.
 - [`14-nhac-no-theo-ky-va-hop-thu-thong-bao.md`](./14-nhac-no-theo-ky-va-hop-thu-thong-bao.md): nhắc nợ từng thành viên từ Báo cáo theo kỳ, QR chuyển khoản cố định và Hộp thư xem lại lời nhắc.
+- [`15-thanh-toan-cong-no-qua-ung-dung-ngan-hang.md`](./15-thanh-toan-cong-no-qua-ung-dung-ngan-hang.md): deeplink ứng dụng ngân hàng, VietQR động, QR fallback và luồng thanh toán công nợ.
+- [`16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md`](./16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md): audit xung đột Matches, lifecycle mục tiêu, action guards và kế hoạch sửa chữa theo từng phase.
 
 > Nghiệp vụ lõi và phần lớn schema vật lý đã được triển khai bằng Drizzle migration. Tài liệu trong thư mục này phải được đồng bộ theo source/migration hiện hành khi nghiệp vụ thay đổi.
