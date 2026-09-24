@@ -19,6 +19,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { PlayerPosition, PlayerStrength } from "@/lib/player-profile";
 import type { TeamDrawSnapshot } from "@/lib/team-draw-snapshot";
+import type { NotificationPresentationData } from "@/lib/notification-presentation";
 
 const auditColumns = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -228,6 +229,7 @@ export const notificationEvents = pgTable(
     title: varchar("title", { length: 180 }).notNull(),
     body: text("body").notNull(),
     url: text("url").notNull(),
+    presentationData: jsonb("presentation_data").$type<NotificationPresentationData | null>(),
     entityType: varchar("entity_type", { length: 80 }),
     entityId: uuid("entity_id"),
     dedupeKey: varchar("dedupe_key", { length: 255 }).notNull(),

@@ -11050,6 +11050,8 @@ html[data-navigation-pending="true"] .app-main::after {
 .notification-item-title strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .notification-unread-dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-primary); }
 .notification-item-body { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; color: var(--muted); font-size: 13px; text-wrap: pretty; }
+.notification-result-icons { display: inline-flex; align-items: center; gap: 3px; margin-inline: 3px; vertical-align: -1px; }
+.notification-result-icons svg { width: 1em; height: 1em; }
 .notification-item-time { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .notification-empty { display: grid; justify-items: center; gap: 9px; padding: 54px 18px; text-align: center; }
 .notification-empty > svg { color: var(--brand-primary); font-size: 25px; }

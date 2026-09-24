@@ -136,9 +136,18 @@ iOS không cho website tự yêu cầu permission tùy ý mà không có user in
 | `MATCH_UPDATED` | `updateMatchAction` | Người GOING/NOT_GOING; có thể mở rộng toàn club khi đổi ngày | `/matches/{id}` | Chỉ push nếu ngày/nội dung quan trọng thay đổi |
 | `MATCH_CANCELLED` | `deleteMatchAction` | Người đã GOING hoặc đã RSVP | `/matches` | Cần thông báo vì lịch đã thay đổi |
 | `MATCH_TEAM_CONFIRMED` | `confirmMatchTeamsAction` | Thành viên nằm trong đội hình xác nhận và có User | `/matches/{id}/teams` | Không push khi mới random DRAFT |
-| `MATCH_RESULT_RECORDED` | `recordMatchResultAction` | Thành viên thuộc phiên bản đội hình | `/matches/{id}` | Có thể chứa “Kết quả trận đã cập nhật” |
-| `MEMBER_CHARGE_CREATED` | `createMemberChargeAction`; kết quả trận; monthly job | User liên kết đúng member | `/charges` hoặc `/reports` | Gom batch khi sinh nhiều khoản cùng lúc |
+| `MATCH_RESULT_RECORDED` | `recordMatchResultAction` | Từng thành viên thuộc đội hình đã xác nhận, có User liên kết | `/reports?tab=monthly&month=YYYY-MM` | Một thông báo cá nhân nêu hạng đội của thành viên; hạng 1 có lời chúc mừng. Gắn khoản phạt vào chính thông báo này nếu có; không gửi thêm thông báo phạt riêng. |
+| `MEMBER_CHARGE_CREATED` | Khoản thu thường phát sinh khi tạo/sửa trận hoặc nhập khoản thu riêng | User liên kết đúng member | `/reports?tab=monthly&month=YYYY-MM` | Tiêu đề `Khoản thu mới`; nêu tên loại thu. Dùng tháng báo cáo hiệu lực của khoản thu, kể cả loại thu được tổng kết sang tháng sau. |
 | `MEMBER_PAYMENT_RECORDED` | `createFundTransactionAction` với `MEMBER_PAYMENT` | User liên kết đúng member | `/reports` hoặc member detail | Xác nhận tiền nộp đã được ghi nhận |
+
+#### Nội dung thông báo kết quả và khoản thu
+
+- Kết quả được gửi riêng cho từng thành viên có tài khoản liên kết, dựa trên đội và thứ hạng đã lưu. Ví dụ: `Chúc mừng! Đội của bạn đạt hạng 1.` hoặc `Đội của bạn đạt hạng 3.`
+- Nếu thành viên có khoản phạt, nối khoản đó vào cùng thông báo kết quả. Không gửi đồng thời một `MEMBER_CHARGE_CREATED` thứ hai cho cùng khoản phạt để tránh báo trùng.
+- Trong Hộp thư, nếu loại phạt bật `reportAsIcon` và có icon thì hiển thị icon đã cấu hình lặp theo số lượng. Nếu không bật icon, hiển thị số lượng và tên loại thu, ví dụ `3 Huân Chương`.
+- Push trên màn hình khóa dùng nội dung chữ thuần tương đương (ví dụ `Bạn nhận 3 Huân Chương`) vì payload Web Push không thể bảo đảm font icon của ứng dụng. Hộp thư dùng dữ liệu snapshot để vẫn hiển thị đúng icon/màu đã cấu hình tại thời điểm phát sinh.
+- Khoản thu thường có tiêu đề `Khoản thu mới` và nội dung `Bạn có khoản thu “Trận lẻ” mới.` Nếu một lần tạo trận sinh nhiều loại thu cho cùng thành viên, gộp danh sách vào một thông báo của thành viên đó.
+- Deep link mở tab `Phát sinh theo tháng` với `month` là tháng báo cáo hiệu lực của khoản thu. Với `reportNextMonthSnapshot=true`, tháng này là tháng kế tiếp tháng phát sinh; nếu false thì là tháng của ngày phát sinh.
 
 ### RSVP Push đã triển khai
 
@@ -253,13 +262,15 @@ body                text
 url                 text
 entity_type         varchar NULL
 entity_id           uuid NULL
+presentation_data   jsonb NULL — snapshot dữ liệu trình bày có cấu trúc, ví dụ hạng, tên loại thu, icon/màu, số lượng
 dedupe_key          varchar UNIQUE
 status              PENDING | SENT | PARTIAL | FAILED | SKIPPED
 created_at          timestamptz
 sent_at             timestamptz NULL
+read_at             timestamptz NULL
 ```
 
-Có thể thêm bảng delivery riêng ở giai đoạn lớn hơn, nhưng V1 chưa bắt buộc.
+`presentation_data` chỉ phục vụ trình bày trong Hộp thư, không thay thế dữ liệu nguồn của trận/khoản thu. Nó là snapshot để thông báo cũ không đổi khi Admin sửa cấu hình icon hoặc loại thu. Có thể thêm bảng delivery riêng ở giai đoạn lớn hơn, nhưng V1 chưa bắt buộc.
 
 ## 7. Kiến trúc gửi
 

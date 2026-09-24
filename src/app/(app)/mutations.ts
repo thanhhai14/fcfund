@@ -31,15 +31,18 @@ import {
   ROLE_LABELS,
 } from "@/lib/constants";
 import { normalizePhone, todayInTimezone } from "@/lib/format";
+import { getBalanceReportMonth } from "@/lib/balance-report";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
 import { can, requirePermission } from "@/lib/permissions";
 import { isPlayerPosition, isPlayerStrength, type PlayerPosition } from "@/lib/player-profile";
 import { findVietQrBank } from "@/lib/vietqr";
+import type { NotificationChargeItem } from "@/lib/notification-presentation";
 import {
   activeMemberUserIdsForClub,
   notifyUsers,
   userIdsForMatchAudience,
   userIdsForMembers,
+  userRecipientsForMembers,
 } from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
@@ -875,6 +878,7 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
     .where(and(eq(chargeTypes.id, chargeTypeId), eq(chargeTypes.clubId, actor.clubId))).limit(1);
   if (!memberId || !type) return { ok: false, message: "Thành viên hoặc loại thu không hợp lệ." };
   const unitAmount = str(formData, "unitAmount") ? amount(formData, "unitAmount") : type.defaultAmount;
+  const chargeDate = str(formData, "chargeDate") || todayInTimezone();
 
   let createdChargeId = "";
   await db.transaction(async (tx) => {
@@ -882,7 +886,7 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
       clubId: actor.clubId, memberId, chargeTypeId,
       matchId: str(formData, "matchId") || null,
       source: str(formData, "matchId") ? "MATCH" : "MANUAL",
-      chargeDate: str(formData, "chargeDate") || todayInTimezone(),
+      chargeDate,
       quantity, unitAmount, totalAmount: quantity * unitAmount,
       isLossPenaltySnapshot: type.isLossPenalty,
       reportNextMonthSnapshot: type.reportNextMonth,
@@ -896,16 +900,25 @@ export async function createMemberChargeAction(formData: FormData): Promise<Muta
   });
   try {
     const recipientIds = await userIdsForMembers(actor.clubId, [memberId]);
+    const chargeItem: NotificationChargeItem = {
+      name: type.name,
+      quantity,
+      iconName: type.iconName,
+      color: type.color,
+      reportAsIcon: type.reportAsIcon,
+    };
+    const reportMonth = getBalanceReportMonth(chargeDate, type.reportNextMonth);
     await notifyUsers({
       clubId: actor.clubId,
       userIds: recipientIds,
       type: "MEMBER_CHARGE_CREATED",
-      title: "Khoản phải đóng mới",
-      body: `Bạn có khoản phải đóng mới: ${type.name}.`,
-      url: "/charges",
+      title: "Khoản thu mới",
+      body: `Bạn có khoản thu “${type.name}” mới${quantity > 1 ? ` (×${quantity})` : ""}.`,
+      url: `/reports?tab=monthly&month=${reportMonth}`,
       entityType: "member_charge",
       entityId: createdChargeId,
       dedupeKey: `MEMBER_CHARGE_CREATED:${createdChargeId}`,
+      presentationData: { version: 1, kind: "charge_created", chargeItems: [chargeItem] },
     });
   } catch {
     // Push failures must not affect the financial transaction.
@@ -1111,19 +1124,47 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
       dedupeKey: `MATCH_CREATED:${createdMatchId}`,
     });
     if (chargeRows.length) {
-      const chargedMemberIds = [...new Set(chargeRows.map((row) => row.memberId))];
-      const chargedUsers = await userIdsForMembers(actor.clubId, chargedMemberIds);
-      await notifyUsers({
-        clubId: actor.clubId,
-        userIds: chargedUsers,
-        type: "MEMBER_CHARGE_CREATED",
-        title: "Khoản phải đóng mới",
-        body: "Bạn có khoản phải đóng mới phát sinh từ trận đấu.",
-        url: "/charges",
-        entityType: "match",
-        entityId: createdMatchId,
-        dedupeKey: `MEMBER_CHARGE_CREATED:MATCH:${createdMatchId}`,
-      });
+      const recipients = await userRecipientsForMembers(actor.clubId, chargeRows.map((row) => row.memberId));
+      const itemsByReportMonthAndMember = new Map<string, Map<string, NotificationChargeItem[]>>();
+      for (const row of chargeRows) {
+        const type = typeMap.get(row.typeId);
+        if (!type) continue;
+        const reportMonth = getBalanceReportMonth(playedOn, type.reportNextMonth);
+        const membersForMonth = itemsByReportMonthAndMember.get(reportMonth) ?? new Map<string, NotificationChargeItem[]>();
+        const memberItems = membersForMonth.get(row.memberId) ?? [];
+        memberItems.push({ name: type.name, quantity: row.quantity, iconName: type.iconName, color: type.color, reportAsIcon: type.reportAsIcon });
+        membersForMonth.set(row.memberId, memberItems);
+        itemsByReportMonthAndMember.set(reportMonth, membersForMonth);
+      }
+
+      for (const [reportMonth, memberItems] of itemsByReportMonthAndMember) {
+        const recipientContentByUserId = Object.fromEntries(recipients.flatMap(({ userId, memberId }) => {
+          const chargeItems = memberId ? memberItems.get(memberId) : undefined;
+          if (!chargeItems?.length) return [];
+          const chargeSummary = chargeItems.map((item) => `“${item.name}”${item.quantity > 1 ? ` ×${item.quantity}` : ""}`).join(", ");
+          const body = chargeItems.length === 1
+            ? `Bạn có khoản thu ${chargeSummary} mới.`
+            : `Bạn có các khoản thu mới: ${chargeSummary}.`;
+          return [[userId, {
+            body,
+            presentationData: { version: 1 as const, kind: "charge_created" as const, chargeItems },
+          }] as const];
+        }));
+        const userIds = Object.keys(recipientContentByUserId);
+        if (!userIds.length) continue;
+        await notifyUsers({
+          clubId: actor.clubId,
+          userIds,
+          type: "MEMBER_CHARGE_CREATED",
+          title: "Khoản thu mới",
+          body: "Bạn có khoản thu mới phát sinh từ trận đấu.",
+          url: `/reports?tab=monthly&month=${reportMonth}`,
+          entityType: "match",
+          entityId: createdMatchId,
+          dedupeKey: `MEMBER_CHARGE_CREATED:MATCH:${createdMatchId}:${reportMonth}`,
+          recipientContentByUserId,
+        });
+      }
     }
   } catch {
     // Push failures must not affect match creation.

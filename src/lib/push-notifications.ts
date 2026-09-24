@@ -12,6 +12,7 @@ import {
   pushSubscriptions,
   users,
 } from "@/db/schema";
+import type { NotificationPresentationData } from "@/lib/notification-presentation";
 
 export type PushEventType =
   | "MATCH_CREATED"
@@ -38,6 +39,13 @@ type NotifyInput = {
   entityType?: string;
   entityId?: string;
   dedupeKey: string;
+  presentationData?: NotificationPresentationData | null;
+  recipientContentByUserId?: Record<string, {
+    title?: string;
+    body?: string;
+    url?: string;
+    presentationData?: NotificationPresentationData | null;
+  }>;
 };
 
 type PushPayload = {
@@ -229,13 +237,15 @@ export async function notifyUsers(input: NotifyInput) {
   await Promise.allSettled(userIds
     .filter((userId) => allowedIds.has(userId))
     .map(async (userId) => {
+      const recipientContent = input.recipientContentByUserId?.[userId];
       const [event] = await db.insert(notificationEvents).values({
         clubId: input.clubId,
         userId,
         type: input.type,
-        title: input.title,
-        body: input.body,
-        url: input.url,
+        title: recipientContent?.title ?? input.title,
+        body: recipientContent?.body ?? input.body,
+        url: recipientContent?.url ?? input.url,
+        presentationData: recipientContent?.presentationData ?? input.presentationData ?? null,
         entityType: input.entityType ?? null,
         entityId: input.entityId ?? null,
         dedupeKey: `${input.dedupeKey}:${userId}`,
@@ -270,6 +280,18 @@ export async function activeMemberUserIdsForClub(clubId: string) {
       eq(members.status, "ACTIVE"),
     ));
   return rows.map((row) => row.userId);
+}
+
+export async function userRecipientsForMembers(clubId: string, memberIds: string[]) {
+  const uniqueMemberIds = [...new Set(memberIds)];
+  if (!uniqueMemberIds.length) return [];
+  return db.select({ userId: users.id, memberId: users.memberId })
+    .from(users)
+    .where(and(
+      eq(users.clubId, clubId),
+      eq(users.isActive, true),
+      inArray(users.memberId, uniqueMemberIds),
+    ));
 }
 
 export async function userIdsWithoutMatchResponse(clubId: string, matchId: string) {

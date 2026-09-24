@@ -587,3 +587,18 @@ Index/constraint:
 - index `provider_user_id`.
 
 Request PENDING không tự hết hạn. Khi Admin duyệt, việc tạo/link user và chuyển request sang APPROVED phải chạy trong transaction cùng unique constraint của `auth_identities`.
+
+## 22. Snapshot trình bày Hộp thư
+
+`notification_events` là bản ghi Hộp thư theo từng User. Bổ sung cột nullable `presentation_data jsonb` để lưu snapshot giao diện có cấu trúc cho những event cần nội dung động:
+
+| Dữ liệu snapshot | Dùng cho |
+|---|---|
+| `kind`, `placement`, `teamName` | Thông báo kết quả trận cá nhân hóa theo đội/hạng |
+| `chargeItems[].name`, `quantity`, `iconName`, `color`, `reportAsIcon` | Hiển thị khoản phạt/khoản thu đúng tên, icon, màu và số lượng tại lúc tạo |
+
+- Cột nullable và migration bổ sung nên không làm ảnh hưởng event cũ; event không có snapshot tiếp tục render `title`/`body` như hiện tại.
+- Snapshot chỉ là nội dung hiển thị, không được dùng để tính nợ hay thay thế `member_charges`/`charge_types`.
+- Nếu `reportAsIcon=true` và icon hợp lệ, Hộp thư render icon lặp theo `quantity`; nếu không, render số lượng cùng tên loại thu.
+- Push ngoài hệ điều hành dùng chữ thuần làm fallback, không phụ thuộc Font Awesome hoặc CSS của app.
+- URL của event kết quả/khoản thu trỏ đến `/reports?tab=monthly&month=YYYY-MM`, trong đó `month` là tháng báo cáo hiệu lực sau khi áp dụng `reportNextMonthSnapshot`.

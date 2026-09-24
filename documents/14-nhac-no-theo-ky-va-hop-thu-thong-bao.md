@@ -1,6 +1,6 @@
 # Nhắc nợ theo kỳ và Hộp thư thông báo
 
-**Trạng thái:** Đã triển khai giai đoạn đầu. Cần chạy migration `0018_swift_sabretooth` trước khi sử dụng.  
+**Trạng thái:** Đã triển khai giai đoạn đầu; phần nội dung thông báo kết quả trận/khoản thu được đặc tả bổ sung tại mục 6.
 **Phạm vi:** Nhắc từng thành viên từ Báo cáo theo kỳ; xây Hộp thư chung để tài khoản xem lại các thông báo từ nhiều chức năng. Lời nhắc nợ có trang chi tiết công nợ và QR chuyển khoản cố định.
 
 ## 1. Quyết định nghiệp vụ đã chốt
@@ -20,7 +20,7 @@
 - `reports/page.tsx` đã tính Báo cáo theo kỳ bằng số dư trước kỳ + tiền đã nộp − phát sinh. Loại thu có cờ `reportNextMonthSnapshot` được dời sang tháng báo cáo kế tiếp.
 - `report-collections.tsx` có List/Card và cho ẩn loại thu. Ở List view, việc ẩn loại thu **thay đổi phép tính số dư đang hiển thị**. Chức năng nhắc nợ cần xác định số dư chuẩn độc lập với tùy chọn cột của trình duyệt.
 - `clubs` đã lưu `qrUrl`, tên ngân hàng, số tài khoản và chủ tài khoản. Ảnh QR được trả qua `/api/club-assets/qr` sau khi kiểm tra đăng nhập và club.
-- `push_subscriptions` lưu thiết bị Push. `notification_events` là nhật ký gửi Push, nhưng `notifyUsers` hiện **chỉ ghi event cho user có subscription đang bật**. Chưa có API/UI Hộp thư và chưa có thời điểm đã đọc.
+- `push_subscriptions` lưu thiết bị Push; `notification_events` lưu Hộp thư và trạng thái giao Push. Event được tạo cho User hợp lệ kể cả khi chưa bật Push; `read_at` lưu trạng thái đã đọc.
 - Một thành viên có thể chưa có tài khoản User liên kết. User không có Member không thể nhận lời nhắc nợ cá nhân.
 
 ## 3. Điều kiện hiện nút và gửi
@@ -95,8 +95,8 @@ Các loại thông báo đã có trong code nên được đưa vào Hộp thư 
 | Nhóm | Sự kiện hiện có | Khi bấm vào |
 |---|---|---|
 | Trận đấu | Tạo, cập nhật, hủy trận; mời/xác nhận tham gia | Trận tương ứng hoặc danh sách trận |
-| Đội hình và kết quả | Xác nhận đội; ghi nhận kết quả | Chi tiết trận/đội hình |
-| Quỹ | Khoản thu mới; tiền nộp đã ghi nhận; nhắc nợ mới | Khoản phải thu, lịch sử số dư hoặc trang nhắc nợ |
+| Đội hình và kết quả | Xác nhận đội; kết quả cá nhân theo thứ hạng, kèm khoản phạt nếu có | Kết quả và khoản thu mở **Báo cáo → Phát sinh theo tháng** đúng tháng hiệu lực |
+| Quỹ | Khoản thu mới; tiền nộp đã ghi nhận; nhắc nợ mới | Khoản thu mở **Báo cáo → Phát sinh theo tháng**; nhắc nợ mở chi tiết nhắc nợ |
 | Quản trị | Yêu cầu liên kết Zalo | Trang duyệt yêu cầu, chỉ với tài khoản có quyền |
 
 Thông báo thử cho Admin phục vụ kiểm tra thiết bị; có thể ẩn khỏi Hộp thư chính hoặc gắn nhãn `Thử nghiệm` để không lẫn với thông báo nghiệp vụ.
@@ -108,6 +108,11 @@ Thông báo thử cho Admin phục vụ kiểm tra thiết bị; có thể ẩn 
 - Thành viên chưa có User liên kết không thể có Hộp thư cá nhân; nút nhắc nợ báo rõ thiếu tài khoản liên kết.
 - Thành viên có User liên kết nhưng chưa bật Push vẫn nhận lời nhắc trong Hộp thư; người gửi được báo riêng rằng Push chưa bật. Đây là trường hợp khác với chưa có tài khoản hoặc chưa đăng nhập.
 - Các thông báo **đã gửi trước khi nâng cấp Hộp thư** chỉ có bản ghi với tài khoản từng bật Push. Không thể tự khôi phục chính xác những thông báo trước đây chưa từng được lưu.
+- Khi ghi nhận kết quả, không gửi một thông báo chung “Kết quả trận đã cập nhật” và một thông báo phạt riêng. Mỗi thành viên nhận một thông báo kết quả phù hợp thứ hạng đội của mình; nếu bị phạt, khoản phạt nằm ngay trong nội dung đó.
+- Tiêu đề thông báo kết quả là `Trận đấu đã kết thúc`. Nội dung nêu hạng (hạng 1 có lời chúc mừng) và khoản phạt nếu có. Trong Hộp thư, loại phạt có `reportAsIcon` hiển thị icon đã cấu hình lặp đúng số lượng; nếu không, hiển thị số lượng + tên khoản thu. Push màn hình khóa dùng chữ thuần làm phương án tương thích.
+- Khoản thu thường phát sinh theo trận dùng tiêu đề `Khoản thu mới`, nội dung có tên khoản thu (ví dụ `Bạn có khoản thu “Trận lẻ” mới.`). Không áp dụng thông báo này thêm lần nữa cho khoản phạt đã được gắn vào thông báo kết quả.
+- Link từ thông báo kết quả/khoản thu mở tab **Phát sinh theo tháng** và chọn đúng tháng báo cáo hiệu lực. Loại thu tổng kết qua tháng dùng tháng kế tiếp, phù hợp với cờ `reportNextMonthSnapshot`.
+- `notification_events.presentation_data` lưu snapshot trình bày (hạng, tên loại thu, icon, màu, số lượng) để Hộp thư giữ nguyên nội dung/icon tại thời điểm phát sinh dù cấu hình sau này thay đổi. Đây là dữ liệu hiển thị, không phải nguồn tính công nợ.
 
 ## 7. Dữ liệu và giao hàng thông báo
 

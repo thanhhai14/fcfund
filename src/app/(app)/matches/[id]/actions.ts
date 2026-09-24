@@ -19,10 +19,12 @@ import {
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
 import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
+import { getBalanceReportMonth } from "@/lib/balance-report";
 import { getMatchFormStats } from "@/lib/match-form-stats";
+import type { NotificationChargeItem } from "@/lib/notification-presentation";
 import { requirePermission } from "@/lib/permissions";
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
-import { notifyUsers, userIdsForMembers, userIdsForTeamVersion } from "@/lib/push-notifications";
+import { notifyUsers, userRecipientsForMembers } from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,6 +44,10 @@ function metricsRecord(metrics: unknown): Record<string, unknown> {
   return metrics && typeof metrics === "object" && !Array.isArray(metrics)
     ? { ...(metrics as Record<string, unknown>) }
     : {};
+}
+
+function monthlyReportUrl(month: string) {
+  return `/reports?tab=monthly&month=${month}`;
 }
 
 export async function managePublicLineupAction(formData: FormData): Promise<MutationResult> {
@@ -246,34 +252,57 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   });
 
   try {
-    const lineupUsers = await userIdsForTeamVersion(actor.clubId, version.id);
+    const recipients = await userRecipientsForMembers(actor.clubId, memberIds);
+    const teamById = new Map(teams.map((team) => [team.id, team]));
+    const memberTeamById = new Map(teamMembers.flatMap((row) => row.memberId ? [[row.memberId, row.teamId] as const] : []));
+    const quantityByMemberId = new Map(penaltyRows.map((row) => [row.memberId, row.quantity]));
+    const penaltyPresentation: NotificationChargeItem = {
+      name: penaltyType.name,
+      quantity: 0,
+      iconName: penaltyType.iconName,
+      color: penaltyType.color,
+      reportAsIcon: penaltyType.reportAsIcon,
+    };
+    const recipientContentByUserId = Object.fromEntries(recipients.flatMap((recipient) => {
+      if (!recipient.memberId) return [];
+      const teamId = memberTeamById.get(recipient.memberId);
+      const team = teamId ? teamById.get(teamId) : undefined;
+      const placement = teamId ? placements.get(teamId) : undefined;
+      if (!team || !placement) return [];
+      const quantity = quantityByMemberId.get(recipient.memberId) ?? 0;
+      const chargeItems = quantity > 0 ? [{ ...penaltyPresentation, quantity }] : [];
+      const body = [
+        placement === 1
+          ? "Chúc mừng! Đội của bạn đạt hạng 1."
+          : `Đội của bạn đạt hạng ${placement}.`,
+        ...(quantity > 0 ? [`Bạn nhận được ${quantity} ${penaltyType.name}.`] : []),
+      ].join(" ");
+      const reportMonth = getBalanceReportMonth(match.playedOn, quantity > 0 && penaltyType.reportNextMonth);
+      return [[recipient.userId, {
+        title: "Trận đấu đã kết thúc",
+        body,
+        url: monthlyReportUrl(reportMonth),
+        presentationData: {
+          version: 1 as const,
+          kind: "match_result" as const,
+          placement,
+          teamName: team.name,
+          chargeItems,
+        },
+      }] as const];
+    }));
     await notifyUsers({
       clubId: actor.clubId,
-      userIds: lineupUsers,
+      userIds: recipients.map((recipient) => recipient.userId),
       type: "MATCH_RESULT_RECORDED",
-      title: "Kết quả trận đã cập nhật",
-      body: "Kết quả trận và thứ hạng đội vừa được ghi nhận.",
-      url: `/matches/${matchId}`,
+      title: "Trận đấu đã kết thúc",
+      body: "Kết quả trận đã được ghi nhận.",
+      url: monthlyReportUrl(match.playedOn.slice(0, 7)),
       entityType: "match",
       entityId: matchId,
       dedupeKey: `MATCH_RESULT_RECORDED:${matchId}:${now.getTime()}`,
+      recipientContentByUserId,
     });
-
-    const penaltyMemberIds = [...new Set(penaltyRows.map((row) => row.memberId))];
-    if (penaltyMemberIds.length) {
-      const chargedUsers = await userIdsForMembers(actor.clubId, penaltyMemberIds);
-      await notifyUsers({
-        clubId: actor.clubId,
-        userIds: chargedUsers,
-        type: "MEMBER_CHARGE_CREATED",
-        title: "Khoản phải đóng mới",
-        body: "Bạn có khoản phải đóng mới phát sinh từ kết quả trận.",
-        url: "/charges",
-        entityType: "match",
-        entityId: matchId,
-        dedupeKey: `MEMBER_CHARGE_CREATED:RESULT:${matchId}:${now.getTime()}`,
-      });
-    }
   } catch {
     // Push failures must not affect result recording.
   }
