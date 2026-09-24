@@ -12,11 +12,11 @@ import { PushNotificationPrompt } from "./push-notification-prompt";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
+  { href: "/matches", label: "Trận đấu", icon: "futbol" },
+  { href: "/reports", label: "Báo cáo", icon: "chart" },
   { href: "/members", label: "Thành viên", icon: "users" },
   { href: "/charges", label: "Khoản phải thu", icon: "coins" },
   { href: "/transactions", label: "Thu & chi", icon: "transactions" },
-  { href: "/matches", label: "Trận đấu", icon: "futbol" },
-  { href: "/reports", label: "Báo cáo", icon: "chart" },
   { href: "/notifications", label: "Hộp thư", icon: "bell" },
   { href: "/settings", label: "Cài đặt", icon: "settings" },
 ];
@@ -24,8 +24,8 @@ const navItems = [
 const mobileNavItems = [
   { href: "/dashboard", label: "Tổng quan", icon: "house" },
   { href: "/matches", label: "Trận", icon: "futbol" },
-  { href: "/charges", label: "Khoản thu", icon: "coins" },
   { href: "/reports", label: "Báo cáo", icon: "chart" },
+  { href: "/charges", label: "Khoản thu", icon: "coins" },
   { href: "/notifications", label: "Hộp thư", icon: "bell" },
 ];
 
