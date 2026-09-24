@@ -28,6 +28,42 @@ async function isRsvpClosed(matchId: string, clubId: string) {
   return !lifecycle || isMatchRsvpClosed(lifecycle);
 }
 
+async function getMatchRsvpCounts(clubId: string, matchId: string) {
+  const [activeMembers, participants, rsvps] = await Promise.all([
+    db.select({ id: members.id })
+      .from(members)
+      .where(and(eq(members.clubId, clubId), eq(members.status, "ACTIVE"))),
+    db.select({ memberId: matchParticipants.memberId })
+      .from(matchParticipants)
+      .where(eq(matchParticipants.matchId, matchId)),
+    db.select({ memberId: matchRsvps.memberId, status: matchRsvps.status })
+      .from(matchRsvps)
+      .where(eq(matchRsvps.matchId, matchId)),
+  ]);
+
+  const activeIds = new Set(activeMembers.map((row) => row.id));
+  const goingIds = new Set(
+    participants.flatMap((row) => row.memberId && activeIds.has(row.memberId) ? [row.memberId] : []),
+  );
+  const notGoingIds = new Set(
+    rsvps.flatMap((row) =>
+      row.status === "NOT_GOING" && activeIds.has(row.memberId) && !goingIds.has(row.memberId)
+        ? [row.memberId]
+        : [],
+    ),
+  );
+
+  return {
+    going: goingIds.size,
+    notGoing: notGoingIds.size,
+    pending: Math.max(0, activeIds.size - goingIds.size - notGoingIds.size),
+  };
+}
+
+function rsvpCountText(counts: { going: number; notGoing: number; pending: number }) {
+  return `Tham gia: ${counts.going} · Không tham gia: ${counts.notGoing} · Chưa bình chọn: ${counts.pending}`;
+}
+
 async function latestSeedForMember(memberId: string, clubId: string, currentMatchId: string): Promise<SeedTier | null> {
   const rows = await db
     .select({ seedTier: matchParticipants.seedTier })
@@ -38,6 +74,7 @@ async function latestSeedForMember(memberId: string, clubId: string, currentMatc
       eq(matches.clubId, clubId),
       ne(matches.id, currentMatchId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
       isNotNull(matchParticipants.seedTier),
     ))
     .orderBy(desc(matches.playedOn))
@@ -65,6 +102,7 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
       eq(matches.id, matchId),
       eq(matches.clubId, actor.clubId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     ))
     .limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
@@ -183,6 +221,7 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
   const statusChanged = existingRsvp?.status !== status;
   if (statusChanged) {
     try {
+      const counts = await getMatchRsvpCounts(actor.clubId, matchId);
       const recipientIds = (await activeMemberUserIdsForClub(actor.clubId))
         .filter((userId) => userId !== actor.id);
       const previousLabel = existingRsvp?.status === "GOING"
@@ -197,8 +236,8 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
         type: "MATCH_RSVP_UPDATED",
         title: `${member.fullName} đã bình chọn`,
         body: previousLabel
-          ? `${member.fullName} đổi bình chọn: ${previousLabel} → ${nextLabel}.`
-          : `${member.fullName}: ${nextLabel} trận ngày ${match.playedOn}.`,
+          ? `${member.fullName} đổi bình chọn: ${previousLabel} → ${nextLabel}. ${rsvpCountText(counts)}.`
+          : `${member.fullName}: ${nextLabel} trận ngày ${match.playedOn}. ${rsvpCountText(counts)}.`,
         url: `/matches?rsvp=${matchId}`,
         entityType: "match_rsvp",
         entityId: matchId,
@@ -238,6 +277,7 @@ export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRs
       eq(matches.id, matchId),
       eq(matches.clubId, actor.clubId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     ))
     .limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
@@ -251,13 +291,14 @@ export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRs
   }
 
   const now = new Date();
+  const counts = await getMatchRsvpCounts(actor.clubId, matchId);
   try {
     await notifyUsers({
       clubId: actor.clubId,
       userIds: recipientIds,
       type: "MATCH_RSVP_REMINDER",
       title: "Nhắc bình chọn tham gia",
-      body: `Hãy bình chọn tham gia trận ngày ${match.playedOn}.`,
+      body: `Hãy bình chọn tham gia trận ngày ${match.playedOn}. ${rsvpCountText(counts)}.`,
       url: `/matches?rsvp=${matchId}`,
       entityType: "match_rsvp",
       entityId: matchId,
@@ -279,4 +320,95 @@ export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRs
 
   revalidatePath("/matches");
   return { ok: true, message: `Đã gửi nhắc bình chọn tới ${recipientIds.length} thành viên.` };
+}
+
+export async function hideMatchAction(formData: FormData): Promise<MatchRsvpResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
+  if (actor.role !== "ADMIN") return { ok: false, message: "Chỉ Admin được ẩn trận khỏi giao diện." };
+
+  const matchId = str(formData, "matchId");
+  const [match] = await db.select({
+    id: matches.id,
+    playedOn: matches.playedOn,
+    note: matches.note,
+    publicLineupEnabled: matches.publicLineupEnabled,
+    publicLineupToken: matches.publicLineupToken,
+    hiddenAt: matches.hiddenAt,
+  }).from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+  )).limit(1);
+
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  if (match.hiddenAt) return { ok: true, message: "Trận này đã được ẩn khỏi giao diện." };
+
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(matches).set({
+      hiddenAt: now,
+      hiddenBy: actor.id,
+      publicLineupEnabled: false,
+      updatedAt: now,
+    }).where(eq(matches.id, matchId));
+
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: { hiddenAt: null, publicLineupEnabled: match.publicLineupEnabled },
+      afterData: { hiddenAt: now.toISOString(), publicLineupEnabled: false, chargesChanged: false },
+      message: `Ẩn trận ngày ${match.playedOn} khỏi giao diện`,
+    });
+  });
+
+  revalidatePath("/matches");
+  revalidatePath("/dashboard");
+  revalidatePath(`/matches/${matchId}`);
+  if (match.publicLineupToken) revalidatePath(`/lineup/${match.publicLineupToken}`);
+  return { ok: true, message: "Đã ẩn trận khỏi giao diện. Các khoản thu không thay đổi." };
+}
+
+export async function restoreHiddenMatchAction(formData: FormData): Promise<MatchRsvpResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCHES_MANAGE);
+  if (actor.role !== "ADMIN") return { ok: false, message: "Chỉ Admin được khôi phục trận đã ẩn." };
+
+  const matchId = str(formData, "matchId");
+  const [match] = await db.select({
+    id: matches.id,
+    playedOn: matches.playedOn,
+    hiddenAt: matches.hiddenAt,
+    hiddenBy: matches.hiddenBy,
+  }).from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+  )).limit(1);
+
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  if (!match.hiddenAt) return { ok: true, message: "Trận này đang hiển thị bình thường." };
+
+  const now = new Date();
+  await db.transaction(async (tx) => {
+    await tx.update(matches).set({
+      hiddenAt: null,
+      hiddenBy: null,
+      updatedAt: now,
+    }).where(eq(matches.id, matchId));
+
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "RESTORE",
+      actorId: actor.id,
+      beforeData: { hiddenAt: match.hiddenAt, hiddenBy: match.hiddenBy },
+      afterData: { hiddenAt: null, chargesChanged: false },
+      message: `Khôi phục trận ngày ${match.playedOn} về danh sách`,
+    });
+  });
+
+  revalidatePath("/matches");
+  revalidatePath("/dashboard");
+  return { ok: true, message: "Đã khôi phục trận về giao diện. Các khoản thu không thay đổi." };
 }

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
@@ -23,21 +23,26 @@ import { requireUser } from "@/lib/auth";
 import { MatchFields } from "@/components/match-fields";
 import { MemberIdentity } from "@/components/member-identity";
 import { MatchRsvpDisclosure } from "@/components/match-rsvp-disclosure";
-import { remindMatchRsvpAction, setMyMatchRsvpAction } from "./actions";
+import { hideMatchAction, remindMatchRsvpAction, restoreHiddenMatchAction, setMyMatchRsvpAction } from "./actions";
 
 export const metadata = { title: "Trận đấu" };
 
-export default async function MatchesPage({ searchParams }: { searchParams: Promise<{ rsvp?: string }> }) {
+export default async function MatchesPage({ searchParams }: { searchParams: Promise<{ rsvp?: string; hidden?: string }> }) {
   const params = await searchParams;
   const user = await requireUser();
   if (!(await can(PERMISSIONS.MATCHES_VIEW))) redirect("/dashboard");
   const canManageMatches = await can(PERMISSIONS.MATCHES_MANAGE);
+  const isAdmin = user.role === "ADMIN";
+  const showHidden = isAdmin && params.hidden === "1";
   const canManageTeams = await can(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const canViewTeams = await can(PERMISSIONS.MATCH_TEAMS_VIEW);
   const canAccessTeams = canViewTeams || canManageTeams;
 
   const matchRows = await db.select().from(matches)
-    .where(eq(matches.clubId, user.clubId))
+    .where(and(
+      eq(matches.clubId, user.clubId),
+      showHidden ? isNotNull(matches.hiddenAt) : isNull(matches.hiddenAt),
+    ))
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
   const ids = matchRows.map((row) => row.id);
   const teamVersions = ids.length ? await db.select({
@@ -174,16 +179,25 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
         title="Trận đấu"
         description="Quản lý ngày, người tham gia và khoản thu lẻ"
         action={canManageMatches ? (
-          <Disclosure label={<><Icon name="plus" /> Tạo trận</>} className="action-disclosure match-popover">
-            <MutationForm action={createMatchAction} className="form-stack" closeDisclosureOnSuccess>
-              <MatchFields
-                memberRows={memberRows}
-                occurrenceTypes={occurrenceTypes}
-                playedOn={todayInTimezone()}
-              />
-              <div className="form-actions"><SubmitButton>Tạo trận và phát sinh</SubmitButton></div>
-            </MutationForm>
-          </Disclosure>
+          <div className="form-actions">
+            {isAdmin && (
+              <Link className="button secondary" href={showHidden ? "/matches" : "/matches?hidden=1"}>
+                <Icon name={showHidden ? "eye" : "ban"} /> {showHidden ? "Trận đang hiển thị" : "Trận đã ẩn"}
+              </Link>
+            )}
+            {!showHidden && (
+              <Disclosure label={<><Icon name="plus" /> Tạo trận</>} className="action-disclosure match-popover">
+                <MutationForm action={createMatchAction} className="form-stack" closeDisclosureOnSuccess>
+                  <MatchFields
+                    memberRows={memberRows}
+                    occurrenceTypes={occurrenceTypes}
+                    playedOn={todayInTimezone()}
+                  />
+                  <div className="form-actions"><SubmitButton>Tạo trận và phát sinh</SubmitButton></div>
+                </MutationForm>
+              </Disclosure>
+            )}
+          </div>
         ) : undefined}
       />
 
@@ -191,6 +205,34 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
         {matchRows.map((match) => {
           const lifecycle = lifecycleByMatch.get(match.id)!;
           const participantPreviews = participantMap.get(match.id) ?? [];
+
+          if (showHidden) {
+            return (
+              <article className="match-card" key={match.id}>
+                <div className="match-date">
+                  <Icon name="calendar" className="match-date-background" />
+                  <strong>{new Date(`${match.playedOn}T00:00:00`).getDate()}</strong>
+                  <span>Tháng {new Date(`${match.playedOn}T00:00:00`).getMonth() + 1}</span>
+                </div>
+                <div className="match-info">
+                  <span className="category-pill"><Icon name="ban" /> Đã ẩn</span>
+                  <h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2>
+                  <p>{participantPreviews.length} người tham gia · Ẩn khỏi danh sách, Dashboard và đội hình công khai.</p>
+                </div>
+                <div className="match-card-side">
+                  <div className="match-actions">
+                    <MutationForm action={restoreHiddenMatchAction}>
+                      <input type="hidden" name="matchId" value={match.id} />
+                      <ConfirmSubmitButton message="Khôi phục trận này về giao diện? Khoản thu sẽ không thay đổi.">
+                        <Icon name="eye" /> Khôi phục
+                      </ConfirmSubmitButton>
+                    </MutationForm>
+                  </div>
+                </div>
+              </article>
+            );
+          }
+
           const isCancelled = lifecycle.lifecycle === "CANCELLED";
           const structuralEditLocked = !canEditMatchRoster(lifecycle, user.role === "ADMIN");
           const confirmedVersion = lifecycle.confirmedId
@@ -308,13 +350,24 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                     ) : (
                       <button type="button" className="button danger small" disabled title="Hãy hủy kết quả trước khi hủy trận"><Icon name="trash" /> Hủy trận</button>
                     )}
+                    {isAdmin && (
+                      <MutationForm action={hideMatchAction}>
+                        <input type="hidden" name="matchId" value={match.id} />
+                        <ConfirmSubmitButton
+                          message="Ẩn hoàn toàn trận này khỏi giao diện? Các khoản thu hiện có sẽ được giữ nguyên."
+                          className="button secondary small"
+                        >
+                          <Icon name="ban" /> Ẩn khỏi UI
+                        </ConfirmSubmitButton>
+                      </MutationForm>
+                    )}
                     </>}
                   </div>
               </div>
             </article>
           );
         })}
-        {!matchRows.length && <div className="panel empty-state"><span><Icon name="futbol" /></span><h3>Chưa có trận nào</h3><p>Tạo trận đầu tiên để ghi người tham gia và khoản thu lẻ.</p></div>}
+        {!matchRows.length && <div className="panel empty-state"><span><Icon name={showHidden ? "ban" : "futbol"} /></span><h3>{showHidden ? "Không có trận đã ẩn" : "Chưa có trận nào"}</h3><p>{showHidden ? "Các trận Admin ẩn khỏi giao diện sẽ xuất hiện tại đây để có thể khôi phục." : "Tạo trận đầu tiên để ghi người tham gia và khoản thu lẻ."}</p></div>}
       </section>
     </>
   );

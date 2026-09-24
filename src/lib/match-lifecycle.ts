@@ -25,12 +25,12 @@ export type {
 
 export async function getMatchLifecycle(matchId: string, clubId: string) {
   const [match] = await db
-    .select({ id: matches.id, deletedAt: matches.deletedAt })
+    .select({ id: matches.id, deletedAt: matches.deletedAt, hiddenAt: matches.hiddenAt })
     .from(matches)
     .where(and(eq(matches.id, matchId), eq(matches.clubId, clubId)))
     .limit(1);
 
-  if (!match) return null;
+  if (!match || match.hiddenAt) return null;
 
   const versions = await db
     .select({

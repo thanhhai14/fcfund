@@ -70,6 +70,7 @@ export default async function PublicLineupPage({ params }: { params: Promise<{ t
       eq(matches.publicLineupToken, token),
       eq(matches.publicLineupEnabled, true),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     )).limit(1);
   if (!match) notFound();
 

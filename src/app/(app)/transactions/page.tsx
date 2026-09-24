@@ -51,7 +51,7 @@ export default async function TransactionsPage() {
   const categories = canManage ? await db.select().from(fundCategories)
     .where(and(eq(fundCategories.clubId, user.clubId), eq(fundCategories.isActive, true))).orderBy(fundCategories.direction, fundCategories.name) : [];
   const matchRows = canManage ? await db.select().from(matches)
-    .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt))).orderBy(desc(matches.playedOn)).limit(30) : [];
+    .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt), isNull(matches.hiddenAt))).orderBy(desc(matches.playedOn)).limit(30) : [];
   return (
     <>
       <PageHeader

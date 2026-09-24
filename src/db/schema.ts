@@ -379,6 +379,8 @@ export const matches = pgTable(
     publicLineupPublishedAt: timestamp("public_lineup_published_at", { withTimezone: true }),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     ...auditColumns,
+    hiddenAt: timestamp("hidden_at", { withTimezone: true }),
+    hiddenBy: uuid("hidden_by").references(() => users.id, { onDelete: "set null" }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by").references(() => users.id, { onDelete: "set null" }),
   },

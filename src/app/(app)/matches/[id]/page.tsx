@@ -88,7 +88,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     eq(matches.id, id),
     eq(matches.clubId, user.clubId),
   )).limit(1);
-  if (!match) notFound();
+  if (!match || match.hiddenAt) notFound();
 
   const lifecycle = await getMatchLifecycle(id, user.clubId);
   if (!lifecycle) notFound();

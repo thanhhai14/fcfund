@@ -54,6 +54,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     eq(matches.id, id),
     eq(matches.clubId, user.clubId),
     isNull(matches.deletedAt),
+    isNull(matches.hiddenAt),
   )).limit(1);
   if (!match) notFound();
   const lifecycle = await getMatchLifecycle(id, user.clubId);
@@ -89,6 +90,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     .where(and(
       eq(matches.clubId, user.clubId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
       lt(matches.playedOn, match.playedOn),
       inArray(matchParticipants.memberId, memberIds),
       isNotNull(matchParticipants.seedTier),

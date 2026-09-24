@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const { token } = await params;
   const [row] = await db.select({ blobUrl: clubs.logoUrl }).from(matches)
     .innerJoin(clubs, eq(matches.clubId, clubs.id))
-    .where(and(eq(matches.publicLineupToken, token), eq(matches.publicLineupEnabled, true), isNull(matches.deletedAt)))
+    .where(and(eq(matches.publicLineupToken, token), eq(matches.publicLineupEnabled, true), isNull(matches.deletedAt), isNull(matches.hiddenAt)))
     .limit(1);
   if (!row?.blobUrl) return new Response("Not found", { status: 404 });
 

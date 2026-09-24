@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   chargeTypes,
@@ -7,6 +7,9 @@ import {
   fundTransactions,
   memberCharges,
   members,
+  matches,
+  matchTeams,
+  matchTeamVersions,
 } from "@/db/schema";
 import { Icon } from "@/components/icon";
 import { PageHeader } from "@/components/page-header";
@@ -14,14 +17,32 @@ import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatLongDate, formatMoney, monthStart, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
+import { getMatchResultChargeTypeId } from "@/lib/match-lifecycle";
 import { MemberIdentity } from "@/components/member-identity";
 
 export const metadata = { title: "Tổng quan" };
+
+function metricNumberRecord(metrics: unknown, key: string): Record<string, number> {
+  if (typeof metrics === "string") {
+    try {
+      return metricNumberRecord(JSON.parse(metrics), key);
+    } catch {
+      return {};
+    }
+  }
+  if (!metrics || typeof metrics !== "object" || Array.isArray(metrics)) return {};
+  const value = (metrics as Record<string, unknown>)[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).flatMap(([name, amount]) =>
+    typeof amount === "number" && Number.isFinite(amount) ? [[name, amount]] : [],
+  ));
+}
 
 export default async function DashboardPage() {
   const user = await requireUser();
   const showClubBalance = await can(PERMISSIONS.CLUB_BALANCE_VIEW);
   const showOtherBalances = await can(PERMISSIONS.OTHER_MEMBER_BALANCES_VIEW);
+  const today = todayInTimezone();
   const currentMonth = monthStart();
 
   const [fundSummary] = await db
@@ -107,6 +128,53 @@ export default async function DashboardPage() {
     .where(and(eq(chargeTypes.clubId, user.clubId), eq(chargeTypes.isActive, true)))
     .limit(4);
 
+  const [latestMatch] = await db.select({
+    id: matches.id,
+    playedOn: matches.playedOn,
+    note: matches.note,
+    versionId: matchTeamVersions.id,
+    metrics: matchTeamVersions.metrics,
+  })
+    .from(matches)
+    .innerJoin(matchTeamVersions, and(
+      eq(matchTeamVersions.matchId, matches.id),
+      eq(matchTeamVersions.status, "CONFIRMED"),
+    ))
+    .where(and(
+      eq(matches.clubId, user.clubId),
+      isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
+      lte(matches.playedOn, today),
+    ))
+    .orderBy(desc(matches.playedOn), desc(matches.createdAt))
+    .limit(1);
+
+  const latestTeams = latestMatch
+    ? await db.select({
+        id: matchTeams.id,
+        name: matchTeams.name,
+        memberCount: matchTeams.memberCount,
+        teamIndex: matchTeams.teamIndex,
+      }).from(matchTeams)
+        .where(eq(matchTeams.versionId, latestMatch.versionId))
+        .orderBy(matchTeams.teamIndex)
+    : [];
+
+  const latestPlacements = latestMatch ? metricNumberRecord(latestMatch.metrics, "placements") : {};
+  const latestChargeQuantities = latestMatch ? metricNumberRecord(latestMatch.metrics, "penaltyQuantities") : {};
+  const latestResultChargeTypeId = latestMatch ? getMatchResultChargeTypeId(latestMatch.metrics) : null;
+  const [latestResultChargeType] = latestResultChargeTypeId
+    ? await db.select({
+        id: chargeTypes.id,
+        name: chargeTypes.name,
+        iconName: chargeTypes.iconName,
+        color: chargeTypes.color,
+        reportAsIcon: chargeTypes.reportAsIcon,
+      }).from(chargeTypes)
+        .where(and(eq(chargeTypes.id, latestResultChargeTypeId), eq(chargeTypes.clubId, user.clubId)))
+        .limit(1)
+    : [];
+
   const income = Number(fundSummary?.income ?? 0);
   const expense = Number(fundSummary?.expense ?? 0);
 
@@ -156,6 +224,60 @@ export default async function DashboardPage() {
           <div><small>Công nợ toàn đội</small><strong>{showOtherBalances ? formatMoney(totalDebt) : "Ẩn theo policy"}</strong><span>{balances.filter((row) => row.balance < 0).length} người còn nợ</span></div>
         </article>
       </section>
+
+      {latestMatch && (
+        <section className="dashboard-latest-match">
+          <article className="panel">
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow">Trận đấu gần nhất</span>
+                <h2>{latestMatch.note || `Trận ngày ${formatDate(latestMatch.playedOn)}`}</h2>
+              </div>
+              <a href={`/matches/${latestMatch.id}`} className="text-link">Xem chi tiết →</a>
+            </div>
+
+            <div className="activity-list">
+              {latestTeams.map((team) => {
+                const place = latestPlacements[team.name] ?? null;
+                const quantity = latestChargeQuantities[team.name] ?? 0;
+                return (
+                  <div className="activity-item" key={team.id}>
+                    <span className="activity-icon in"><Icon name="people-group" /></span>
+                    <div>
+                      <strong>{team.name}</strong>
+                      <small>{team.memberCount} cầu thủ · {place ? `Hạng ${place}` : "Chưa ghi kết quả"}</small>
+                    </div>
+                    <b>
+                      {latestResultChargeType ? (
+                        latestResultChargeType.reportAsIcon ? (
+                          <span
+                            className="icon-count"
+                            style={{ color: latestResultChargeType.color ?? undefined }}
+                            title={`${latestResultChargeType.name} · ${quantity} lần`}
+                          >
+                            {quantity > 0
+                              ? Array.from({ length: quantity }, (_, index) => (
+                                  <Icon name={latestResultChargeType.iconName} key={index} />
+                                ))
+                              : <><Icon name={latestResultChargeType.iconName} /><small>×0</small></>}
+                          </span>
+                        ) : (
+                          <span>{latestResultChargeType.name}: {quantity} lần</span>
+                        )
+                      ) : place ? (
+                        <span>Chưa có loại thu phạt</span>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </b>
+                  </div>
+                );
+              })}
+              {!latestTeams.length && <p className="muted">Trận gần nhất chưa có đội hình đã xác nhận.</p>}
+            </div>
+          </article>
+        </section>
+      )}
 
       <section className="dashboard-columns">
         <article className="panel">

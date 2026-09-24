@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
     .innerJoin(matchTeamVersions, and(eq(matchTeamVersions.matchId, matches.id), eq(matchTeamVersions.status, "CONFIRMED")))
     .innerJoin(matchTeamMembers, and(eq(matchTeamMembers.versionId, matchTeamVersions.id), eq(matchTeamMembers.memberId, memberId)))
     .innerJoin(avatars, and(eq(avatars.memberId, memberId), eq(avatars.clubId, matches.clubId)))
-    .where(and(eq(matches.publicLineupToken, token), eq(matches.publicLineupEnabled, true), isNull(matches.deletedAt)))
+    .where(and(eq(matches.publicLineupToken, token), eq(matches.publicLineupEnabled, true), isNull(matches.deletedAt), isNull(matches.hiddenAt)))
     .limit(1);
   if (!avatar) return new Response("Not found", { status: 404 });
 

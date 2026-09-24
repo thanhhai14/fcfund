@@ -84,7 +84,10 @@ self.addEventListener("push", (event) => {
       body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      data: { url },
+      data: {
+        url,
+        eventId: typeof data.eventId === "string" ? data.eventId : null,
+      },
       tag: typeof data.eventId === "string" ? data.eventId : (typeof data.type === "string" ? data.type : undefined),
     }),
   );
@@ -93,7 +96,11 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const rawUrl = event.notification.data?.url;
-  const target = new URL(typeof rawUrl === "string" ? rawUrl : "/dashboard", self.location.origin);
+  const eventId = event.notification.data?.eventId;
+  const clickUrl = typeof eventId === "string"
+    ? `/n/event/${eventId}`
+    : (typeof rawUrl === "string" ? rawUrl : "/dashboard");
+  const target = new URL(clickUrl, self.location.origin);
   if (target.origin !== self.location.origin) return;
 
   event.waitUntil((async () => {

@@ -89,6 +89,7 @@ export async function getMemberCareerStats(input: { clubId: string; memberId: st
       eq(memberMatchStats.clubId, input.clubId),
       eq(memberMatchStats.memberId, input.memberId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     ));
   const winCount = rows.filter((row) => row.result === "WIN").length;
   const lossCount = rows.filter((row) => row.result === "LOSS").length;
@@ -119,6 +120,7 @@ export async function getMembersCareerStats(input: { clubId: string; memberIds: 
       eq(memberMatchStats.clubId, input.clubId),
       inArray(memberMatchStats.memberId, input.memberIds),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     ));
 
   const maxTeamCount = Math.max(0, ...rows.map((row) => row.teamCount ?? row.placement ?? 0));
@@ -166,6 +168,7 @@ export async function getMatchFormStats(input: {
       inArray(memberMatchStats.memberId, input.memberIds),
       lt(memberMatchStats.playedOn, input.playedOn),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     ))
     .orderBy(desc(memberMatchStats.playedOn), desc(matches.createdAt));
 
@@ -199,6 +202,7 @@ export async function getMatchFormStats(input: {
       isNull(memberCharges.deletedAt),
       isNotNull(memberCharges.matchId),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
       lt(matches.playedOn, input.playedOn),
     ));
   const penaltyMatchIds = penaltyMatchRows.flatMap((row) => row.matchId ? [row.matchId] : []);
@@ -215,6 +219,7 @@ export async function getMatchFormStats(input: {
         .where(and(
           eq(matches.clubId, input.clubId),
           isNull(matches.deletedAt),
+          isNull(matches.hiddenAt),
           inArray(matches.id, penaltyMatchIds),
           inArray(matchParticipants.memberId, input.memberIds),
         )),

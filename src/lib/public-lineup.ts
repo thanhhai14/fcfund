@@ -16,6 +16,7 @@ export async function getPublicLineupOverview(token: string) {
       eq(matches.publicLineupToken, token),
       eq(matches.publicLineupEnabled, true),
       isNull(matches.deletedAt),
+      isNull(matches.hiddenAt),
     )).limit(1);
   if (!match) return null;
 
