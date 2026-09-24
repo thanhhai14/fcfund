@@ -5,6 +5,7 @@ import { formatMoney } from "@/lib/format";
 import { Icon } from "./icon";
 import { ColumnVisibilityMenu, useColumnVisibility, type CollectionColumn } from "./collection-controls";
 import { MemberIdentity } from "./member-identity";
+import { MatchMemberRemoval } from "./match-member-removal";
 import { MatchMemberReplacement } from "./match-member-replacement";
 import type { MemberSelectOption } from "./searchable-member-select";
 import { MatchLateMemberAddition } from "./match-late-member-addition";
@@ -235,17 +236,26 @@ export function MatchDetailView({
                     <div key={member.id}>
                       <MemberIdentity memberId={member.memberId} name={member.name} avatarVersion={member.avatarVersion} secondary={canViewSeed ? member.seedTier ? `${SEED_LABELS[member.seedTier] ?? member.seedTier}${member.assignedAsGoalkeeper ? " · Thủ môn" : ""}` : "Chưa có Seed" : null} compact />
                       <span className="team-member-charge">{member.charges.map((charge) => <ChargeMark charge={charge} showQuantity key={charge.id} />)}{!member.charges.length && <small>—</small>}</span>
-                      {canManageTeams && confirmedVersionId && member.teamMemberId && <MatchMemberReplacement
-                        matchId={matchId}
-                        versionId={confirmedVersionId}
-                        teamMemberId={member.teamMemberId}
-                        current={{ memberId: member.memberId, name: member.name, avatarVersion: member.avatarVersion }}
-                        teamName={team.name}
-                        teamPlace={team.place}
-                        chargeQuantity={chargeSummary(member.charges).quantity}
-                        chargeAmount={chargeSummary(member.charges).amount}
-                        options={replacementMembers}
-                      />}
+                      {canManageTeams && confirmedVersionId && member.teamMemberId && <>
+                        <MatchMemberReplacement
+                          matchId={matchId}
+                          versionId={confirmedVersionId}
+                          teamMemberId={member.teamMemberId}
+                          current={{ memberId: member.memberId, name: member.name, avatarVersion: member.avatarVersion }}
+                          teamName={team.name}
+                          teamPlace={team.place}
+                          chargeQuantity={chargeSummary(member.charges).quantity}
+                          chargeAmount={chargeSummary(member.charges).amount}
+                          options={replacementMembers}
+                        />
+                        <MatchMemberRemoval
+                          matchId={matchId}
+                          versionId={confirmedVersionId}
+                          teamMemberId={member.teamMemberId}
+                          current={{ memberId: member.memberId, name: member.name, avatarVersion: member.avatarVersion }}
+                          teamName={team.name}
+                        />
+                      </>}
                     </div>
                   ))}
                 </div>

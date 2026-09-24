@@ -16,6 +16,7 @@ import {
   members,
 } from "@/db/schema";
 import { PERMISSIONS, teamColorForIndex } from "@/lib/constants";
+import { canCreateTeamVersion, getMatchLifecycle } from "@/lib/match-lifecycle";
 import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import { requirePermission } from "@/lib/permissions";
 import { generateBalancedTeams, type BalanceParticipant } from "@/lib/team-balancer";
@@ -68,10 +69,19 @@ async function draftForMatch(matchId: string) {
 }
 
 export async function createMatchTeamVersionAction(formData: FormData): Promise<MutationResult> {
-  const actor = await requirePermission(PERMISSIONS.MATCH_SEED_MANAGE);
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canCreateTeamVersion(lifecycle)) {
+    return {
+      ok: false,
+      message: lifecycle?.lifecycle === "RESULT_RECORDED"
+        ? "Kết quả đã được ghi nhận. Hãy hủy kết quả trước khi tạo phiên bản đội hình mới."
+        : "Chỉ tạo phiên bản mới sau khi đã xác nhận đội hình hiện tại.",
+    };
+  }
 
   const existingDraft = await draftForMatch(matchId);
   if (existingDraft) return { ok: true, message: `Phiên bản nháp ${existingDraft.version} đã tồn tại.` };
@@ -111,6 +121,13 @@ export async function saveAndLockMatchSeedsAction(formData: FormData): Promise<M
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle === "CANCELLED" || lifecycle.lifecycle === "RESULT_RECORDED") {
+    return { ok: false, message: "Trạng thái trận hiện tại không cho phép đánh giá lại Seed." };
+  }
+  if (lifecycle.lifecycle === "TEAM_CONFIRMED") {
+    return { ok: false, message: "Hãy tạo phiên bản đội hình mới trước khi đánh giá lại Seed." };
+  }
 
   const participants = await currentParticipants(matchId);
   if (!participants.length) return { ok: false, message: "Trận chưa có người tham gia." };
@@ -191,6 +208,10 @@ export async function unlockMatchSeedsAction(formData: FormData): Promise<Mutati
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle !== "TEAM_DRAFT") {
+    return { ok: false, message: "Chỉ có thể mở khóa Seed khi đang có phiên bản nháp." };
+  }
   const draft = await draftForMatch(matchId);
   if (!draft) return { ok: false, message: "Chưa có phiên bản nháp để mở khóa." };
   if ((draft.initialDrawSnapshot || draft.randomKey) && actor.role !== "ADMIN") {
@@ -225,6 +246,10 @@ export async function generateMatchTeamsAction(formData: FormData): Promise<Team
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle !== "TEAM_DRAFT") {
+    return { ok: false, message: "Chỉ có thể tạo đội khi trận đang ở phiên bản nháp." };
+  }
   const draft = await draftForMatch(matchId);
   if (!draft?.tierLockedAt) return { ok: false, message: "Hãy lưu và khóa Seed trước khi tạo đội." };
   const existingTeams = await db.select({ id: matchTeams.id }).from(matchTeams)
@@ -377,6 +402,10 @@ export async function saveManualTeamsAction(formData: FormData): Promise<Mutatio
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle !== "TEAM_DRAFT") {
+    return { ok: false, message: "Chỉ có thể chỉnh đội hình khi đang có phiên bản nháp." };
+  }
   const draft = await draftForMatch(matchId);
   if (!draft) return { ok: false, message: "Không có đội hình nháp." };
 
@@ -430,6 +459,10 @@ export async function confirmMatchTeamsAction(formData: FormData): Promise<Mutat
   const matchId = str(formData, "matchId");
   const match = await getManagedMatch(matchId, actor.clubId);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle !== "TEAM_DRAFT") {
+    return { ok: false, message: "Chỉ có thể xác nhận đội hình khi trận đang có phiên bản nháp." };
+  }
   const draft = await draftForMatch(matchId);
   if (!draft) return { ok: false, message: "Không có đội hình nháp để xác nhận." };
   const teams = await db.select().from(matchTeams).where(eq(matchTeams.versionId, draft.id));

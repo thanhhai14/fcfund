@@ -21,6 +21,7 @@ import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { getMatchLifecycle } from "@/lib/match-lifecycle";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
 import { playerPositionsLabel, playerStrengthLabel } from "@/lib/player-profile";
@@ -41,8 +42,8 @@ function formScore(value: number) {
 export default async function MatchTeamsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const canViewTeams = await can(PERMISSIONS.MATCH_TEAMS_VIEW);
-  if (!canViewTeams) redirect("/matches");
   const canManageTeams = await can(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  if (!canViewTeams && !canManageTeams) redirect("/matches");
   const canManageSeeds = await can(PERMISSIONS.MATCH_SEED_MANAGE);
   const canViewSeeds = canManageSeeds || await can(PERMISSIONS.MATCH_SEED_VIEW);
   const canViewFormReport = canManageTeams || await can(PERMISSIONS.MATCH_FORM_REPORT_VIEW);
@@ -55,6 +56,8 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
     isNull(matches.deletedAt),
   )).limit(1);
   if (!match) notFound();
+  const lifecycle = await getMatchLifecycle(id, user.clubId);
+  if (!lifecycle || lifecycle.lifecycle === "CANCELLED") notFound();
 
   const participantRows = await db.select({
     id: matchParticipants.id,
@@ -182,7 +185,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
         </section>
       )}
 
-      {canManageSeeds && confirmed && !draft && (
+      {canManageTeams && confirmed && !draft && lifecycle.lifecycle === "TEAM_CONFIRMED" && (
         <section className="panel seed-panel">
           <div className="panel-heading">
             <div><span className="eyebrow">Bước 1</span><h2>Đánh giá Seed của trận</h2></div>
@@ -193,6 +196,27 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
             <input type="hidden" name="matchId" value={match.id} />
             <SubmitButton><Icon name="plus" /> Tạo phiên bản mới</SubmitButton>
           </MutationForm>
+        </section>
+      )}
+
+      {canManageTeams && confirmed && !draft && lifecycle.lifecycle === "RESULT_RECORDED" && (
+        <section className="panel seed-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Đội hình đã khóa bởi kết quả</span><h2>Tạo phiên bản mới</h2></div>
+            <span className="validation-badge valid">Đã có kết quả</span>
+          </div>
+          <p className="panel-note">Hãy hủy kết quả ở trang Chi tiết trận trước khi thay người hoặc tạo phiên bản đội hình mới.</p>
+          <button type="button" className="button" disabled title="Hủy kết quả trước khi tạo phiên bản mới"><Icon name="plus" /> Tạo phiên bản mới</button>
+        </section>
+      )}
+
+      {canManageTeams && draft && !isDraftLocked && !canManageSeeds && (
+        <section className="panel seed-panel">
+          <div className="panel-heading">
+            <div><span className="eyebrow">Đang chờ Seed</span><h2>Phiên bản {draft.version} chưa khóa Seed</h2></div>
+            <span className="validation-badge warning">Cần quyền Seed</span>
+          </div>
+          <p className="panel-note">Bạn có quyền quản lý đội hình nhưng không có quyền đánh giá Seed. Hãy nhờ người có quyền MATCH_SEED_MANAGE hoàn tất bước Seed trước khi tạo đội.</p>
         </section>
       )}
 

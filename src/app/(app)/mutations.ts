@@ -2,7 +2,7 @@
 
 import { del, put } from "@vercel/blob";
 import { hash } from "bcryptjs";
-import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -34,6 +34,7 @@ import { normalizePhone, todayInTimezone } from "@/lib/format";
 import { getBalanceReportMonth } from "@/lib/balance-report";
 import { hashPassword, requireUser, verifyPassword } from "@/lib/auth";
 import { can, requirePermission } from "@/lib/permissions";
+import { canCancelMatch, getMatchLifecycle } from "@/lib/match-lifecycle";
 import { isPlayerPosition, isPlayerStrength, type PlayerPosition } from "@/lib/player-profile";
 import { findVietQrBank } from "@/lib/vietqr";
 import type { NotificationChargeItem } from "@/lib/notification-presentation";
@@ -54,6 +55,19 @@ function str(formData: FormData, key: string) {
 
 function amount(formData: FormData, key = "amount") {
   return Number(str(formData, key).replace(/\D/g, ""));
+}
+
+function metricsRecord(metrics: unknown): Record<string, unknown> {
+  if (typeof metrics === "string") {
+    try {
+      return metricsRecord(JSON.parse(metrics));
+    } catch {
+      return {};
+    }
+  }
+  return metrics && typeof metrics === "object" && !Array.isArray(metrics)
+    ? { ...(metrics as Record<string, unknown>) }
+    : {};
 }
 
 function parseMatchChargeQuantities(formData: FormData) {
@@ -1181,14 +1195,34 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     .where(and(eq(matches.id, id), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt))).limit(1);
   if (!before) return { ok: false, message: "Không tìm thấy trận đấu." };
 
+  const lifecycle = await getMatchLifecycle(id, actor.clubId);
+  if (!lifecycle || lifecycle.lifecycle === "CANCELLED") {
+    return { ok: false, message: "Trận đấu đã bị hủy." };
+  }
+
+  let protectedResultChargeTypeId: string | null = null;
+  if (lifecycle.lifecycle === "RESULT_RECORDED" && lifecycle.confirmedId) {
+    const [confirmed] = await db.select({ metrics: matchTeamVersions.metrics })
+      .from(matchTeamVersions)
+      .where(eq(matchTeamVersions.id, lifecycle.confirmedId))
+      .limit(1);
+    const resultMetrics = metricsRecord(confirmed?.metrics);
+    protectedResultChargeTypeId = typeof resultMetrics.resultChargeTypeId === "string"
+      ? resultMetrics.resultChargeTypeId
+      : null;
+  }
+
   const playedOn = str(formData, "playedOn") || before.playedOn;
   const participantIds = [...new Set(formData.getAll("participants").map(String))];
   const parsedQuantities = parseMatchChargeQuantities(formData);
   if (!parsedQuantities.ok) return { ok: false, message: "Số lần khoản thu phải là số nguyên từ 0 đến 99." };
   const chargeRows = parsedQuantities.rows;
+  const editableChargeRows = protectedResultChargeTypeId
+    ? chargeRows.filter((row) => row.typeId !== protectedResultChargeTypeId)
+    : chargeRows;
 
-  const involved = new Set([...participantIds, ...chargeRows.map((row) => row.memberId)]);
-  const typeIds = [...new Set(chargeRows.map((row) => row.typeId))];
+  const involved = new Set([...participantIds, ...editableChargeRows.map((row) => row.memberId)]);
+  const typeIds = [...new Set(editableChargeRows.map((row) => row.typeId))];
   const validMembers = involved.size ? await db.select({ id: members.id }).from(members)
     .where(and(eq(members.clubId, actor.clubId), inArray(members.id, [...involved]))) : [];
   const validTypes = typeIds.length ? await db.select().from(chargeTypes)
@@ -1232,14 +1266,22 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
     .map((row) => row.id);
   const participantsChanged = addedMemberIds.length > 0 || removedParticipantIds.length > 0;
   const teamDraftInvalidated = participantsChanged || playedOn !== before.playedOn;
-  if (teamDraftInvalidated && actor.role !== "ADMIN") {
-    const [generatedDraft] = await db.select({ id: matchTeamVersions.id }).from(matchTeamVersions).where(and(
-      eq(matchTeamVersions.matchId, id),
-      eq(matchTeamVersions.status, "DRAFT"),
-      or(isNotNull(matchTeamVersions.randomKey), isNotNull(matchTeamVersions.initialDrawSnapshot)),
-    )).limit(1);
-    if (generatedDraft) {
-      return { ok: false, message: "Đội hình đã được bốc thăm. Hãy giữ nguyên ngày và người tham gia, điều chỉnh đội hình rồi xác nhận." };
+  if (teamDraftInvalidated) {
+    if (
+      lifecycle.lifecycle === "TEAM_CONFIRMED"
+      || lifecycle.lifecycle === "RESULT_RECORDED"
+      || (lifecycle.lifecycle === "TEAM_DRAFT" && Boolean(lifecycle.confirmedId))
+    ) {
+      return {
+        ok: false,
+        message: "Đội hình đã từng được xác nhận. Không thể đổi ngày hoặc người tham gia tại đây.",
+      };
+    }
+    if (lifecycle.lifecycle === "TEAM_DRAFT" && lifecycle.hasDraftDraw && actor.role !== "ADMIN") {
+      return {
+        ok: false,
+        message: "Đội hình đã được bốc thăm. Chỉ Admin có thể đổi ngày/người tham gia và thao tác này sẽ xóa bản nháp hiện tại.",
+      };
     }
   }
 
@@ -1263,14 +1305,27 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       await tx.insert(matchParticipants).values(addedMemberIds.map((memberId) => ({ matchId: id, memberId })));
     }
 
-    await tx.update(memberCharges).set({
-      deletedAt: new Date(),
-      deletedBy: actor.id,
-      updatedAt: new Date(),
-    }).where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)));
+    const chargeUpdatedAt = new Date();
+    if (protectedResultChargeTypeId) {
+      await tx.update(memberCharges).set({
+        deletedAt: chargeUpdatedAt,
+        deletedBy: actor.id,
+        updatedAt: chargeUpdatedAt,
+      }).where(and(
+        eq(memberCharges.matchId, id),
+        ne(memberCharges.chargeTypeId, protectedResultChargeTypeId),
+        isNull(memberCharges.deletedAt),
+      ));
+    } else {
+      await tx.update(memberCharges).set({
+        deletedAt: chargeUpdatedAt,
+        deletedBy: actor.id,
+        updatedAt: chargeUpdatedAt,
+      }).where(and(eq(memberCharges.matchId, id), isNull(memberCharges.deletedAt)));
+    }
 
-    if (chargeRows.length) {
-      await tx.insert(memberCharges).values(chargeRows.flatMap(({ memberId, typeId, quantity }) => {
+    if (editableChargeRows.length) {
+      await tx.insert(memberCharges).values(editableChargeRows.flatMap(({ memberId, typeId, quantity }) => {
         const type = typeMap.get(typeId);
         const snapshot = existingChargeSnapshots.get(`${memberId}|${typeId}`);
         const unitAmount = snapshot?.unitAmount ?? type?.defaultAmount ?? 0;
@@ -1299,7 +1354,7 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       action: "UPDATE",
       actorId: actor.id,
       beforeData: before,
-      afterData: { ...after, participants: [...involved], chargeQuantities: chargeRows },
+      afterData: { ...after, participants: [...involved], chargeQuantities: editableChargeRows },
       message: `Cập nhật trận ngày ${playedOn} với ${involved.size} người tham gia`,
     });
   });
@@ -1334,12 +1389,21 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
     .where(and(eq(matches.id, id), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt))).limit(1);
   if (!before) return;
 
+  const lifecycle = await getMatchLifecycle(id, actor.clubId);
+  if (!lifecycle || !canCancelMatch(lifecycle)) return;
+
+  const affectedMemberIds = [...new Set((await db.select({ memberId: matchParticipants.memberId })
+    .from(matchParticipants)
+    .where(eq(matchParticipants.matchId, id)))
+    .flatMap((row) => row.memberId ? [row.memberId] : []))];
   const cancellationRecipients = await userIdsForMatchAudience(actor.clubId, id).catch(() => []);
   await db.transaction(async (tx) => {
     const deletedAt = new Date();
     await tx.update(matches).set({
       deletedAt,
       deletedBy: actor.id,
+      publicLineupEnabled: false,
+      publicLineupPublishedAt: null,
       updatedAt: deletedAt,
     }).where(eq(matches.id, id));
     await tx.update(memberCharges).set({
@@ -1351,10 +1415,11 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
       clubId: actor.clubId,
       entityType: "match",
       entityId: id,
-      action: "DELETE",
+      action: "UPDATE",
       actorId: actor.id,
       beforeData: before,
-      message: `Xóa trận ngày ${before.playedOn} và các khoản thu phát sinh`,
+      afterData: { cancelledAt: deletedAt.toISOString(), status: "CANCELLED" },
+      message: `Hủy trận ngày ${before.playedOn} và toàn bộ khoản thu phát sinh`,
     });
   });
 
@@ -1373,7 +1438,14 @@ export async function deleteMatchAction(formData: FormData): Promise<void> {
   } catch {
     // Push failures must not affect match cancellation.
   }
-  revalidatePath("/matches"); revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports");
+  revalidatePath("/matches");
+  revalidatePath(`/matches/${id}`);
+  revalidatePath(`/matches/${id}/teams`);
+  revalidatePath("/charges");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+  if (before.publicLineupToken) revalidatePath(`/lineup/${before.publicLineupToken}`);
+  for (const memberId of affectedMemberIds) revalidatePath(`/members/${memberId}`);
 }
 
 export async function updateClubAction(formData: FormData): Promise<MutationResult> {

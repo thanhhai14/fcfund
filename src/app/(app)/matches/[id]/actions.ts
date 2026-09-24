@@ -1,7 +1,7 @@
 "use server";
 
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -20,11 +20,17 @@ import {
 import { PERMISSIONS } from "@/lib/constants";
 import { FORMULA_VERSION, placementFormScore } from "@/lib/form-score";
 import { getBalanceReportMonth } from "@/lib/balance-report";
-import { getMatchFormStats } from "@/lib/match-form-stats";
+import {
+  canCancelMatchResult,
+  canRecordMatchResult,
+  canReplaceOrAddConfirmedPlayer,
+  getMatchLifecycle,
+} from "@/lib/match-lifecycle";
+import { FORM_SCORE_LOW_THRESHOLD, FORM_SCORE_MIN_SAMPLE, getMatchFormStats } from "@/lib/match-form-stats";
 import type { NotificationChargeItem } from "@/lib/notification-presentation";
 import { requirePermission } from "@/lib/permissions";
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
-import { notifyUsers, userRecipientsForMembers } from "@/lib/push-notifications";
+import { notifyUsers, userIdsForMatchAudience, userRecipientsForMembers } from "@/lib/push-notifications";
 
 type MutationResult = { ok: boolean; message: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -115,6 +121,14 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
     isNull(matches.deletedAt),
   )).limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canRecordMatchResult(lifecycle)) {
+    return { ok: false, message: "Trạng thái trận hiện tại không cho phép ghi kết quả." };
+  }
+  if (lifecycle.confirmedId !== versionId) {
+    return { ok: false, message: "Đội hình được chọn không còn là phiên bản đã xác nhận hiện tại." };
+  }
 
   const [version] = await db.select().from(matchTeamVersions).where(and(
     eq(matchTeamVersions.id, versionId),
@@ -231,6 +245,10 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
         eq(memberCharges.source, "MATCH"),
         inArray(memberCharges.memberId, memberIds),
         inArray(memberCharges.chargeTypeId, replacedTypeIds),
+        or(
+          like(memberCharges.note, "Kết quả hạng %"),
+          like(memberCharges.note, "Bổ sung sau trận · hạng %"),
+        ),
         isNull(memberCharges.deletedAt),
       ));
     }
@@ -317,6 +335,117 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   return { ok: true, message: `Đã ghi nhận kết quả và tạo ${penaltyRows.length} khoản phạt.` };
 }
 
+export async function cancelMatchResultAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  if (actor.role !== "ADMIN") {
+    return { ok: false, message: "Chỉ Admin được hủy kết quả trận." };
+  }
+
+  const matchId = str(formData, "matchId");
+  const [match] = await db.select().from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+    isNull(matches.deletedAt),
+  )).limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canCancelMatchResult(lifecycle) || !lifecycle.confirmedId) {
+    return { ok: false, message: "Trận chưa có kết quả để hủy." };
+  }
+
+  const [version] = await db.select().from(matchTeamVersions).where(and(
+    eq(matchTeamVersions.id, lifecycle.confirmedId),
+    eq(matchTeamVersions.matchId, matchId),
+    eq(matchTeamVersions.status, "CONFIRMED"),
+  )).limit(1);
+  if (!version) return { ok: false, message: "Không tìm thấy đội hình đã xác nhận." };
+
+  const affectedMemberIds = [...new Set((await db.select({ memberId: matchTeamMembers.memberId })
+    .from(matchTeamMembers)
+    .where(eq(matchTeamMembers.versionId, version.id)))
+    .flatMap((row) => row.memberId ? [row.memberId] : []))];
+  const oldMetrics = metricsRecord(version.metrics);
+  const {
+    placements,
+    penaltyQuantities,
+    resultChargeTypeId,
+    resultRecordedAt,
+    resultRecordedBy,
+    ...remainingMetrics
+  } = oldMetrics;
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx.update(memberCharges).set({
+      deletedAt: now,
+      deletedBy: actor.id,
+      updatedAt: now,
+    }).where(and(
+      eq(memberCharges.matchId, matchId),
+      eq(memberCharges.source, "MATCH"),
+      or(
+        like(memberCharges.note, "Kết quả hạng %"),
+        like(memberCharges.note, "Bổ sung sau trận · hạng %"),
+      ),
+      isNull(memberCharges.deletedAt),
+    ));
+    await tx.delete(memberMatchStats).where(eq(memberMatchStats.matchId, matchId));
+    if (lifecycle.draftId) {
+      await tx.delete(matchTeamVersions).where(eq(matchTeamVersions.id, lifecycle.draftId));
+    }
+    await tx.update(matchTeamVersions).set({
+      metrics: remainingMetrics,
+      updatedAt: now,
+    }).where(eq(matchTeamVersions.id, version.id));
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: {
+        placements,
+        penaltyQuantities,
+        resultChargeTypeId,
+        resultRecordedAt,
+        resultRecordedBy,
+      },
+      afterData: {
+        resultCancelledAt: now.toISOString(),
+        removedDraftVersionId: lifecycle.draftId,
+      },
+      message: `Hủy kết quả trận ngày ${match.playedOn}`,
+    });
+  });
+
+  try {
+    const recipientIds = await userIdsForMatchAudience(actor.clubId, matchId);
+    await notifyUsers({
+      clubId: actor.clubId,
+      userIds: recipientIds,
+      type: "MATCH_RESULT_CANCELLED",
+      title: "Kết quả trận đã được hủy",
+      body: `Kết quả trận ngày ${match.playedOn} đã được quản trị viên hủy và sẽ được cập nhật lại sau.`,
+      url: `/matches/${matchId}`,
+      entityType: "match",
+      entityId: matchId,
+      dedupeKey: `MATCH_RESULT_CANCELLED:${matchId}:${now.getTime()}`,
+    });
+  } catch {
+    // Push failures must not affect result cancellation.
+  }
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/matches/${matchId}/teams`);
+  revalidatePath("/matches");
+  revalidatePath("/charges");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+  for (const memberId of affectedMemberIds) revalidatePath(`/members/${memberId}`);
+  return { ok: true, message: "Đã hủy kết quả. Đội hình đã xác nhận được giữ nguyên." };
+}
+
 export async function replaceConfirmedMatchMemberAction(formData: FormData): Promise<MutationResult> {
   const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const matchId = str(formData, "matchId");
@@ -331,6 +460,15 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
     isNull(matches.deletedAt),
   )).limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canReplaceOrAddConfirmedPlayer(lifecycle) || lifecycle.confirmedId !== versionId) {
+    return {
+      ok: false,
+      message: lifecycle?.lifecycle === "RESULT_RECORDED"
+        ? "Hãy hủy kết quả trước khi thay cầu thủ."
+        : "Chỉ có thể thay người trong đội hình đã xác nhận hiện tại.",
+    };
+  }
 
   const [version] = await db.select().from(matchTeamVersions).where(and(
     eq(matchTeamVersions.id, versionId),
@@ -497,6 +635,130 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
   return { ok: true, message: `Đã thay ${slot.displayName} bằng ${replacement.fullName} trong ${slot.teamName}.` };
 }
 
+export async function removeConfirmedMatchMemberAction(formData: FormData): Promise<MutationResult> {
+  const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  const matchId = str(formData, "matchId");
+  const versionId = str(formData, "versionId");
+  const teamMemberId = str(formData, "teamMemberId");
+  const reason = str(formData, "reason");
+
+  const [match] = await db.select().from(matches).where(and(
+    eq(matches.id, matchId),
+    eq(matches.clubId, actor.clubId),
+    isNull(matches.deletedAt),
+  )).limit(1);
+  if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canReplaceOrAddConfirmedPlayer(lifecycle) || lifecycle.confirmedId !== versionId) {
+    return {
+      ok: false,
+      message: lifecycle?.lifecycle === "RESULT_RECORDED"
+        ? "Hãy hủy kết quả trước khi loại cầu thủ khỏi đội hình."
+        : "Chỉ có thể loại cầu thủ khỏi đội hình đã xác nhận hiện tại.",
+    };
+  }
+
+  const [slot] = await db.select({
+    id: matchTeamMembers.id,
+    participantId: matchTeamMembers.participantId,
+    memberId: matchTeamMembers.memberId,
+    displayName: matchTeamMembers.displayNameSnapshot,
+    teamId: matchTeamMembers.teamId,
+    teamName: matchTeams.name,
+    assignedAsGoalkeeper: matchTeamMembers.assignedAsGoalkeeper,
+    seedTier: matchTeamMembers.seedTierSnapshot,
+    recentMatchCount: matchTeamMembers.recentMatchCountSnapshot,
+    formScore: matchTeamMembers.formScoreSnapshot,
+    teamMemberCount: matchTeams.memberCount,
+    teamGoalkeeperCount: matchTeams.goalkeeperCount,
+    teamSkillScore: matchTeams.outfieldSkillScore,
+    teamRecentLossScore: matchTeams.recentLossScore,
+    teamFormScoreTotal: matchTeams.formScoreTotal,
+    teamLowFormCount: matchTeams.lowFormCount,
+  }).from(matchTeamMembers)
+    .innerJoin(matchTeams, eq(matchTeamMembers.teamId, matchTeams.id))
+    .innerJoin(matchTeamVersions, eq(matchTeamMembers.versionId, matchTeamVersions.id))
+    .where(and(
+      eq(matchTeamMembers.id, teamMemberId),
+      eq(matchTeamMembers.versionId, versionId),
+      eq(matchTeamVersions.matchId, matchId),
+      eq(matchTeamVersions.status, "CONFIRMED"),
+    ))
+    .limit(1);
+  if (!slot) return { ok: false, message: "Không tìm thấy cầu thủ trong đội hình đã xác nhận." };
+
+  const seedContribution = isActiveSeedTier(slot.seedTier)
+    ? SEED_WEIGHT[slot.seedTier] * (slot.assignedAsGoalkeeper ? 0.1 : 1)
+    : 0;
+  const formFactor = slot.assignedAsGoalkeeper ? 0.15 : 1;
+  const lossContribution = (10_000 - slot.formScore) * formFactor;
+  const formContribution = slot.formScore * formFactor;
+  const lowFormContribution = !slot.assignedAsGoalkeeper
+    && slot.recentMatchCount >= FORM_SCORE_MIN_SAMPLE
+    && slot.formScore < FORM_SCORE_LOW_THRESHOLD
+    ? 1
+    : 0;
+
+  await db.transaction(async (tx) => {
+    await tx.delete(matchTeamMembers).where(eq(matchTeamMembers.id, slot.id));
+
+    if (slot.participantId) {
+      await tx.delete(matchParticipants).where(and(
+        eq(matchParticipants.id, slot.participantId),
+        eq(matchParticipants.matchId, matchId),
+      ));
+    }
+
+    if (slot.memberId) {
+      await tx.delete(memberMatchStats).where(and(
+        eq(memberMatchStats.matchId, matchId),
+        eq(memberMatchStats.memberId, slot.memberId),
+      ));
+    }
+
+    await tx.update(matchTeams).set({
+      memberCount: Math.max(0, slot.teamMemberCount - 1),
+      goalkeeperCount: Math.max(0, slot.teamGoalkeeperCount - Number(slot.assignedAsGoalkeeper)),
+      outfieldSkillScore: Math.max(0, Math.round(slot.teamSkillScore - seedContribution)),
+      recentLossScore: Math.max(0, Math.round(slot.teamRecentLossScore - lossContribution)),
+      formScoreTotal: Math.max(0, Math.round(slot.teamFormScoreTotal - formContribution)),
+      lowFormCount: Math.max(0, slot.teamLowFormCount - lowFormContribution),
+    }).where(eq(matchTeams.id, slot.teamId));
+
+    await tx.insert(activityLogs).values({
+      clubId: actor.clubId,
+      entityType: "match",
+      entityId: matchId,
+      action: "UPDATE",
+      actorId: actor.id,
+      beforeData: {
+        team: slot.teamName,
+        teamMemberId: slot.id,
+        participantId: slot.participantId,
+        memberId: slot.memberId,
+        memberName: slot.displayName,
+      },
+      afterData: {
+        removedFromConfirmedLineup: true,
+        chargesChanged: false,
+      },
+      message: `Loại ${slot.displayName} khỏi ${slot.teamName}${reason ? ` · ${reason}` : ""}`,
+    });
+  });
+
+  revalidatePath(`/matches/${matchId}`);
+  revalidatePath(`/matches/${matchId}/teams`);
+  revalidatePath("/matches");
+  if (match.publicLineupToken) revalidatePath(`/lineup/${match.publicLineupToken}`);
+  if (slot.memberId) revalidatePath(`/members/${slot.memberId}`);
+
+  return {
+    ok: true,
+    message: `Đã loại ${slot.displayName} khỏi ${slot.teamName}. Các khoản thu của trận không thay đổi.`,
+  };
+}
+
 export async function addConfirmedMatchMemberAction(formData: FormData): Promise<MutationResult> {
   const actor = await requirePermission(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const matchId = str(formData, "matchId");
@@ -514,6 +776,15 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     eq(matches.id, matchId), eq(matches.clubId, actor.clubId), isNull(matches.deletedAt),
   )).limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
+  const lifecycle = await getMatchLifecycle(matchId, actor.clubId);
+  if (!lifecycle || !canReplaceOrAddConfirmedPlayer(lifecycle) || lifecycle.confirmedId !== versionId) {
+    return {
+      ok: false,
+      message: lifecycle?.lifecycle === "RESULT_RECORDED"
+        ? "Hãy hủy kết quả trước khi bổ sung cầu thủ."
+        : "Chỉ có thể bổ sung người vào đội hình đã xác nhận hiện tại.",
+    };
+  }
   const [version] = await db.select().from(matchTeamVersions).where(and(
     eq(matchTeamVersions.id, versionId), eq(matchTeamVersions.matchId, matchId), eq(matchTeamVersions.status, "CONFIRMED"),
   )).limit(1);

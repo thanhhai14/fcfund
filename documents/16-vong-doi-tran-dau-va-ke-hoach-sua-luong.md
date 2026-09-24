@@ -1,6 +1,6 @@
 # Vòng đời trận đấu và kế hoạch sửa luồng Matches
 
-**Trạng thái:** Đã audit source và chốt nghiệp vụ ngày 24/09/2026; chưa triển khai source code của đợt sửa này.  
+**Trạng thái:** Đã triển khai lifecycle/guard/UI theo nghiệp vụ chốt ngày 24/09/2026; lint, lifecycle test và production build đã pass. Audit dữ liệu trước deploy vẫn cần được xử lý riêng.
 **Phạm vi:** Menu **Trận đấu (Matches)**, gồm danh sách trận, RSVP, Sửa/Hủy trận, chia đội, phiên bản đội hình, ghi kết quả, thay/bổ sung cầu thủ hậu kỳ và dữ liệu thống kê/phạt.  
 **Tài liệu liên quan:** [11-chia-doi-random-va-seed-thanh-vien.md](./11-chia-doi-random-va-seed-thanh-vien.md)
 
@@ -1118,6 +1118,36 @@ flowchart TD
 ~~~
 
 **Không đảo Phase 2 và Phase 3.** Server guard phải sửa trước UI để tránh trường hợp chỉ ẩn nút nhưng action vẫn gọi trực tiếp được.
+
+---
+
+## 16.1. Trạng thái triển khai 24/09/2026
+
+Đã triển khai:
+
+- lifecycle core dùng chung cho OPEN / TEAM_DRAFT / TEAM_CONFIRMED / RESULT_RECORDED / CANCELLED;
+- server guards cho RSVP, generic edit, Team Version, Seed/Draw/Confirm, Result, Replace/Add và Hủy trận;
+- action **Hủy kết quả** Admin-only;
+- action **Loại cầu thủ** ở TEAM_CONFIRMED, đồng bộ participant/confirmed lineup/team metrics nhưng không tự thay đổi khoản thu;
+- Hủy kết quả rollback stats + penalty do result sinh ra, giữ khoản thu thường và confirmed lineup;
+- Hủy trận giữ Match trên UI ở trạng thái **Đã hủy** và soft-delete toàn bộ khoản thu/phạt của Match;
+- label/action trên danh sách Matches theo lifecycle, action không hợp lệ được disabled;
+- permission tạo Team Version mới dùng MATCH_TEAMS_MANAGE;
+- form Sửa khóa date/participants theo lifecycle và bảo vệ khoản phạt của Result;
+- Push `MATCH_RESULT_CANCELLED`;
+- unit-style test cho lifecycle core;
+- script audit dữ liệu lifecycle.
+
+Validation đã chạy:
+
+~~~text
+npm run lint          -> PASS
+npm run test:matches  -> PASS
+npm run build         -> PASS
+git diff --check      -> PASS
+~~~
+
+Audit local từng phát hiện 2 Match cũ có `PARTICIPANT_LINEUP_MISMATCH` (3 cầu thủ lineup-only). Sau khi review timeline, đã repair local bằng script one-time: loại Huỳnh Tú khỏi Match 13/08/2026 và Tâm Huỳnh + Khánh Hòa khỏi Match 24/08/2026, đồng thời xóa stat lịch sử tương ứng và cập nhật team metrics. Script xác nhận cả 3 trường hợp đều không có active charge và **không sửa memberCharges**. Audit local sau repair: 27 Match, 0 inconsistency.
 
 ---
 

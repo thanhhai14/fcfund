@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 import { PERMISSIONS } from "@/lib/constants";
 import { requirePermission } from "@/lib/permissions";
+import { getMatchLifecycle, isMatchRsvpClosed } from "@/lib/match-lifecycle";
 import { isActiveSeedTier, type SeedTier } from "@/lib/seed-tier";
 import { activeMemberUserIdsForClub, notifyUsers, userIdsWithoutMatchResponse } from "@/lib/push-notifications";
 
@@ -22,20 +23,9 @@ function str(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-async function isRsvpClosed(matchId: string) {
-  const [drawn] = await db
-    .select({ id: matchTeamVersions.id })
-    .from(matchTeamVersions)
-    .where(and(
-      eq(matchTeamVersions.matchId, matchId),
-      or(
-        eq(matchTeamVersions.status, "CONFIRMED"),
-        isNotNull(matchTeamVersions.randomKey),
-        isNotNull(matchTeamVersions.initialDrawSnapshot),
-      ),
-    ))
-    .limit(1);
-  return Boolean(drawn);
+async function isRsvpClosed(matchId: string, clubId: string) {
+  const lifecycle = await getMatchLifecycle(matchId, clubId);
+  return !lifecycle || isMatchRsvpClosed(lifecycle);
 }
 
 async function latestSeedForMember(memberId: string, clubId: string, currentMatchId: string): Promise<SeedTier | null> {
@@ -90,7 +80,7 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
     .limit(1);
   if (!member) return { ok: false, message: "Thành viên của bạn không còn hoạt động." };
 
-  if (await isRsvpClosed(matchId)) {
+  if (await isRsvpClosed(matchId, actor.clubId)) {
     return { ok: false, message: "Bình chọn đã đóng vì trận đã được chia đội." };
   }
 
@@ -251,7 +241,7 @@ export async function remindMatchRsvpAction(formData: FormData): Promise<MatchRs
     ))
     .limit(1);
   if (!match) return { ok: false, message: "Không tìm thấy trận đấu." };
-  if (await isRsvpClosed(matchId)) {
+  if (await isRsvpClosed(matchId, actor.clubId)) {
     return { ok: false, message: "Bình chọn đã đóng vì trận đã được chia đội." };
   }
 

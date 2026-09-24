@@ -11,6 +11,13 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { createMatchAction, deleteMatchAction, updateMatchAction } from "../mutations";
 import { can } from "@/lib/permissions";
 import { PERMISSIONS } from "@/lib/constants";
+import {
+  canCancelMatch,
+  canEditMatchRoster,
+  deriveMatchLifecycle,
+  getMatchResultChargeTypeId,
+  isMatchRsvpClosed,
+} from "@/lib/match-lifecycle";
 import { formatDate, formatMoney, todayInTimezone } from "@/lib/format";
 import { requireUser } from "@/lib/auth";
 import { MatchFields } from "@/components/match-fields";
@@ -24,25 +31,34 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const user = await requireUser();
   if (!(await can(PERMISSIONS.MATCHES_VIEW))) redirect("/dashboard");
-  const canManage = await can(PERMISSIONS.MATCHES_MANAGE);
+  const canManageMatches = await can(PERMISSIONS.MATCHES_MANAGE);
+  const canManageTeams = await can(PERMISSIONS.MATCH_TEAMS_MANAGE);
   const canViewTeams = await can(PERMISSIONS.MATCH_TEAMS_VIEW);
+  const canAccessTeams = canViewTeams || canManageTeams;
 
   const matchRows = await db.select().from(matches)
-    .where(and(eq(matches.clubId, user.clubId), isNull(matches.deletedAt)))
+    .where(eq(matches.clubId, user.clubId))
     .orderBy(desc(matches.playedOn), desc(matches.createdAt));
   const ids = matchRows.map((row) => row.id);
   const teamVersions = ids.length ? await db.select({
+    id: matchTeamVersions.id,
     matchId: matchTeamVersions.matchId,
     status: matchTeamVersions.status,
     randomKey: matchTeamVersions.randomKey,
     initialDrawSnapshot: matchTeamVersions.initialDrawSnapshot,
+    metrics: matchTeamVersions.metrics,
   }).from(matchTeamVersions).where(inArray(matchTeamVersions.matchId, ids)) : [];
-  const generatedDraftMatchIds = new Set(teamVersions
-    .filter((row) => row.status === "DRAFT" && (row.randomKey || row.initialDrawSnapshot))
-    .map((row) => row.matchId));
-  const rsvpClosedMatchIds = new Set(teamVersions
-    .filter((row) => row.status === "CONFIRMED" || Boolean(row.randomKey) || Boolean(row.initialDrawSnapshot))
-    .map((row) => row.matchId));
+  const versionsByMatch = new Map<string, typeof teamVersions>();
+  for (const version of teamVersions) {
+    versionsByMatch.set(version.matchId, [...(versionsByMatch.get(version.matchId) ?? []), version]);
+  }
+  const lifecycleByMatch = new Map(matchRows.map((match) => [
+    match.id,
+    deriveMatchLifecycle({
+      deletedAt: match.deletedAt,
+      versions: versionsByMatch.get(match.id) ?? [],
+    }),
+  ]));
   const participants = ids.length ? await db
     .select({
       matchId: matchParticipants.matchId,
@@ -136,12 +152,12 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
     chargeQuantityMap.set(row.matchId, quantities);
   });
 
-  const memberRows = canManage ? activeMembers.map((member) => ({
+  const memberRows = canManageMatches ? activeMembers.map((member) => ({
     id: member.id,
     fullName: member.name,
     avatarUpdatedAt: member.avatarUpdatedAt,
   })) : [];
-  const occurrenceTypes = canManage ? await db.select({
+  const occurrenceTypes = canManageMatches ? await db.select({
     id: chargeTypes.id,
     name: chargeTypes.name,
     defaultAmount: chargeTypes.defaultAmount,
@@ -157,7 +173,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
         eyebrow="Phát sinh theo trận"
         title="Trận đấu"
         description="Quản lý ngày, người tham gia và khoản thu lẻ"
-        action={canManage ? (
+        action={canManageMatches ? (
           <Disclosure label={<><Icon name="plus" /> Tạo trận</>} className="action-disclosure match-popover">
             <MutationForm action={createMatchAction} className="form-stack" closeDisclosureOnSuccess>
               <MatchFields
@@ -173,7 +189,25 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
 
       <section className="match-grid">
         {matchRows.map((match) => {
+          const lifecycle = lifecycleByMatch.get(match.id)!;
           const participantPreviews = participantMap.get(match.id) ?? [];
+          const isCancelled = lifecycle.lifecycle === "CANCELLED";
+          const structuralEditLocked = !canEditMatchRoster(lifecycle, user.role === "ADMIN");
+          const confirmedVersion = lifecycle.confirmedId
+            ? (versionsByMatch.get(match.id) ?? []).find((version) => version.id === lifecycle.confirmedId)
+            : undefined;
+          const resultChargeTypeId = confirmedVersion
+            ? getMatchResultChargeTypeId(confirmedVersion.metrics)
+            : null;
+          const teamLabel = lifecycle.lifecycle === "OPEN"
+            ? (canManageTeams ? "Chia đội" : "Xem đội")
+            : lifecycle.lifecycle === "TEAM_DRAFT"
+              ? (canManageTeams ? "Tiếp tục chia đội" : "Xem đội")
+              : lifecycle.lifecycle === "TEAM_CONFIRMED"
+                ? (canManageTeams ? "Xem / chỉnh đội" : "Xem đội")
+                : lifecycle.lifecycle === "RESULT_RECORDED"
+                  ? "Xem đội hình"
+                  : "Đã hủy";
           const participantIds = participantIdMap.get(match.id) ?? new Set<string>();
           const rsvpMembers = activeMembers.map((member) => {
             const rsvp = rsvpMap.get(`${match.id}|${member.id}`);
@@ -189,7 +223,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
             };
           });
           const myRsvpMember = user.memberId ? rsvpMembers.find((member) => member.id === user.memberId) : null;
-          const isRsvpClosed = rsvpClosedMatchIds.has(match.id);
+          const isRsvpClosed = isMatchRsvpClosed(lifecycle);
           return (
             <article className="match-card" key={match.id}>
               <div className="match-date">
@@ -198,7 +232,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                 <span>Tháng {new Date(`${match.playedOn}T00:00:00`).getMonth() + 1}</span>
               </div>
               <div className="match-info">
-                <span className="category-pill"><Icon name="futbol" /> Trận giao hữu</span>
+                <span className="category-pill"><Icon name="futbol" /> {isCancelled ? "Đã hủy" : "Trận giao hữu"}</span>
                 <h2>{match.note || `Trận ngày ${formatDate(match.playedOn)}`}</h2>
                 <p>{participantPreviews.length} người tham gia · {rsvpMembers.filter((member) => member.status === "NOT_GOING").length} không đi · {rsvpMembers.filter((member) => member.status === null).length} chưa trả lời</p>
                 {!!participantPreviews.length && <div className="match-participant-preview">
@@ -225,30 +259,55 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                       action={setMyMatchRsvpAction}
                       reminderAction={remindMatchRsvpAction}
                     />
-                    {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {canManage ? "Tạo đội" : "Xem đội"}</Link>}
+                    {canAccessTeams && (isCancelled
+                      ? <button type="button" className="match-team-link" disabled title="Trận đã hủy"><Icon name="people-group" /> {teamLabel}</button>
+                      : <Link href={`/matches/${match.id}/teams`} className="match-team-link"><Icon name="people-group" /> {teamLabel}</Link>)}
                     <Link href={`/matches/${match.id}`} className="match-view-link"><Icon name="eye" /> Xem</Link>
-                    {canManage && <>
-                    <Disclosure label={<><Icon name="edit" /> Sửa</>} className="match-edit-disclosure match-popover">
-                      <MutationForm action={updateMatchAction} className="form-stack" closeDisclosureOnSuccess>
+                    {canManageMatches && <>
+                    {isCancelled ? (
+                      <button type="button" className="button secondary small" disabled title="Trận đã hủy"><Icon name="edit" /> Sửa</button>
+                    ) : (
+                      <Disclosure label={<><Icon name="edit" /> Sửa</>} className="match-edit-disclosure match-popover">
+                        <MutationForm action={updateMatchAction} className="form-stack" closeDisclosureOnSuccess>
+                          <input type="hidden" name="id" value={match.id} />
+                          <MatchFields
+                            memberRows={memberRows}
+                            occurrenceTypes={occurrenceTypes}
+                            playedOn={match.playedOn}
+                            note={match.note ?? ""}
+                            initialParticipantIds={[...(participantIdMap.get(match.id) ?? new Set<string>())]}
+                            initialChargeQuantities={Object.fromEntries(chargeQuantityMap.get(match.id) ?? new Map<string, number>())}
+                            lockParticipants={structuralEditLocked}
+                            lockPlayedOn={structuralEditLocked}
+                            lockedChargeTypeIds={resultChargeTypeId ? [resultChargeTypeId] : []}
+                          />
+                          <div className="form-actions">
+                            {lifecycle.lifecycle === "TEAM_DRAFT" && lifecycle.hasDraftDraw && user.role === "ADMIN" ? (
+                              <ConfirmSubmitButton
+                                message="Đội hình nháp đã được bốc thăm. Nếu bạn thay đổi ngày hoặc người tham gia, toàn bộ bản nháp và kết quả bốc thăm hiện tại sẽ bị xóa. Tiếp tục lưu?"
+                                className="button primary"
+                              >
+                                Lưu và xóa bản nháp
+                              </ConfirmSubmitButton>
+                            ) : (
+                              <SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton>
+                            )}
+                          </div>
+                        </MutationForm>
+                      </Disclosure>
+                    )}
+                    {isCancelled ? (
+                      <button type="button" className="button danger small" disabled><Icon name="trash" /> Đã hủy</button>
+                    ) : canCancelMatch(lifecycle) ? (
+                      <form action={deleteMatchAction}>
                         <input type="hidden" name="id" value={match.id} />
-                        <MatchFields
-                          memberRows={memberRows}
-                          occurrenceTypes={occurrenceTypes}
-                          playedOn={match.playedOn}
-                          note={match.note ?? ""}
-                          initialParticipantIds={[...(participantIdMap.get(match.id) ?? new Set<string>())]}
-                          initialChargeQuantities={Object.fromEntries(chargeQuantityMap.get(match.id) ?? new Map<string, number>())}
-                          lockParticipants={generatedDraftMatchIds.has(match.id)}
-                        />
-                        <div className="form-actions"><SubmitButton>Lưu trận và cập nhật khoản thu</SubmitButton></div>
-                      </MutationForm>
-                    </Disclosure>
-                    <form action={deleteMatchAction}>
-                      <input type="hidden" name="id" value={match.id} />
-                      <ConfirmSubmitButton message="Xóa trận này và toàn bộ khoản thu phát sinh từ trận?">
-                        <Icon name="trash" /> Xóa
-                      </ConfirmSubmitButton>
-                    </form>
+                        <ConfirmSubmitButton message="Hủy trận này và toàn bộ khoản thu/phạt phát sinh từ trận?">
+                          <Icon name="trash" /> Hủy trận
+                        </ConfirmSubmitButton>
+                      </form>
+                    ) : (
+                      <button type="button" className="button danger small" disabled title="Hãy hủy kết quả trước khi hủy trận"><Icon name="trash" /> Hủy trận</button>
+                    )}
                     </>}
                   </div>
               </div>

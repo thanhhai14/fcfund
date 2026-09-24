@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { MatchDetailView, type MatchParticipantView, type MatchTeamView } from "@/components/match-detail-view";
 import { CopyPublicLinkButton } from "@/components/copy-public-link-button";
 import { Icon } from "@/components/icon";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { MutationForm, SubmitButton } from "@/components/mutation-form";
 import { PageHeader } from "@/components/page-header";
 import { db } from "@/db";
@@ -21,8 +22,9 @@ import {
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate, formatMoney } from "@/lib/format";
+import { getMatchLifecycle } from "@/lib/match-lifecycle";
 import { can } from "@/lib/permissions";
-import { managePublicLineupAction, recordMatchResultAction } from "./actions";
+import { cancelMatchResultAction, managePublicLineupAction, recordMatchResultAction } from "./actions";
 
 export const metadata = { title: "Chi tiết trận đấu" };
 
@@ -78,15 +80,19 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
   const canManageMatches = await can(PERMISSIONS.MATCHES_MANAGE);
   const canViewTeams = await can(PERMISSIONS.MATCH_TEAMS_VIEW);
   const canManageTeams = await can(PERMISSIONS.MATCH_TEAMS_MANAGE);
+  const canAccessTeams = canViewTeams || canManageTeams;
   const canViewSeed = await can(PERMISSIONS.MATCH_SEED_VIEW) || await can(PERMISSIONS.MATCH_SEED_MANAGE);
   const { id } = await params;
 
   const [match] = await db.select().from(matches).where(and(
     eq(matches.id, id),
     eq(matches.clubId, user.clubId),
-    isNull(matches.deletedAt),
   )).limit(1);
   if (!match) notFound();
+
+  const lifecycle = await getMatchLifecycle(id, user.clubId);
+  if (!lifecycle) notFound();
+  const isCancelled = lifecycle.lifecycle === "CANCELLED";
 
   const participantRows = await db.select({
     id: matchParticipants.id,
@@ -120,7 +126,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       isNull(memberCharges.deletedAt),
     ));
 
-  const [confirmedVersion] = canViewTeams ? await db.select().from(matchTeamVersions).where(and(
+  const [confirmedVersion] = canAccessTeams ? await db.select().from(matchTeamVersions).where(and(
     eq(matchTeamVersions.matchId, id),
     eq(matchTeamVersions.status, "CONFIRMED"),
   )).limit(1) : [];
@@ -136,7 +142,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     assignedAsGoalkeeper: matchTeamMembers.assignedAsGoalkeeper,
   }).from(matchTeamMembers).where(eq(matchTeamMembers.versionId, confirmedVersion.id)) : [];
   const assignedMemberIds = new Set(teamMemberRows.flatMap((row) => row.memberId ? [row.memberId] : []));
-  const replacementMemberRows = canManageTeams && confirmedVersion ? await db.select({
+  const replacementMemberRows = canManageTeams && lifecycle.lifecycle === "TEAM_CONFIRMED" && confirmedVersion ? await db.select({
     id: members.id,
     name: members.fullName,
     code: members.code,
@@ -146,7 +152,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     .leftJoin(avatars, eq(members.id, avatars.memberId))
     .where(and(eq(members.clubId, user.clubId), eq(members.status, "ACTIVE")))
     .orderBy(asc(members.fullName)) : [];
-  const penaltyTypes = canManageTeams && confirmedVersion ? await db.select({
+  const penaltyTypes = canManageTeams && confirmedVersion && !isCancelled ? await db.select({
     id: chargeTypes.id,
     name: chargeTypes.name,
     iconName: chargeTypes.iconName,
@@ -184,7 +190,7 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     const place = placements[team.name];
     return [team.id, unique.length === 1 ? unique[0] : place ? Math.max(0, place - 1) : 0] as const;
   }));
-  const hasRecordedResult = teamRows.length > 0 && teamRows.every((team) => placements[team.name]);
+  const hasRecordedResult = lifecycle.hasResult;
   const selectedPenaltyType = penaltyTypes.find((type) => type.id === selectedPenaltyTypeId) ?? penaltyTypes[0];
   const historicalPenaltyUnitAmount = chargeRows.find((charge) => charge.chargeTypeId === selectedPenaltyTypeId && charge.isLossPenalty)?.unitAmount ?? 0;
 
@@ -224,7 +230,25 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
     goalkeeperCount: team.goalkeeperCount,
   }));
   const totalAmount = chargeRows.reduce((sum, charge) => sum + charge.amount, 0);
-  const resultContent = canManageTeams && confirmedVersion && teamRows.length > 0 ? (
+  const teamActionLabel = lifecycle.lifecycle === "OPEN"
+    ? (canManageTeams ? "Chia đội" : "Xem đội hình")
+    : lifecycle.lifecycle === "TEAM_DRAFT"
+      ? (canManageTeams ? "Tiếp tục chia đội" : "Xem đội hình")
+      : lifecycle.lifecycle === "TEAM_CONFIRMED"
+        ? (canManageTeams ? "Xem / chỉnh đội" : "Xem đội hình")
+        : lifecycle.lifecycle === "RESULT_RECORDED"
+          ? "Xem đội hình"
+          : "Đã hủy";
+  const matchStatusLabel = isCancelled
+    ? "Đã hủy"
+    : hasRecordedResult
+      ? "Đã có kết quả"
+      : lifecycle.lifecycle === "TEAM_CONFIRMED"
+        ? "Đã xác nhận"
+        : lifecycle.lifecycle === "TEAM_DRAFT"
+          ? "Đang chia đội"
+          : "Chưa chia đội";
+  const resultContent = canManageTeams && confirmedVersion && teamRows.length > 0 && !isCancelled ? (
     <section className="panel match-result-panel">
       <div className="panel-heading">
         <div><span className="eyebrow">{hasRecordedResult ? "Kết quả đã ghi nhận" : "Sau khi trận kết thúc"}</span><h2>Nhập kết quả trận</h2></div>
@@ -259,6 +283,19 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
       ) : (
         <p className="team-warning"><Icon name="triangle-exclamation" /> Chưa có loại thu theo lần nào được đánh dấu là khoản phạt. Hãy cấu hình trong Cài đặt trước.</p>
       )}
+      {hasRecordedResult && (user.role === "ADMIN" ? (
+        <MutationForm action={cancelMatchResultAction} className="match-result-cancel-form">
+          <input type="hidden" name="matchId" value={match.id} />
+          <ConfirmSubmitButton
+            message="Hủy kết quả trận? Thống kê và các khoản phạt sinh từ kết quả sẽ được hoàn tác, nhưng đội hình và các khoản thu thường vẫn được giữ."
+            className="button danger"
+          >
+            Hủy kết quả
+          </ConfirmSubmitButton>
+        </MutationForm>
+      ) : (
+        <button type="button" className="button danger" disabled title="Chỉ Admin được hủy kết quả">Hủy kết quả</button>
+      ))}
     </section>
   ) : (
     <section className="match-result-readonly">
@@ -276,7 +313,9 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         action={
           <div className="match-detail-actions">
             <Link href="/matches" className="button secondary">← Danh sách trận</Link>
-            {canViewTeams && <Link href={`/matches/${match.id}/teams`} className="button">{canManageTeams ? "Tạo / chỉnh đội" : "Xem đội hình"}</Link>}
+            {canAccessTeams && (isCancelled
+              ? <button type="button" className="button" disabled title="Trận đã hủy">{teamActionLabel}</button>
+              : <Link href={`/matches/${match.id}/teams`} className="button">{teamActionLabel}</Link>)}
           </div>
         }
       />
@@ -285,10 +324,10 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         <article><small>Người tham gia</small><strong>{participants.length}</strong><span>thành viên</span></article>
         <article><small>Số đội</small><strong>{teams.length || "—"}</strong><span>{teams.length ? `phiên bản ${confirmedVersion?.version}` : "chưa xác nhận"}</span></article>
         <article><small>Khoản thu</small><strong>{formatMoney(totalAmount)}</strong><span>{chargeRows.reduce((sum, charge) => sum + charge.quantity, 0)} lần phát sinh</span></article>
-        <article><small>Trạng thái</small><strong className="match-status-label">{confirmedVersion ? "Đã xác nhận" : "Chưa xác nhận"}</strong><span>đội hình trận đấu</span></article>
+        <article><small>Trạng thái</small><strong className="match-status-label">{matchStatusLabel}</strong><span>vòng đời trận đấu</span></article>
       </section>
 
-      {canManageTeams && (
+      {canManageTeams && !isCancelled && (
         <section className="panel public-lineup-panel">
           <div className="panel-heading">
             <div><span className="eyebrow">Chia sẻ đội hình</span><h2>Trang xem công khai</h2></div>
@@ -318,8 +357,8 @@ export default async function MatchDetailPage({ params }: { params: Promise<{ id
         participants={participants}
         teams={teams}
         canViewSeed={canViewSeed}
-        canViewTeams={canViewTeams}
-        canManageTeams={canManageTeams}
+        canViewTeams={canAccessTeams}
+        canManageTeams={canManageTeams && lifecycle.lifecycle === "TEAM_CONFIRMED"}
         matchId={match.id}
         confirmedVersionId={confirmedVersion?.id ?? null}
         replacementMembers={replacementMemberRows.filter((member) => !assignedMemberIds.has(member.id)).map((member) => ({
