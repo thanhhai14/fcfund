@@ -151,13 +151,14 @@ export default async function DashboardPage() {
 
   const latestTeams = latestMatch
     ? await db.select({
-        id: matchTeams.id,
-        name: matchTeams.name,
-        memberCount: matchTeams.memberCount,
-        teamIndex: matchTeams.teamIndex,
-      }).from(matchTeams)
-        .where(eq(matchTeams.versionId, latestMatch.versionId))
-        .orderBy(matchTeams.teamIndex)
+      id: matchTeams.id,
+      name: matchTeams.name,
+      memberCount: matchTeams.memberCount,
+      teamIndex: matchTeams.teamIndex,
+      color: matchTeams.color,
+    }).from(matchTeams)
+      .where(eq(matchTeams.versionId, latestMatch.versionId))
+      .orderBy(matchTeams.teamIndex)
     : [];
 
   const latestPlacements = latestMatch ? metricNumberRecord(latestMatch.metrics, "placements") : {};
@@ -165,14 +166,14 @@ export default async function DashboardPage() {
   const latestResultChargeTypeId = latestMatch ? getMatchResultChargeTypeId(latestMatch.metrics) : null;
   const [latestResultChargeType] = latestResultChargeTypeId
     ? await db.select({
-        id: chargeTypes.id,
-        name: chargeTypes.name,
-        iconName: chargeTypes.iconName,
-        color: chargeTypes.color,
-        reportAsIcon: chargeTypes.reportAsIcon,
-      }).from(chargeTypes)
-        .where(and(eq(chargeTypes.id, latestResultChargeTypeId), eq(chargeTypes.clubId, user.clubId)))
-        .limit(1)
+      id: chargeTypes.id,
+      name: chargeTypes.name,
+      iconName: chargeTypes.iconName,
+      color: chargeTypes.color,
+      reportAsIcon: chargeTypes.reportAsIcon,
+    }).from(chargeTypes)
+      .where(and(eq(chargeTypes.id, latestResultChargeTypeId), eq(chargeTypes.clubId, user.clubId)))
+      .limit(1)
     : [];
 
   const income = Number(fundSummary?.income ?? 0);
@@ -225,8 +226,8 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      {latestMatch && (
-        <section className="dashboard-latest-match">
+      <section className="dashboard-columns">
+        {latestMatch && (
           <article className="panel">
             <div className="panel-heading">
               <div>
@@ -240,9 +241,18 @@ export default async function DashboardPage() {
               {latestTeams.map((team) => {
                 const place = latestPlacements[team.name] ?? null;
                 const quantity = latestChargeQuantities[team.name] ?? 0;
+                const teamColor = team.color ?? undefined;
                 return (
                   <div className="activity-item" key={team.id}>
-                    <span className="activity-icon in"><Icon name="people-group" /></span>
+                    <span
+                      className="activity-icon"
+                      style={{
+                        color: teamColor,
+                        backgroundColor: teamColor ? `${teamColor}18` : undefined,
+                      }}
+                    >
+                      <Icon name="people-group" />
+                    </span>
                     <div>
                       <strong>{team.name}</strong>
                       <small>{team.memberCount} cầu thủ · {place ? `Hạng ${place}` : "Chưa ghi kết quả"}</small>
@@ -257,8 +267,8 @@ export default async function DashboardPage() {
                           >
                             {quantity > 0
                               ? Array.from({ length: quantity }, (_, index) => (
-                                  <Icon name={latestResultChargeType.iconName} key={index} />
-                                ))
+                                <Icon name={latestResultChargeType.iconName} key={index} />
+                              ))
                               : <><Icon name={latestResultChargeType.iconName} /><small>×0</small></>}
                           </span>
                         ) : (
@@ -276,10 +286,7 @@ export default async function DashboardPage() {
               {!latestTeams.length && <p className="muted">Trận gần nhất chưa có đội hình đã xác nhận.</p>}
             </div>
           </article>
-        </section>
-      )}
-
-      <section className="dashboard-columns">
+        )}
         <article className="panel">
           <div className="panel-heading">
             <div><span className="eyebrow">Dòng tiền</span><h2>Giao dịch gần đây</h2></div>

@@ -1339,7 +1339,7 @@ label>textarea {
 
 .dashboard-columns {
   display: grid;
-  grid-template-columns: 1.45fr .9fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
@@ -1539,11 +1539,17 @@ label>textarea {
 
 @media (max-width: 1050px) {
   .dashboard-columns {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .type-strip {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
   }
 }
 
