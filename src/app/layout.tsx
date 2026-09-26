@@ -3,8 +3,6 @@ import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
-import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
-import { InAppBrowserGate } from "@/components/in-app-browser-gate";
 import { APP_NAME } from "@/lib/constants";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -45,8 +43,6 @@ export default function RootLayout({
     <html lang="vi">
       <body>
         {children}
-        <InAppBrowserGate />
-        <PwaInstallPrompt />
         <PwaRegister />
         <Analytics />
       </body>

@@ -2,6 +2,8 @@ import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { clubs, notificationEvents } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { InAppBrowserGate } from "@/components/in-app-browser-gate";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PERMISSIONS, ROLE_LABELS } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -32,20 +34,24 @@ export default async function DashboardLayout({
   ].filter((route): route is string => Boolean(route));
 
   return (
-    <AppShell
-      clubName={club?.name ?? "Đội bóng"}
-      logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
-      userName={user.displayName}
-      userId={user.id}
-      userMemberId={user.memberId}
-      userAvatarVersion={user.avatarUpdatedAt}
-      roleLabel={ROLE_LABELS[user.role]}
-      unreadNotifications={Number(unread?.count ?? 0)}
-      pushPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
-      mobileNavRoutes={mobileNavRoutes}
-      logoutAction={logoutAction}
-    >
-      {children}
-    </AppShell>
+    <>
+      <InAppBrowserGate />
+      <PwaInstallPrompt />
+      <AppShell
+        clubName={club?.name ?? "Đội bóng"}
+        logoUrl={club?.logoUrl ? `/api/club-assets/logo?v=${club.updatedAt.getTime()}` : null}
+        userName={user.displayName}
+        userId={user.id}
+        userMemberId={user.memberId}
+        userAvatarVersion={user.avatarUpdatedAt}
+        roleLabel={ROLE_LABELS[user.role]}
+        unreadNotifications={Number(unread?.count ?? 0)}
+        pushPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+        mobileNavRoutes={mobileNavRoutes}
+        logoutAction={logoutAction}
+      >
+        {children}
+      </AppShell>
+    </>
   );
 }
