@@ -260,22 +260,24 @@ export default async function DashboardPage() {
                     <b>
                       {latestResultChargeType ? (
                         latestResultChargeType.reportAsIcon ? (
-                          <span
-                            className="icon-count"
-                            style={{ color: latestResultChargeType.color ?? undefined }}
-                            title={`${latestResultChargeType.name} · ${quantity} lần`}
-                          >
-                            {quantity > 0
-                              ? Array.from({ length: quantity }, (_, index) => (
+                          quantity > 0 ? (
+                            <span
+                              className="icon-count"
+                              style={{ color: latestResultChargeType.color ?? undefined }}
+                              title={`${latestResultChargeType.name} · ${quantity} lần`}
+                            >
+                              {Array.from({ length: quantity }, (_, index) => (
                                 <Icon name={latestResultChargeType.iconName} key={index} />
-                              ))
-                              : <><Icon name={latestResultChargeType.iconName} /><small>×0</small></>}
-                          </span>
+                              ))}
+                            </span>
+                          ) : (
+                            <span>0</span>
+                          )
                         ) : (
                           <span>{latestResultChargeType.name}: {quantity} lần</span>
                         )
                       ) : place ? (
-                        <span>Chưa có loại thu phạt</span>
+                        <span>Chưa cấu hình loại thu</span>
                       ) : (
                         <span>—</span>
                       )}
