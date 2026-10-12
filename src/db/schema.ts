@@ -352,6 +352,7 @@ export const memberChargeAssignments = pgTable(
     memberId: uuid("member_id").references(() => members.id, { onDelete: "cascade" }).notNull(),
     chargeTypeId: uuid("charge_type_id").references(() => chargeTypes.id, { onDelete: "restrict" }).notNull(),
     customAmount: bigint("custom_amount", { mode: "number" }),
+    autoOnMatch: boolean("auto_on_match").default(false).notNull(),
     validFrom: date("valid_from").notNull(),
     validUntil: date("valid_until"),
     isActive: boolean("is_active").default(true).notNull(),
@@ -579,6 +580,9 @@ export const memberCharges = pgTable(
     uniqueIndex("member_charges_auto_month_unique")
       .on(table.assignmentId, table.periodMonth)
       .where(sql`${table.source} = 'AUTO_MONTHLY' AND ${table.deletedAt} IS NULL`),
+    uniqueIndex("member_charges_auto_match_unique")
+      .on(table.matchId, table.memberId, table.chargeTypeId)
+      .where(sql`${table.source} = 'MATCH' AND ${table.assignmentId} IS NOT NULL AND ${table.deletedAt} IS NULL`),
     check("member_charges_quantity_positive", sql`${table.quantity} > 0`),
     check("member_charges_amount_nonnegative", sql`${table.unitAmount} >= 0 AND ${table.totalAmount} >= 0`),
   ],

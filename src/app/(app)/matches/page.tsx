@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/db";
-import { activityLogs, avatars, chargeTypes, matches, matchParticipants, matchRsvps, matchTeamVersions, memberCharges, members } from "@/db/schema";
+import { activityLogs, avatars, chargeTypes, matches, matchParticipants, matchRsvps, matchTeamVersions, memberChargeAssignments, memberCharges, members } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -171,6 +171,23 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
   }).from(chargeTypes)
     .where(and(eq(chargeTypes.clubId, user.clubId), eq(chargeTypes.calculation, "OCCURRENCE"), eq(chargeTypes.isActive, true)))
     .orderBy(chargeTypes.name) : [];
+  const automaticMatchAssignments = canManageMatches ? await db.select({
+    memberId: memberChargeAssignments.memberId,
+    chargeTypeId: memberChargeAssignments.chargeTypeId,
+    validFrom: memberChargeAssignments.validFrom,
+    validUntil: memberChargeAssignments.validUntil,
+  }).from(memberChargeAssignments)
+    .innerJoin(chargeTypes, eq(memberChargeAssignments.chargeTypeId, chargeTypes.id))
+    .where(and(
+      eq(chargeTypes.clubId, user.clubId),
+      eq(chargeTypes.calculation, "OCCURRENCE"),
+      eq(chargeTypes.isActive, true),
+      eq(memberChargeAssignments.isActive, true),
+      eq(memberChargeAssignments.autoOnMatch, true),
+    )) : [];
+  const autoChargeKeysForDate = (date: string) => automaticMatchAssignments
+    .filter((assignment) => assignment.validFrom <= date && (!assignment.validUntil || assignment.validUntil >= date))
+    .map((assignment) => `${assignment.memberId}|${assignment.chargeTypeId}`);
 
   return (
     <>
@@ -192,6 +209,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                     memberRows={memberRows}
                     occurrenceTypes={occurrenceTypes}
                     playedOn={todayInTimezone()}
+                    autoChargeKeys={autoChargeKeysForDate(todayInTimezone())}
                   />
                   <div className="form-actions"><SubmitButton>Tạo trận và phát sinh</SubmitButton></div>
                 </MutationForm>
@@ -319,6 +337,7 @@ export default async function MatchesPage({ searchParams }: { searchParams: Prom
                             note={match.note ?? ""}
                             initialParticipantIds={[...(participantIdMap.get(match.id) ?? new Set<string>())]}
                             initialChargeQuantities={Object.fromEntries(chargeQuantityMap.get(match.id) ?? new Map<string, number>())}
+                            autoChargeKeys={autoChargeKeysForDate(match.playedOn)}
                             lockParticipants={structuralEditLocked}
                             lockPlayedOn={structuralEditLocked}
                             lockedChargeTypeIds={resultChargeTypeId ? [resultChargeTypeId] : []}

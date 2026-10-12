@@ -16,6 +16,7 @@ import { requirePermission } from "@/lib/permissions";
 import { getMatchLifecycle, isMatchRsvpClosed } from "@/lib/match-lifecycle";
 import { isActiveSeedTier, type SeedTier } from "@/lib/seed-tier";
 import { activeMemberUserIdsForClub, notifyUsers, userIdsWithoutMatchResponse } from "@/lib/push-notifications";
+import { softDeleteAutomaticMatchCharges } from "@/lib/automatic-match-charges";
 
 export type MatchRsvpResult = { ok: boolean; message: string };
 
@@ -145,7 +146,6 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
     : Boolean(existingParticipant);
 
   const now = new Date();
-
   await db.transaction(async (tx) => {
     await tx
       .insert(matchRsvps)
@@ -190,6 +190,12 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
       }
     } else if (existingParticipant) {
       await tx.delete(matchParticipants).where(eq(matchParticipants.id, existingParticipant.id));
+      await softDeleteAutomaticMatchCharges(tx, {
+        clubId: actor.clubId,
+        matchId,
+        memberId: member.id,
+        actorId: actor.id,
+      });
     }
 
     if (participantWillChange) {
@@ -249,6 +255,8 @@ export async function setMyMatchRsvpAction(formData: FormData): Promise<MatchRsv
   }
 
   revalidatePath("/matches");
+  revalidatePath("/charges");
+  revalidatePath("/reports");
   revalidatePath(`/matches/${matchId}`);
   revalidatePath(`/matches/${matchId}/teams`);
 

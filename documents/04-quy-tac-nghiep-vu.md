@@ -26,9 +26,10 @@ Các loại hiện có:
 
 ## BR-04 — Khoản thu theo số lần
 
-- Admin cập nhật số lần thủ công.
+- Mặc định Admin cập nhật số lần thủ công.
 - Số tiền bằng số lần nhân đơn giá.
 - Quỹ lẻ và Mời nước là các trường hợp của cơ chế này.
+- Cấu hình gán khoản thu theo lần có thể bật tự động phát sinh một lần khi ghi nhận kết quả trận.
 
 ## BR-05 — Quản lý trận tối giản
 
@@ -292,4 +293,15 @@ Hệ thống có bốn vai trò:
 - Nếu thay đổi roster/khả năng thủ môn trước khi bốc thăm làm đầu vào Draft thay đổi, Draft chưa bốc bị vô hiệu hóa để yêu cầu khóa Seed/chia lại.
 - Sau khi có `random_key`, `initial_draw_snapshot` hoặc phiên bản `CONFIRMED`, bình chọn bị khóa.
 - Danh sách RSVP thống kê ba nhóm: Tham gia, Không tham gia, Chưa trả lời; dữ liệu trận cũ chưa có RSVP nhưng đã có `match_participants` được xem là Tham gia.
+
+## BR-44 — Tự động thu khoản theo trận
+
+- Tùy chọn “Tự động thu 1 lần khi ghi nhận kết quả” được đặt riêng trên cấu hình gán khoản thu của từng thành viên; mặc định tắt.
+- Chỉ cấu hình đang hoạt động, có hiệu lực vào ngày trận, thuộc loại thu theo lần và loại thu còn hoạt động mới được áp dụng.
+- Lần đầu người có quyền bấm “Ghi nhận kết quả” cho đội hình đã xác nhận sẽ phát sinh một khoản Trận lẻ cho từng thành viên đủ điều kiện. Việc RSVP, tạo/sửa roster, bổ sung người hoặc thay người trước khi trận từng có kết quả không tự tạo khoản Trận lẻ.
+- Mỗi thành viên đủ điều kiện phát sinh đúng một lần cho mỗi trận, theo đơn giá riêng của cấu hình nếu có; nếu không thì dùng đơn giá loại thu. Không tạo trùng nếu trận đã có khoản cùng thành viên và loại thu.
+- Hủy cả trận sẽ xóa mềm toàn bộ khoản phát sinh của trận, vì trận không còn được tính là một lần tham gia.
+- Hủy kết quả chỉ xóa mềm các khoản phạt theo kết quả; khoản Trận lẻ đã tạo vẫn được giữ nguyên. Ghi nhận lại kết quả chỉ tạo lại/cập nhật các khoản phạt và không tạo lại hoặc thay đổi Trận lẻ.
+- Sau khi hủy kết quả, thay người hoặc bổ sung người sẽ đồng bộ Trận lẻ: người mới được tạo một khoản nếu đang bật cấu hình tự động, còn người bị thay ra được xóa mềm khoản Trận lẻ tự động nếu có. Khoản phạt kết quả được xử lý riêng theo thao tác nhập kết quả.
+- Khi bật tùy chọn cho một cấu hình đã tồn tại, hệ thống chỉ lưu cấu hình cho các trận được ghi nhận kết quả sau đó; không backfill các trận sắp tới tại thời điểm bật cấu hình.
 

@@ -235,6 +235,7 @@ Icon phải nằm trong allowlist Font Awesome của ứng dụng.
 | member_id | uuid | FK members |
 | charge_type_id | uuid | FK charge_types |
 | custom_amount | bigint | NULL, >= 0 |
+| auto_on_match | boolean | NOT NULL, mặc định false; tự phát sinh 1 lần khi ghi nhận kết quả trận |
 | valid_from | date | NOT NULL |
 | valid_until | date | NULL |
 | is_active | boolean | mặc định true |
@@ -403,6 +404,8 @@ Unique index một phần cho khoản tự động:
 UNIQUE (assignment_id, period_month)
 WHERE source = 'AUTO_MONTHLY' AND deleted_at IS NULL
 ```
+
+Với khoản theo trận được sinh từ cấu hình gán thu tự động khi ghi nhận kết quả, `assignment_id` lưu cấu hình nguồn. Unique index một phần trên `(match_id, member_id, charge_type_id)` ngăn phát sinh lặp cho cùng một trận khi `source = 'MATCH'`, `assignment_id IS NOT NULL` và khoản chưa bị xóa mềm.
 
 ## 14. fund_categories
 

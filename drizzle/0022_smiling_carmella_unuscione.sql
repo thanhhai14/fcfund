@@ -1,0 +1,2 @@
+ALTER TABLE "member_charge_assignments" ADD COLUMN "auto_on_match" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "member_charges_auto_match_unique" ON "member_charges" USING btree ("match_id","member_id","charge_type_id") WHERE "member_charges"."source" = 'MATCH' AND "member_charges"."assignment_id" IS NOT NULL AND "member_charges"."deleted_at" IS NULL;

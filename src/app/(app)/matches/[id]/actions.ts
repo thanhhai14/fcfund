@@ -31,6 +31,7 @@ import type { NotificationChargeItem } from "@/lib/notification-presentation";
 import { requirePermission } from "@/lib/permissions";
 import { isActiveSeedTier, SEED_WEIGHT, type SeedTier } from "@/lib/seed-tier";
 import { notifyUsers, userIdsForMatchAudience, userRecipientsForMembers } from "@/lib/push-notifications";
+import { createAutomaticMatchCharges, notifyAutomaticMatchCharges, softDeleteAutomaticMatchCharges, type AutomaticMatchCharge } from "@/lib/automatic-match-charges";
 
 type MutationResult = { ok: boolean; message: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -175,22 +176,34 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   }).from(matchTeamMembers).where(eq(matchTeamMembers.versionId, version.id));
   const memberIds = [...new Set(teamMembers.flatMap((row) => row.memberId ? [row.memberId] : []))];
   const oldMetrics = metricsRecord(version.metrics);
+  const resultWasCancelled = typeof oldMetrics.resultCancelledAt === "string" && oldMetrics.resultCancelledAt.trim().length > 0;
   const previousChargeTypeId = typeof oldMetrics.resultChargeTypeId === "string" && UUID_PATTERN.test(oldMetrics.resultChargeTypeId)
     ? oldMetrics.resultChargeTypeId
     : chargeTypeId;
   const replacedTypeIds = [...new Set([previousChargeTypeId, chargeTypeId])];
+  const resultPenaltyCondition = or(
+    like(memberCharges.note, "Kết quả hạng %"),
+    like(memberCharges.note, "Bổ sung sau trận · hạng %"),
+    and(
+      inArray(memberCharges.chargeTypeId, replacedTypeIds),
+      eq(memberCharges.isLossPenaltySnapshot, true),
+      isNull(memberCharges.assignmentId),
+    ),
+  );
   const placementByName = Object.fromEntries(teams.map((team) => [team.name, placements.get(team.id)]));
   const penaltyQuantitiesByName = Object.fromEntries(teams.map((team) => [team.name, penaltyQuantities.get(team.id)]));
   const placementCounts = [...placements.values()].reduce((counts, place) => counts.set(place, (counts.get(place) ?? 0) + 1), new Map<number, number>());
   const now = new Date();
-  const newMetrics = {
-    ...oldMetrics,
+  const newMetrics = { ...oldMetrics };
+  delete newMetrics.resultCancelledAt;
+  delete newMetrics.resultCancelledBy;
+  Object.assign(newMetrics, {
     placements: placementByName,
     penaltyQuantities: penaltyQuantitiesByName,
     resultChargeTypeId: chargeTypeId,
     resultRecordedAt: now.toISOString(),
     resultRecordedBy: actor.id,
-  };
+  });
   const penaltyRows = teamMembers.flatMap((row) => {
     const place = placements.get(row.teamId);
     const quantity = penaltyQuantities.get(row.teamId) ?? 0;
@@ -234,6 +247,7 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
     }];
   });
 
+  let automaticCharges: AutomaticMatchCharge[] = [];
   await db.transaction(async (tx) => {
     if (memberIds.length) {
       await tx.update(memberCharges).set({
@@ -245,14 +259,20 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
         eq(memberCharges.source, "MATCH"),
         inArray(memberCharges.memberId, memberIds),
         inArray(memberCharges.chargeTypeId, replacedTypeIds),
-        or(
-          like(memberCharges.note, "Kết quả hạng %"),
-          like(memberCharges.note, "Bổ sung sau trận · hạng %"),
-        ),
+        resultPenaltyCondition,
         isNull(memberCharges.deletedAt),
       ));
     }
     if (penaltyRows.length) await tx.insert(memberCharges).values(penaltyRows);
+    if (lifecycle.lifecycle === "TEAM_CONFIRMED" && !resultWasCancelled) {
+      automaticCharges = await createAutomaticMatchCharges(tx, {
+        clubId: actor.clubId,
+        matchId,
+        playedOn: match.playedOn,
+        memberIds,
+        actorId: actor.id,
+      });
+    }
     await tx.delete(memberMatchStats).where(eq(memberMatchStats.matchId, matchId));
     if (statRows.length) await tx.insert(memberMatchStats).values(statRows);
     await tx.update(matchTeamVersions).set({ metrics: newMetrics, updatedAt: now })
@@ -268,6 +288,12 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
       message: `Ghi nhận kết quả trận: ${teams.map((team) => `${team.name} hạng ${placements.get(team.id)}, phạt ${penaltyQuantities.get(team.id)} lần`).join("; ")}`,
     });
   });
+
+  try {
+    if (automaticCharges.length) await notifyAutomaticMatchCharges(actor.clubId, matchId, automaticCharges);
+  } catch {
+    // Notification failures must not affect result recording.
+  }
 
   try {
     const recipients = await userRecipientsForMembers(actor.clubId, memberIds);
@@ -332,7 +358,10 @@ export async function recordMatchResultAction(formData: FormData): Promise<Mutat
   revalidatePath("/dashboard");
   revalidatePath("/reports");
   for (const memberId of memberIds) revalidatePath(`/members/${memberId}`);
-  return { ok: true, message: `Đã ghi nhận kết quả và tạo ${penaltyRows.length} khoản phạt.` };
+  return {
+    ok: true,
+    message: `Đã ghi nhận kết quả và tạo ${penaltyRows.length} khoản phạt${automaticCharges.length ? `, ${automaticCharges.length} khoản Trận lẻ tự động` : ""}.`,
+  };
 }
 
 export async function cancelMatchResultAction(formData: FormData): Promise<MutationResult> {
@@ -375,6 +404,23 @@ export async function cancelMatchResultAction(formData: FormData): Promise<Mutat
     ...remainingMetrics
   } = oldMetrics;
   const now = new Date();
+  const resultChargeTypeIdValue = typeof resultChargeTypeId === "string" && UUID_PATTERN.test(resultChargeTypeId)
+    ? resultChargeTypeId
+    : null;
+  const resultPenaltyCondition = resultChargeTypeIdValue
+    ? or(
+      like(memberCharges.note, "Kết quả hạng %"),
+      like(memberCharges.note, "Bổ sung sau trận · hạng %"),
+      and(
+        eq(memberCharges.chargeTypeId, resultChargeTypeIdValue),
+        eq(memberCharges.isLossPenaltySnapshot, true),
+        isNull(memberCharges.assignmentId),
+      ),
+    )
+    : or(
+      like(memberCharges.note, "Kết quả hạng %"),
+      like(memberCharges.note, "Bổ sung sau trận · hạng %"),
+    );
 
   await db.transaction(async (tx) => {
     await tx.update(memberCharges).set({
@@ -384,18 +430,20 @@ export async function cancelMatchResultAction(formData: FormData): Promise<Mutat
     }).where(and(
       eq(memberCharges.matchId, matchId),
       eq(memberCharges.source, "MATCH"),
-      or(
-        like(memberCharges.note, "Kết quả hạng %"),
-        like(memberCharges.note, "Bổ sung sau trận · hạng %"),
-      ),
+      resultPenaltyCondition,
       isNull(memberCharges.deletedAt),
     ));
     await tx.delete(memberMatchStats).where(eq(memberMatchStats.matchId, matchId));
     if (lifecycle.draftId) {
       await tx.delete(matchTeamVersions).where(eq(matchTeamVersions.id, lifecycle.draftId));
     }
+    const nextMetrics = {
+      ...remainingMetrics,
+      resultCancelledAt: now.toISOString(),
+      resultCancelledBy: actor.id,
+    };
     await tx.update(matchTeamVersions).set({
-      metrics: remainingMetrics,
+      metrics: nextMetrics,
       updatedAt: now,
     }).where(eq(matchTeamVersions.id, version.id));
     await tx.insert(activityLogs).values({
@@ -517,6 +565,8 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
   )).limit(1);
   const transferredCharges = slot.memberId ? await db.select({
     id: memberCharges.id,
+    assignmentId: memberCharges.assignmentId,
+    chargeTypeId: memberCharges.chargeTypeId,
     quantity: memberCharges.quantity,
     totalAmount: memberCharges.totalAmount,
   }).from(memberCharges).where(and(
@@ -524,14 +574,26 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
     eq(memberCharges.memberId, slot.memberId),
     isNull(memberCharges.deletedAt),
   )) : [];
+  const replacementChargeTypes = replacementParticipant ? await db.select({ chargeTypeId: memberCharges.chargeTypeId })
+    .from(memberCharges).where(and(
+      eq(memberCharges.matchId, matchId),
+      eq(memberCharges.memberId, replacement.id),
+      isNull(memberCharges.deletedAt),
+    )) : [];
+  const replacementChargeTypeIds = new Set(replacementChargeTypes.map((charge) => charge.chargeTypeId));
+  const automaticChargesToRemove = transferredCharges.filter((charge) => charge.assignmentId !== null);
+  const transferableCharges = transferredCharges.filter((charge) => charge.assignmentId === null);
+  const chargesToTransfer = transferableCharges.filter((charge) => !replacementChargeTypeIds.has(charge.chargeTypeId));
+  const duplicateChargesToRemove = transferableCharges.filter((charge) => replacementChargeTypeIds.has(charge.chargeTypeId));
 
   const metrics = metricsRecord(version.metrics);
+  const resultWasCancelled = typeof metrics.resultCancelledAt === "string" && metrics.resultCancelledAt.trim().length > 0;
   const placementMap = metricsRecord(metrics.placements);
   const placement = typeof placementMap[slot.teamName] === "number" ? placementMap[slot.teamName] as number : null;
   const teams = placement ? await db.select({ name: matchTeams.name }).from(matchTeams).where(eq(matchTeams.versionId, versionId)) : [];
   const tiedCount = placement ? teams.filter((team) => placementMap[team.name] === placement).length : 0;
   const now = new Date();
-
+  let replacementAutomaticCharges: AutomaticMatchCharge[] = [];
   await db.transaction(async (tx) => {
     let participantId = replacementParticipant?.id ?? slot.participantId;
     if (replacementParticipant) {
@@ -565,18 +627,41 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
     }).where(eq(matchTeamMembers.id, slot.id));
 
     if (slot.memberId) {
-      await tx.update(memberCharges).set({
-        memberId: replacement.id,
-        updatedAt: now,
-      }).where(and(
-        eq(memberCharges.matchId, matchId),
-        eq(memberCharges.memberId, slot.memberId),
-        isNull(memberCharges.deletedAt),
-      ));
+      if (automaticChargesToRemove.length) {
+        await softDeleteAutomaticMatchCharges(tx, {
+          clubId: actor.clubId,
+          matchId,
+          memberId: slot.memberId,
+          actorId: actor.id,
+        });
+      }
+      if (chargesToTransfer.length) {
+        await tx.update(memberCharges).set({
+          memberId: replacement.id,
+          updatedAt: now,
+        }).where(inArray(memberCharges.id, chargesToTransfer.map((charge) => charge.id)));
+      }
+      if (duplicateChargesToRemove.length) {
+        await tx.update(memberCharges).set({
+          deletedAt: now,
+          deletedBy: actor.id,
+          updatedAt: now,
+        }).where(inArray(memberCharges.id, duplicateChargesToRemove.map((charge) => charge.id)));
+      }
       await tx.delete(memberMatchStats).where(and(
         eq(memberMatchStats.matchId, matchId),
         eq(memberMatchStats.memberId, slot.memberId),
       ));
+    }
+
+    if (resultWasCancelled) {
+      replacementAutomaticCharges = await createAutomaticMatchCharges(tx, {
+        clubId: actor.clubId,
+        matchId,
+        playedOn: match.playedOn,
+        memberIds: [replacement.id],
+        actorId: actor.id,
+      });
     }
 
     await tx.delete(memberMatchStats).where(and(
@@ -615,13 +700,24 @@ export async function replaceConfirmedMatchMemberAction(formData: FormData): Pro
         team: slot.teamName,
         memberId: replacement.id,
         memberName: replacement.fullName,
-        transferredChargeIds: transferredCharges.map((charge) => charge.id),
-        transferredAmount: transferredCharges.reduce((sum, charge) => sum + charge.totalAmount, 0),
+        transferredChargeIds: chargesToTransfer.map((charge) => charge.id),
+        removedDuplicateChargeIds: duplicateChargesToRemove.map((charge) => charge.id),
+        removedAutomaticChargeIds: automaticChargesToRemove.map((charge) => charge.id),
+        transferredAmount: chargesToTransfer.reduce((sum, charge) => sum + charge.totalAmount, 0),
+        replacementAutomaticChargeIds: replacementAutomaticCharges.map((charge) => charge.id),
         placement,
       },
       message: `Thay ${slot.displayName} bằng ${replacement.fullName} tại ${slot.teamName}${reason ? ` · ${reason}` : ""}`,
     });
   });
+
+  try {
+    if (replacementAutomaticCharges.length) {
+      await notifyAutomaticMatchCharges(actor.clubId, matchId, replacementAutomaticCharges);
+    }
+  } catch {
+    // Notification failures must not affect replacing a confirmed player.
+  }
 
   revalidatePath(`/matches/${matchId}`);
   revalidatePath(`/matches/${matchId}/teams`);
@@ -814,6 +910,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
     .where(eq(matchTeamMembers.teamId, teamId)).orderBy(desc(matchTeamMembers.displayOrder)).limit(1);
   const [stat] = (await getMatchFormStats({ clubId: actor.clubId, playedOn: match.playedOn, memberIds: [memberId], lookbackMatches: version.lookbackMatches })).values();
   const metrics = metricsRecord(version.metrics);
+  const resultWasCancelled = typeof metrics.resultCancelledAt === "string" && metrics.resultCancelledAt.trim().length > 0;
   const placements = metricsRecord(metrics.placements);
   const penalties = metricsRecord(metrics.penaltyQuantities);
   const placement = typeof placements[team.name] === "number" ? placements[team.name] as number : null;
@@ -837,7 +934,7 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
   }
   const now = new Date();
   const tierWeight = SEED_WEIGHT[seedTier] * (assignedAsGoalkeeper ? 0.1 : 1);
-
+  let automaticCharges: AutomaticMatchCharge[] = [];
   await db.transaction(async (tx) => {
     let participantId = participant?.id;
     if (participant) {
@@ -875,6 +972,15 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
       formScoreTotal: Math.round(team.formScoreTotal + (stat?.formScore ?? 5000) * (assignedAsGoalkeeper ? 0.15 : 1)),
       lowFormCount: team.lowFormCount + (stat?.lowForm && !assignedAsGoalkeeper ? 1 : 0),
     }).where(eq(matchTeams.id, teamId));
+    if (resultWasCancelled) {
+      automaticCharges = await createAutomaticMatchCharges(tx, {
+        clubId: actor.clubId,
+        matchId,
+        playedOn: match.playedOn,
+        memberIds: [memberId],
+        actorId: actor.id,
+      });
+    }
     if (placement && applyResult) {
       await tx.delete(memberMatchStats).where(and(eq(memberMatchStats.matchId, matchId), eq(memberMatchStats.memberId, memberId)));
       await tx.insert(memberMatchStats).values({
@@ -901,6 +1007,14 @@ export async function addConfirmedMatchMemberAction(formData: FormData): Promise
       message: `Bổ sung ${member.fullName} vào ${team.name}${reason ? ` · ${reason}` : ""}`,
     });
   });
+
+  try {
+    if (automaticCharges.length) {
+      await notifyAutomaticMatchCharges(actor.clubId, matchId, automaticCharges);
+    }
+  } catch {
+    // Notification failures must not affect adding a confirmed player.
+  }
 
   revalidatePath(`/matches/${matchId}`); revalidatePath(`/matches/${matchId}/teams`); revalidatePath("/matches");
   revalidatePath("/charges"); revalidatePath("/dashboard"); revalidatePath("/reports"); revalidatePath(`/members/${memberId}`);

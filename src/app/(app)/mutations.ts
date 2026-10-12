@@ -786,11 +786,13 @@ export async function createAssignmentAction(formData: FormData): Promise<Mutati
   const [type] = await db.select().from(chargeTypes)
     .where(and(eq(chargeTypes.id, chargeTypeId), eq(chargeTypes.clubId, actor.clubId))).limit(1);
   if (!type) return { ok: false, message: "Loại thu không hợp lệ." };
+  const autoOnMatch = type.calculation === "OCCURRENCE" && formData.get("autoOnMatch") === "on";
   await db.transaction(async (tx) => {
     const [record] = await tx.insert(memberChargeAssignments).values({
       memberId,
       chargeTypeId,
       customAmount: customAmountRaw ? amount(formData, "customAmount") : null,
+      autoOnMatch,
       validFrom,
       validUntil: str(formData, "validUntil") || null,
       note: str(formData, "note") || null,
@@ -814,10 +816,14 @@ export async function createAssignmentAction(formData: FormData): Promise<Mutati
         note: "Tạo ngay khi gán khoản thu",
       }).onConflictDoNothing();
     }
+
   });
 
   revalidatePath("/members");
+  revalidatePath(`/members/${memberId}`);
   revalidatePath("/charges");
+  revalidatePath("/matches");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
   return { ok: true, message: "Đã gán khoản thu." };
 }
@@ -847,6 +853,7 @@ export async function updateAssignmentAction(formData: FormData): Promise<Mutati
   const [row] = await db.select({
     assignment: memberChargeAssignments,
     chargeTypeName: chargeTypes.name,
+    chargeTypeCalculation: chargeTypes.calculation,
   }).from(memberChargeAssignments)
     .innerJoin(chargeTypes, eq(memberChargeAssignments.chargeTypeId, chargeTypes.id))
     .where(and(eq(memberChargeAssignments.id, id), eq(chargeTypes.clubId, actor.clubId)))
@@ -855,6 +862,7 @@ export async function updateAssignmentAction(formData: FormData): Promise<Mutati
 
   const next = {
     customAmount,
+    autoOnMatch: row.chargeTypeCalculation === "OCCURRENCE" && formData.get("autoOnMatch") === "on",
     validFrom,
     validUntil,
     isActive: formData.get("isActive") === "on",
@@ -879,6 +887,8 @@ export async function updateAssignmentAction(formData: FormData): Promise<Mutati
   revalidatePath(`/members/${row.assignment.memberId}`);
   revalidatePath("/members");
   revalidatePath("/charges");
+  revalidatePath("/matches");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
   return { ok: true, message: next.isActive ? "Đã cập nhật khoản thu áp dụng." : "Đã dừng khoản thu áp dụng." };
 }
@@ -1137,16 +1147,29 @@ export async function createMatchAction(formData: FormData): Promise<MutationRes
       entityId: createdMatchId,
       dedupeKey: `MATCH_CREATED:${createdMatchId}`,
     });
-    if (chargeRows.length) {
-      const recipients = await userRecipientsForMembers(actor.clubId, chargeRows.map((row) => row.memberId));
-      const itemsByReportMonthAndMember = new Map<string, Map<string, NotificationChargeItem[]>>();
-      for (const row of chargeRows) {
+    const notificationRows = [
+      ...chargeRows.flatMap((row) => {
         const type = typeMap.get(row.typeId);
-        if (!type) continue;
-        const reportMonth = getBalanceReportMonth(playedOn, type.reportNextMonth);
+        return type ? [{
+          memberId: row.memberId,
+          typeId: row.typeId,
+          quantity: row.quantity,
+          name: type.name,
+          iconName: type.iconName,
+          color: type.color,
+          reportAsIcon: type.reportAsIcon,
+          reportNextMonth: type.reportNextMonth,
+        }] : [];
+      }),
+    ];
+    if (notificationRows.length) {
+      const recipients = await userRecipientsForMembers(actor.clubId, notificationRows.map((row) => row.memberId));
+      const itemsByReportMonthAndMember = new Map<string, Map<string, NotificationChargeItem[]>>();
+      for (const row of notificationRows) {
+        const reportMonth = getBalanceReportMonth(playedOn, row.reportNextMonth);
         const membersForMonth = itemsByReportMonthAndMember.get(reportMonth) ?? new Map<string, NotificationChargeItem[]>();
         const memberItems = membersForMonth.get(row.memberId) ?? [];
-        memberItems.push({ name: type.name, quantity: row.quantity, iconName: type.iconName, color: type.color, reportAsIcon: type.reportAsIcon });
+        memberItems.push({ name: row.name, quantity: row.quantity, iconName: row.iconName, color: row.color, reportAsIcon: row.reportAsIcon });
         membersForMonth.set(row.memberId, memberItems);
         itemsByReportMonthAndMember.set(reportMonth, membersForMonth);
       }
@@ -1314,6 +1337,7 @@ export async function updateMatchAction(formData: FormData): Promise<MutationRes
       }).where(and(
         eq(memberCharges.matchId, id),
         ne(memberCharges.chargeTypeId, protectedResultChargeTypeId),
+        isNull(memberCharges.assignmentId),
         isNull(memberCharges.deletedAt),
       ));
     } else {

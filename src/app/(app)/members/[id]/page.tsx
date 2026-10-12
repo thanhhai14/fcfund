@@ -73,6 +73,8 @@ export default async function MemberDetailPage({
       name: chargeTypes.name,
       customAmount: memberChargeAssignments.customAmount,
       defaultAmount: chargeTypes.defaultAmount,
+      calculation: chargeTypes.calculation,
+      autoOnMatch: memberChargeAssignments.autoOnMatch,
       validFrom: memberChargeAssignments.validFrom,
       validUntil: memberChargeAssignments.validUntil,
       active: memberChargeAssignments.isActive,
@@ -186,13 +188,14 @@ export default async function MemberDetailPage({
                   <label>Đơn giá riêng<input name="customAmount" type="number" min="0" placeholder="Để trống dùng giá mặc định" /></label>
                   <div className="form-row"><label>Từ ngày<input name="validFrom" type="date" defaultValue={todayInTimezone()} required /></label><label>Đến ngày<input name="validUntil" type="date" /></label></div>
                   <label className="check-field"><input type="checkbox" name="chargeCurrentMonth" /> Thu luôn tháng hiện tại</label>
+                  <label className="check-field"><input type="checkbox" name="autoOnMatch" /> Tự động thu 1 lần khi ghi nhận kết quả (chỉ loại thu theo lần)</label>
                   <label>Ghi chú<textarea name="note" rows={2} /></label>
                   <SubmitButton>Lưu áp dụng</SubmitButton>
                 </MutationForm>
               </Disclosure>}
             </div>
             <div className="assignment-list">
-              {assignments.map((item) => <div className={!item.active ? "inactive" : undefined} key={item.id}><span><strong>{item.name}</strong><small>{formatDate(item.validFrom)} → {item.validUntil ? formatDate(item.validUntil) : "Vĩnh viễn"} · {item.active ? "Đang áp dụng" : "Đã dừng"}</small></span><b>{formatMoney(item.customAmount ?? item.defaultAmount)}</b>{canManageCharges && <Disclosure label={<Icon name="edit" />} className="assignment-edit-disclosure type-edit-disclosure"><MutationForm action={updateAssignmentAction} className="form-stack"><input type="hidden" name="id" value={item.id} /><label>Đơn giá riêng<input name="customAmount" type="number" min="0" defaultValue={item.customAmount ?? ""} placeholder={`Mặc định ${formatMoney(item.defaultAmount)}`} /></label><div className="form-row"><label>Từ ngày<input name="validFrom" type="date" defaultValue={item.validFrom} required /></label><label>Đến ngày<input name="validUntil" type="date" defaultValue={item.validUntil ?? ""} /></label></div><label className="check-field"><input name="isActive" type="checkbox" defaultChecked={item.active} /> Đang áp dụng</label><label>Ghi chú<textarea name="note" rows={2} defaultValue={item.note ?? ""} /></label><p className="panel-note">Thay đổi chỉ áp dụng cho phát sinh tương lai, không sửa các khoản đã tạo.</p><SubmitButton>Lưu cấu hình</SubmitButton></MutationForm></Disclosure>}</div>)}
+              {assignments.map((item) => <div className={!item.active ? "inactive" : undefined} key={item.id}><span><strong>{item.name}</strong><small>{formatDate(item.validFrom)} → {item.validUntil ? formatDate(item.validUntil) : "Vĩnh viễn"} · {item.active ? "Đang áp dụng" : "Đã dừng"}{item.autoOnMatch ? " · Tự động khi ghi kết quả" : ""}</small></span><b>{formatMoney(item.customAmount ?? item.defaultAmount)}</b>{canManageCharges && <Disclosure label={<Icon name="edit" />} className="assignment-edit-disclosure type-edit-disclosure"><MutationForm action={updateAssignmentAction} className="form-stack"><input type="hidden" name="id" value={item.id} /><label>Đơn giá riêng<input name="customAmount" type="number" min="0" defaultValue={item.customAmount ?? ""} placeholder={`Mặc định ${formatMoney(item.defaultAmount)}`} /></label><div className="form-row"><label>Từ ngày<input name="validFrom" type="date" defaultValue={item.validFrom} required /></label><label>Đến ngày<input name="validUntil" type="date" defaultValue={item.validUntil ?? ""} /></label></div>{item.calculation === "OCCURRENCE" && <label className="check-field"><input name="autoOnMatch" type="checkbox" defaultChecked={item.autoOnMatch} /> Tự động thu 1 lần khi ghi nhận kết quả</label>}<label className="check-field"><input name="isActive" type="checkbox" defaultChecked={item.active} /> Đang áp dụng</label><label>Ghi chú<textarea name="note" rows={2} defaultValue={item.note ?? ""} /></label><p className="panel-note">Thay đổi chỉ áp dụng cho phát sinh tương lai, không sửa các khoản đã tạo.</p><SubmitButton>Lưu cấu hình</SubmitButton></MutationForm></Disclosure>}</div>)}
               {!assignments.length && <p className="muted">Chưa gán khoản thu nào.</p>}
             </div>
           </article>}

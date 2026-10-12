@@ -155,6 +155,13 @@
       "when": 1790239563929,
       "tag": "0021_careful_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791793322746,
+      "tag": "0022_smiling_carmella_unuscione",
+      "breakpoints": true
     }
   ]
 }

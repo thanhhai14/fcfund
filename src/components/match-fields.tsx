@@ -16,6 +16,7 @@ export function MatchFields({
   note = "",
   initialParticipantIds = [],
   initialChargeQuantities = {},
+  autoChargeKeys = [],
   lockParticipants = false,
   lockPlayedOn = lockParticipants,
   lockedChargeTypeIds = [],
@@ -26,6 +27,7 @@ export function MatchFields({
   note?: string;
   initialParticipantIds?: string[];
   initialChargeQuantities?: Record<string, number>;
+  autoChargeKeys?: string[];
   lockParticipants?: boolean;
   lockPlayedOn?: boolean;
   lockedChargeTypeIds?: string[];
@@ -35,6 +37,7 @@ export function MatchFields({
   const [sort, setSort] = useState("ASC");
   const [selected, setSelected] = useState(() => new Set(initialParticipantIds));
   const lockedChargeTypes = useMemo(() => new Set(lockedChargeTypeIds), [lockedChargeTypeIds]);
+  const automaticCharges = useMemo(() => new Set(autoChargeKeys), [autoChargeKeys]);
   const columns = `minmax(170px, 1fr) repeat(${1 + occurrenceTypes.length}, 88px)`;
   const ordered = useMemo(() => [...memberRows].sort((a, b) => sort === "DESC" ? b.fullName.localeCompare(a.fullName, "vi") : a.fullName.localeCompare(b.fullName, "vi")), [memberRows, sort]);
   const search = normalizeSearch(query);
@@ -68,6 +71,11 @@ export function MatchFields({
             {occurrenceTypes.map((type) => {
               const key = `${member.id}|${type.id}`;
               const chargeLocked = lockedChargeTypes.has(type.id);
+              if (automaticCharges.has(key)) return <div className="quantity-field automatic-charge-field" key={type.id}>
+                <input type="hidden" name={`matchChargeQuantity:${member.id}:${type.id}`} value="0" />
+                <small className="matrix-mobile-label"><Icon name={type.iconName} />{type.name}<em>{formatMoney(type.defaultAmount)}</em></small>
+                <span>Tự động sau khi ghi nhận kết quả</span>
+              </div>;
               return <label
                 className="quantity-field"
                 title={chargeLocked ? "Khoản phạt từ kết quả được quản lý trong phần Kết quả trận" : `${type.name} · ${member.fullName}`}

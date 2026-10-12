@@ -3589,6 +3589,14 @@ label>textarea {
   border-color: var(--forest-100);
 }
 
+.automatic-charge-field {
+  gap: 5px;
+  color: var(--brand-primary-strong);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .matrix-mobile-label {
   display: none;
 }
@@ -7794,6 +7802,13 @@ label>textarea {
   .match-popover .quantity-field {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 7px;
+  }
+
+  .match-popover .automatic-charge-field {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+    white-space: normal;
+    text-align: right;
   }
 
   .match-popover .quantity-field input {
