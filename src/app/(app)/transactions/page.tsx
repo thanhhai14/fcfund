@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { avatars, fundCategories, fundTransactions, matches, members } from "@/db/schema";
+import { acbEmailImports, avatars, fundCategories, fundTransactions, matches, members, users } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Disclosure } from "@/components/disclosure";
 import { Icon } from "@/components/icon";
@@ -30,6 +30,10 @@ export default async function TransactionsPage() {
       id: fundTransactions.id,
       direction: fundTransactions.direction,
       kind: fundTransactions.kind,
+      source: fundTransactions.source,
+      creatorName: users.displayName,
+      importedAt: acbEmailImports.createdAt,
+      emailReceivedAt: acbEmailImports.receivedAt,
       amount: fundTransactions.amount,
       date: fundTransactions.transactionDate,
       note: fundTransactions.note,
@@ -40,6 +44,8 @@ export default async function TransactionsPage() {
       matchDate: matches.playedOn,
     })
     .from(fundTransactions)
+    .leftJoin(acbEmailImports, eq(acbEmailImports.transactionId, fundTransactions.id))
+    .leftJoin(users, eq(fundTransactions.createdBy, users.id))
     .leftJoin(members, eq(fundTransactions.memberId, members.id))
     .leftJoin(avatars, eq(members.id, avatars.memberId))
     .leftJoin(fundCategories, eq(fundTransactions.categoryId, fundCategories.id))
@@ -79,7 +85,7 @@ export default async function TransactionsPage() {
         ) : undefined}
       />
 
-      <TransactionsCollection rows={rows} canManage={canManage} defaultDateFrom={defaultDateFrom} defaultDateTo={today} />
+      <TransactionsCollection rows={rows} canManage={canManage} memberOptions={memberRows.map((member) => ({ id: member.id, name: member.fullName }))} defaultDateFrom={defaultDateFrom} defaultDateTo={today} />
     </>
   );
 }

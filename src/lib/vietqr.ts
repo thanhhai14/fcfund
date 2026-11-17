@@ -190,7 +190,12 @@ export function buildDebtTransferContent(input: {
   clubName: string;
   memberName: string;
   paymentDate: string;
+  paymentReference?: string;
 }) {
+  if (input.paymentReference) {
+    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(input.paymentReference)) throw new Error("Mã thanh toán không hợp lệ.");
+    return `FCF ${input.paymentReference} ${normalizeBankText(input.memberName).toUpperCase()}`.slice(0, TRANSFER_NOTE_MAX_LENGTH).trim();
+  }
   const [year, month, day] = input.paymentDate.split("-");
   if (!year || !month || !day) {
     throw new Error("Ngày thanh toán không hợp lệ.");

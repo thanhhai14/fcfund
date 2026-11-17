@@ -47,6 +47,7 @@ import { PushDeviceManager } from "@/components/push-device-manager";
 import { DebtReminderTest } from "@/components/debt-reminder-test";
 import { getVietQrBanks } from "@/lib/vietqr";
 import type { ReactNode } from "react";
+import { AcbEmailSettings } from "@/components/acb-email-settings";
 
 export const metadata = { title: "Cài đặt" };
 
@@ -120,6 +121,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader eyebrow="Hệ thống" title="Cài đặt" description="Đội bóng, loại thu, tài khoản và policy" />
       <section className="settings-layout settings-page-layout">
+        {currentUser.role === "ADMIN" && <SettingsGroup title="Tích hợp email ACB" description="Gmail, API key và lịch sử ghi nhận tiền nộp" icon="transactions"><AcbEmailSettings clubId={currentUser.clubId} /></SettingsGroup>}
         {manageSettings && <SettingsGroup
           title="Đội bóng & quỹ"
           description="Nhận diện đội, các loại khoản thu và danh mục thu chi"

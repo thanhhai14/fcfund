@@ -1,6 +1,8 @@
 # Thanh toán công nợ bằng ứng dụng ngân hàng
 
-**Trạng thái:** Phase 1 (deeplink) và Phase 2 (VietQR động) đã triển khai trong source. Migration `0019_lying_shiver_man` bổ sung `bankCode`/`bankBin` phải được áp dụng trước khi sử dụng tính năng thanh toán. Phase 3 (xác nhận thanh toán tự động) chưa triển khai.
+**Trạng thái:** Phase 1 (deeplink) và Phase 2 (VietQR động) đã triển khai. Phase 3 (ghi nhận tiền nộp qua email ACB) đã có trong source, cần migration 0023, deploy và cài Apps Script trước khi sử dụng. Migration `0019_lying_shiver_man` bổ sung `bankCode`/`bankBin` vẫn là điều kiện cho luồng QR.
+
+**Phase 3, ngày 17/11/2026:** xem [Ghi nhận tiền nộp qua email ACB](./17-tu-dong-ghi-nhan-tien-nop-qua-email-acb.md) và [hướng dẫn cài đặt](./18-cai-dat-gmail-acb.md). QR của thành viên trong source mới dùng `FCF <mã thanh toán> <tên không dấu>`, thay quy tắc tên đội + tên + ngày và giới hạn không thêm mã bên dưới. Test thanh toán cho User không liên kết Member tiếp tục dùng nội dung cũ và không tự nhận diện thành viên. Các mô tả Phase 1–2 bên dưới là hành vi trước thay đổi này.
 
 **Phạm vi:** Trang chi tiết nhắc công nợ hỗ trợ `Thanh toán <số tiền>` → chọn ứng dụng ngân hàng → mở app ngân hàng qua VietQR deeplink, đồng thời sinh VietQR động theo current debt làm fallback. Sao chép số tài khoản vẫn được giữ làm phương án cuối.
 

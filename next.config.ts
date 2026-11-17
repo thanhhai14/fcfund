@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
+    // Use the supported compiler API with the installed TypeScript 6.
+    useTypeScriptCli: false,
     serverActions: {
       bodySizeLimit: "4mb",
     },

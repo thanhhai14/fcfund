@@ -35,6 +35,15 @@ Mỗi vai trò có policy mặc định và có thể ghi đè quyền cho từn
 
 ## Quản lý quỹ
 
+### Ghi nhận tiền nộp từ Gmail ACB
+
+Tích hợp Gmail → Google Apps Script → API FCFund có chế độ mô phỏng, cấu hình Subject/API key dành cho Admin, chống trùng email và hiển thị nguồn giao dịch trong Thu & chi. Cần migration 0023 và cài Apps Script trước khi bật.
+
+- [Hướng dẫn cài đặt Gmail ACB](documents/18-cai-dat-gmail-acb.md).
+- [Quy tắc nghiệp vụ tích hợp](documents/17-tu-dong-ghi-nhan-tien-nop-qua-email-acb.md).
+- `npm run test:acb`: kiểm thử parser và xác thực email, không kết nối DB.
+- Kiểm thử HTTP trên DB tạm: chạy app với `DATABASE_URL` trỏ đến PostgreSQL local, sau đó `FCFUND_TEST_DATABASE_URL=<URL DB local có tên kết thúc _test> FCFUND_TEST_BASE_URL=http://127.0.0.1:3107 node --import tsx scripts/test-acb-email-api.ts`. Script chỉ cho phép localhost và tự dọn dữ liệu kiểm thử.
+
 Hệ thống hỗ trợ nhiều loại khoản thu.
 
 ### Thu định kỳ

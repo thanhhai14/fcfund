@@ -14,6 +14,10 @@ export type TransactionCollectionRow = {
   id: string;
   direction: "IN" | "OUT";
   kind: string;
+  source: string;
+  creatorName: string | null;
+  importedAt: Date | null;
+  emailReceivedAt: Date | null;
   amount: number;
   date: string;
   note: string | null;
@@ -27,17 +31,23 @@ export type TransactionCollectionRow = {
 const KIND_LABELS: Record<string, string> = { MEMBER_PAYMENT: "Thành viên nộp", OTHER_INCOME: "Thu khác", EXPENSE: "Khoản chi", OPENING_BALANCE: "Số dư đầu kỳ", ADJUSTMENT: "Điều chỉnh" };
 const TRANSACTION_COLUMNS: CollectionColumn[] = [
   { id: "content", label: "Nội dung", required: true }, { id: "category", label: "Danh mục" },
+  { id: "source", label: "Nguồn" },
   { id: "date", label: "Ngày" }, { id: "member", label: "Thành viên" }, { id: "amount", label: "Số tiền" },
 ];
 
-function TransactionActions({ row }: { row: TransactionCollectionRow }) {
-  return <Disclosure label="•••" className="row-disclosure"><MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} /><label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" /><PendingButton className="button danger wide small" pendingLabel="Đang xóa…">Xóa giao dịch</PendingButton></form></Disclosure>;
+function TransactionSource({ row }: { row: TransactionCollectionRow }) {
+  return <span><strong>{row.source === "ACB_EMAIL" ? "API tự động · ACB" : "Nhập tay"}</strong><small>{row.source === "ACB_EMAIL" ? "Hệ thống" : row.creatorName ?? "—"}</small></span>;
 }
 
-export function TransactionsCollection({ rows, canManage, defaultDateFrom, defaultDateTo }: { rows: TransactionCollectionRow[]; canManage: boolean; defaultDateFrom: string; defaultDateTo: string }) {
+function TransactionActions({ row, memberOptions }: { row: TransactionCollectionRow; memberOptions: Array<{ id: string; name: string }> }) {
+  return <Disclosure label="•••" className="row-disclosure">{row.source === "ACB_EMAIL" && <p className="panel-note">Nguồn: API ACB · Hệ thống<br />Email nhận: {row.emailReceivedAt ? new Date(row.emailReceivedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "—"}<br />Ghi nhận: {row.importedAt ? new Date(row.importedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "—"}</p>}<MutationForm action={updateFundTransactionAction} className="form-stack compact"><input type="hidden" name="id" value={row.id} />{row.source === "ACB_EMAIL" && <label>Thành viên<select name="memberId" defaultValue={row.memberId ?? ""}>{memberOptions.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>}<label>Số tiền<input name="amount" type="number" min="1" defaultValue={row.amount} /></label><label>Ngày<input name="transactionDate" type="date" defaultValue={row.date} /></label><label>Ghi chú<input name="note" defaultValue={row.note ?? ""} /></label><SubmitButton>Lưu thay đổi</SubmitButton></MutationForm><form action={softDeleteFinancialAction}><input type="hidden" name="id" value={row.id} /><input type="hidden" name="entity" value="transaction" />{row.source === "ACB_EMAIL" && <label>Lý do hủy<input name="reason" required maxLength={500} /></label>}<PendingButton className="button danger wide small" pendingLabel="Đang xóa…">Xóa giao dịch</PendingButton></form></Disclosure>;
+}
+
+export function TransactionsCollection({ rows, canManage, memberOptions, defaultDateFrom, defaultDateTo }: { rows: TransactionCollectionRow[]; canManage: boolean; memberOptions: Array<{ id: string; name: string }>; defaultDateFrom: string; defaultDateTo: string }) {
   const [query, setQuery] = useState("");
   const [direction, setDirection] = useState("ALL");
   const [kind, setKind] = useState("ALL");
+  const [source, setSource] = useState("ALL");
   const [category, setCategory] = useState("ALL");
   const [member, setMember] = useState("ALL");
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
@@ -48,13 +58,14 @@ export function TransactionsCollection({ rows, canManage, defaultDateFrom, defau
   const categories = useMemo(() => [...new Set(rows.flatMap((row) => row.categoryName ? [row.categoryName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
   const kinds = useMemo(() => [...new Set(rows.map((row) => row.kind))], [rows]);
   const memberNames = useMemo(() => [...new Set(rows.flatMap((row) => row.memberName ? [row.memberName] : []))].sort((a, b) => a.localeCompare(b, "vi")), [rows]);
-  const advancedFilterCount = Number(category !== "ALL") + Number(member !== "ALL");
+  const advancedFilterCount = Number(category !== "ALL") + Number(member !== "ALL") + Number(source !== "ALL");
   const visible = useMemo(() => {
     const search = normalizeSearch(query);
     const result = rows.filter((row) => {
       if (search && !normalizeSearch(`${row.note ?? ""} ${row.memberName ?? ""} ${row.categoryName ?? ""}`).includes(search)) return false;
       if (direction !== "ALL" && row.direction !== direction) return false;
       if (kind !== "ALL" && row.kind !== kind) return false;
+      if (source !== "ALL" && row.source !== source) return false;
       if (category !== "ALL" && row.categoryName !== category) return false;
       if (member !== "ALL" && row.memberName !== member) return false;
       if (dateFrom && row.date < dateFrom) return false;
@@ -69,7 +80,7 @@ export function TransactionsCollection({ rows, canManage, defaultDateFrom, defau
       return b.date.localeCompare(a.date);
     });
     return result;
-  }, [category, dateFrom, dateTo, direction, kind, member, query, rows, sort]);
+  }, [category, dateFrom, dateTo, direction, kind, member, query, rows, sort, source]);
   const totals = useMemo(() => visible.reduce((result, row) => {
     result[row.direction === "IN" ? "income" : "expense"] += row.amount;
     return result;
@@ -88,15 +99,16 @@ export function TransactionsCollection({ rows, canManage, defaultDateFrom, defau
       <Disclosure label={<><Icon name="list" /> <span>Bộ lọc thêm</span>{advancedFilterCount > 0 && <b>{advancedFilterCount}</b>}</>} className="advanced-filters-disclosure">
         <div className="advanced-filters-heading"><span className="eyebrow">Bộ lọc thêm</span><strong>Thu hẹp giao dịch</strong></div>
         <div className="advanced-filters-fields">
+          <label>Nguồn<select value={source} onChange={(event) => setSource(event.target.value)}><option value="ALL">Mọi nguồn</option><option value="MANUAL">Nhập tay</option><option value="ACB_EMAIL">API tự động · ACB</option></select></label>
           <label>Danh mục<select value={category} onChange={(event) => setCategory(event.target.value)}><option value="ALL">Mọi danh mục</option>{categories.map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Thành viên<select value={member} onChange={(event) => setMember(event.target.value)}><option value="ALL">Mọi thành viên</option>{memberNames.map((value) => <option key={value}>{value}</option>)}</select></label>
         </div>
-        <button type="button" className="button secondary wide" onClick={() => { setCategory("ALL"); setMember("ALL"); }}>Xóa bộ lọc thêm</button>
+        <button type="button" className="button secondary wide" onClick={() => { setCategory("ALL"); setMember("ALL"); setSource("ALL"); }}>Xóa bộ lọc thêm</button>
       </Disclosure>
       <select value={sort} onChange={(event) => setSort(event.target.value)}><option value="DATE_DESC">Mới nhất</option><option value="DATE_ASC">Cũ nhất</option><option value="AMOUNT_DESC">Tiền cao nhất</option><option value="AMOUNT_ASC">Tiền thấp nhất</option><option value="MEMBER">Tên thành viên</option></select>
       {view === "list" && <ColumnVisibilityMenu columns={TRANSACTION_COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />}
     </CollectionToolbar>
-    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nội dung</th>{columns.isVisible("category") && <th>Danh mục</th>}{columns.isVisible("date") && <th>Ngày</th>}{columns.isVisible("member") && <th>Thành viên</th>}{columns.isVisible("amount") && <th className="align-right">Số tiền</th>}{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><strong>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>{row.matchDate && <small>Trận ngày {formatDate(row.matchDate)}</small>}</td>{columns.isVisible("category") && <td><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span></td>}{columns.isVisible("date") && <td>{formatDate(row.date)}</td>}{columns.isVisible("member") && <td>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} compact /> : "—"}</td>}{columns.isVisible("amount") && <td className="align-right"><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></td>}{canManage && <td><TransactionActions row={row} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className={`financial-card ${row.direction.toLowerCase()}`} key={row.id}><header><div><small>{formatDate(row.date)}{row.matchDate ? ` · Trận ${formatDate(row.matchDate)}` : ""}</small><h2>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</h2></div>{canManage && <TransactionActions row={row} />}</header><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} /> : <p>Không gắn thành viên</p>}<footer><span>{KIND_LABELS[row.kind] ?? row.kind}</span><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></footer></article>)}</div>}
+    {view === "list" ? <article className="panel table-panel"><div className="data-table-wrap"><table className="data-table"><thead><tr><th>Nội dung</th>{columns.isVisible("category") && <th>Danh mục</th>}{columns.isVisible("source") && <th>Nguồn</th>}{columns.isVisible("date") && <th>Ngày</th>}{columns.isVisible("member") && <th>Thành viên</th>}{columns.isVisible("amount") && <th className="align-right">Số tiền</th>}{canManage && <th />}</tr></thead><tbody>{visible.map((row) => <tr key={row.id}><td><strong>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</strong>{row.matchDate && <small>Trận ngày {formatDate(row.matchDate)}</small>}</td>{columns.isVisible("category") && <td><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span></td>}{columns.isVisible("source") && <td><TransactionSource row={row} /></td>}{columns.isVisible("date") && <td>{formatDate(row.date)}</td>}{columns.isVisible("member") && <td>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} compact /> : "—"}</td>}{columns.isVisible("amount") && <td className="align-right"><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></td>}{canManage && <td><TransactionActions row={row} memberOptions={memberOptions} /></td>}</tr>)}</tbody></table></div></article> : <div className="financial-card-grid">{visible.map((row) => <article className={`financial-card ${row.direction.toLowerCase()}`} key={row.id}><header><div><small>{formatDate(row.date)}{row.matchDate ? ` · Trận ${formatDate(row.matchDate)}` : ""}</small><h2>{row.note || (row.direction === "IN" ? "Khoản thu" : "Khoản chi")}</h2></div>{canManage && <TransactionActions row={row} memberOptions={memberOptions} />}</header><TransactionSource row={row} /><span className={`direction-pill ${row.direction.toLowerCase()}`}>{row.direction === "IN" ? "Thu" : "Chi"} · {row.categoryName ?? KIND_LABELS[row.kind] ?? row.kind}</span>{row.memberName && row.memberId ? <MemberIdentity memberId={row.memberId} name={row.memberName} avatarVersion={row.avatarUpdatedAt} /> : <p>Không gắn thành viên</p>}<footer><span>{KIND_LABELS[row.kind] ?? row.kind}</span><strong className={row.direction === "IN" ? "money-in" : "money-out"}>{row.direction === "IN" ? "+" : "-"}{formatMoney(row.amount)}</strong></footer></article>)}</div>}
     {!visible.length && <div className="panel collection-empty">Không có giao dịch phù hợp.</div>}
   </>;
 }

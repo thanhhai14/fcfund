@@ -28,5 +28,7 @@ Thư mục này là nguồn mô tả nghiệp vụ và cấu trúc dữ liệu t
 - [`14-nhac-no-theo-ky-va-hop-thu-thong-bao.md`](./14-nhac-no-theo-ky-va-hop-thu-thong-bao.md): nhắc nợ từng thành viên từ Báo cáo theo kỳ, QR chuyển khoản cố định và Hộp thư xem lại lời nhắc.
 - [`15-thanh-toan-cong-no-qua-ung-dung-ngan-hang.md`](./15-thanh-toan-cong-no-qua-ung-dung-ngan-hang.md): deeplink ứng dụng ngân hàng, VietQR động, QR fallback và luồng thanh toán công nợ.
 - [`16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md`](./16-vong-doi-tran-dau-va-ke-hoach-sua-luong.md): audit xung đột Matches, lifecycle mục tiêu, action guards và kế hoạch sửa chữa theo từng phase.
+- [`17-tu-dong-ghi-nhan-tien-nop-qua-email-acb.md`](./17-tu-dong-ghi-nhan-tien-nop-qua-email-acb.md): thiết kế Gmail → Apps Script → API, mã thanh toán, cấu hình Subject/API key, chống trùng, hủy giao dịch và nguồn trong Thu & chi.
+- [`18-cai-dat-gmail-acb.md`](./18-cai-dat-gmail-acb.md): hướng dẫn migration, cấu hình Admin, Apps Script và kiểm tra mô phỏng trước khi bật ghi nhận thật.
 
 > Nghiệp vụ lõi và phần lớn schema vật lý đã được triển khai bằng Drizzle migration. Tài liệu trong thư mục này phải được đồng bộ theo source/migration hiện hành khi nghiệp vụ thay đổi.

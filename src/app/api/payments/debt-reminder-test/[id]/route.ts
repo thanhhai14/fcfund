@@ -58,6 +58,7 @@ export async function GET(
       bankAccountNumber: clubs.bankAccountNumber,
       bankAccountHolder: clubs.bankAccountHolder,
       memberName: members.fullName,
+      paymentReference: members.paymentReference,
       userDisplayName: users.displayName,
     })
     .from(notificationEvents)
@@ -95,6 +96,7 @@ export async function GET(
     const transferContent = buildDebtTransferContent({
       clubName: record.clubName,
       memberName: record.memberName ?? record.userDisplayName,
+    paymentReference: record.paymentReference ?? undefined,
       paymentDate,
     });
 

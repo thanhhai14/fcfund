@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   activityLogs,
+  acbEmailImports,
   avatars,
   chargeTypes,
   clubs,
@@ -1031,10 +1032,17 @@ export async function updateFundTransactionAction(formData: FormData): Promise<M
   const [before] = await db.select().from(fundTransactions)
     .where(and(eq(fundTransactions.id, id), eq(fundTransactions.clubId, actor.clubId), isNull(fundTransactions.deletedAt))).limit(1);
   if (!before) return { ok: false, message: "Không tìm thấy giao dịch." };
+  const nextMemberId = str(formData, "memberId") || before.memberId;
+  if (before.source === "ACB_EMAIL") {
+    const [member] = nextMemberId ? await db.select({ id: members.id }).from(members).where(and(eq(members.id, nextMemberId), eq(members.clubId, actor.clubId))).limit(1) : [];
+    if (!member) return { ok: false, message: "Thành viên nhận tiền không hợp lệ." };
+  }
   const nextAmount = str(formData, "amount") ? amount(formData) : before.amount;
+  if (!Number.isSafeInteger(nextAmount) || nextAmount <= 0) return { ok: false, message: "Số tiền phải là số nguyên dương." };
   await db.transaction(async (tx) => {
     const [after] = await tx.update(fundTransactions).set({
       amount: nextAmount,
+      memberId: before.source === "ACB_EMAIL" ? nextMemberId : before.memberId,
       transactionDate: str(formData, "transactionDate") || before.transactionDate,
       note: str(formData, "note") || null,
       updatedAt: new Date(),
@@ -1067,11 +1075,14 @@ export async function softDeleteFinancialAction(formData: FormData): Promise<voi
   } else {
     const [before] = await db.select().from(fundTransactions)
       .where(and(eq(fundTransactions.id, id), eq(fundTransactions.clubId, actor.clubId))).limit(1);
+    const reason = str(formData, "reason");
+    if (before?.source === "ACB_EMAIL" && !reason) throw new Error("Nhập lý do hủy giao dịch API.");
     if (before) await db.transaction(async (tx) => {
       await tx.update(fundTransactions).set({ deletedAt: new Date(), deletedBy: actor.id }).where(eq(fundTransactions.id, id));
+      if (before.source === "ACB_EMAIL") await tx.update(acbEmailImports).set({ status: "REVERSED", reason: `Đã hủy giao dịch: ${reason}`, updatedAt: new Date() }).where(and(eq(acbEmailImports.transactionId, id), eq(acbEmailImports.clubId, actor.clubId)));
       await track(tx, {
         clubId: actor.clubId, entityType: "fund_transaction", entityId: id,
-        action: "DELETE", actorId: actor.id, beforeData: before, message: "Xóa giao dịch",
+        action: "DELETE", actorId: actor.id, beforeData: before, message: reason ? `Xóa giao dịch · ${reason}` : "Xóa giao dịch",
       });
     });
   }

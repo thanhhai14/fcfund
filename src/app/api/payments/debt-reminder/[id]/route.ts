@@ -58,6 +58,7 @@ export async function GET(
       bankAccountNumber: clubs.bankAccountNumber,
       bankAccountHolder: clubs.bankAccountHolder,
       memberName: members.fullName,
+      paymentReference: members.paymentReference,
     })
     .from(debtReminders)
     .innerJoin(clubs, eq(debtReminders.clubId, clubs.id))
@@ -100,6 +101,7 @@ export async function GET(
     const transferContent = buildDebtTransferContent({
       clubName: record.clubName,
       memberName: record.memberName,
+    paymentReference: record.paymentReference,
       paymentDate,
     });
     const returnUrl = reminderUrl(request, id).toString();

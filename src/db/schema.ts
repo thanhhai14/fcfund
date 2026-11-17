@@ -89,6 +89,7 @@ export const members = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
     code: varchar("code", { length: 40 }).notNull(),
+    paymentReference: varchar("payment_reference", { length: 6 }).notNull().default(sql`translate(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6), '0123456789abcdef', 'ABCDEFGHJKLMNPQR')`),
     fullName: varchar("full_name", { length: 160 }).notNull(),
     phone: varchar("phone", { length: 24 }).notNull(),
     status: memberStatus("status").default("ACTIVE").notNull(),
@@ -99,6 +100,7 @@ export const members = pgTable(
   },
   (table) => [
     unique("members_club_code_unique").on(table.clubId, table.code),
+    unique("members_payment_reference_unique").on(table.paymentReference),
     index("members_club_status_idx").on(table.clubId, table.status),
   ],
 );
@@ -609,6 +611,7 @@ export const fundTransactions = pgTable(
     clubId: uuid("club_id").references(() => clubs.id, { onDelete: "cascade" }).notNull(),
     direction: fundDirection("direction").notNull(),
     kind: fundTransactionKind("kind").notNull(),
+    source: varchar("source", { length: 20 }).default("MANUAL").notNull(),
     categoryId: uuid("category_id").references(() => fundCategories.id, { onDelete: "set null" }),
     memberId: uuid("member_id").references(() => members.id, { onDelete: "restrict" }),
     matchId: uuid("match_id").references(() => matches.id, { onDelete: "set null" }),
@@ -630,6 +633,39 @@ export const fundTransactions = pgTable(
     ),
   ],
 );
+
+export const acbEmailSettings = pgTable("acb_email_settings", {
+  clubId: uuid("club_id").primaryKey().references(() => clubs.id, { onDelete: "cascade" }),
+  mode: varchar("mode", { length: 16 }).default("OFF").notNull(),
+  mailbox: text("mailbox").notNull(),
+  sender: text("sender").default("mailalert@acb.com.vn").notNull(),
+  subject: text("subject").default("ACB-Dich vu bao so du tu dong").notNull(),
+  accountPattern: text("account_pattern").notNull(),
+  keyHash: text("key_hash"),
+  activatedAt: timestamp("activated_at", { withTimezone: true }),
+  lastReceivedAt: timestamp("last_received_at", { withTimezone: true }),
+  ...auditColumns,
+});
+
+export const acbEmailImports = pgTable("acb_email_imports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clubId: uuid("club_id").notNull().references(() => clubs.id, { onDelete: "cascade" }),
+  messageId: text("message_id").notNull(),
+  mailbox: text("mailbox").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  status: varchar("status", { length: 24 }).notNull(),
+  reason: text("reason").notNull(),
+  fingerprint: text("fingerprint"),
+  amount: bigint("amount", { mode: "number" }),
+  transactionDate: date("transaction_date"),
+  content: text("content"),
+  memberId: uuid("member_id").references(() => members.id),
+  transactionId: uuid("transaction_id").references(() => fundTransactions.id),
+  ...auditColumns,
+}, (table) => [
+  unique("acb_email_message_unique").on(table.clubId, table.mailbox, table.messageId),
+  index("acb_email_fingerprint_idx").on(table.clubId, table.fingerprint),
+]);
 
 export const activityLogs = pgTable(
   "activity_logs",

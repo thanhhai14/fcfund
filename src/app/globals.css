@@ -1895,6 +1895,7 @@ label>textarea {
 }
 
 .form-message {
+  overflow-wrap: anywhere;
   padding: 8px 10px;
   border-radius: 2px;
   border-left: 3px solid currentColor;
