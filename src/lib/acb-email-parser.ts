@@ -7,15 +7,19 @@ export const emailHash = (value: string) => createHash("sha256").update(value).d
 
 export function parseAcbEmail(body: string) {
   const text = body.replace(/\r/g, "").replace(/\u00a0/g, " ");
-  const amountMatches = [...text.matchAll(/Giao dịch mới nhất\s*:\s*Ghi có\s*\+([\d,]+)\.00\s*VND/gi)];
+  // Gmail's plain-text conversion can wrap bold values in asterisks.
+  const amountMatches = [...text.matchAll(/Giao dịch mới nhất\s*:\s*Ghi có\s*(\*{0,2})\+([\d,]+)\.00\s*VND\1(?![\w*])/gi)];
   if (amountMatches.length !== 1 || /Ghi nợ/i.test(text)) return null;
-  const amount = Number(amountMatches[0][1].replace(/,/g, ""));
-  if (!Number.isSafeInteger(amount) || amount <= 0 || !/^\d{1,3}(?:,\d{3})*$|^\d+$/.test(amountMatches[0][1])) return null;
-  const account = text.match(/thông báo tài khoản\s+([^\s]+)\s+của Quý khách/i)?.[1];
-  const date = text.match(/tính đến\s+(\d{2})\/(\d{2})\/(\d{4})\s*\./i);
-  const content = text.match(/Nội dung giao dịch\s*:\s*([^\n]+)/i)?.[1]?.trim().replace(/\.\s*$/, "");
+  const amountText = amountMatches[0][2];
+  const amount = Number(amountText.replace(/,/g, ""));
+  if (!Number.isSafeInteger(amount) || amount <= 0 || !/^\d{1,3}(?:,\d{3})*$|^\d+$/.test(amountText)) return null;
+  const account = text.match(/thông báo tài khoản\s+(\*{0,2})([^\s*]+)\1\s+của Quý khách/i)?.[2];
+  const date = text.match(/tính đến\s+(\*{0,2})(\d{2})\/(\d{2})\/(\d{4})\1\s*\./i);
+  const content = text.match(/Nội dung giao dịch\s*:\s*([^\n]+)/i)?.[1]?.trim()
+    .replace(/\.\s*$/, "")
+    .replace(/^(\*{1,2})([^*]+)\1$/, "$2");
   if (!account || !date || !content) return null;
-  const transactionDate = `${date[3]}-${date[2]}-${date[1]}`;
+  const transactionDate = `${date[4]}-${date[3]}-${date[2]}`;
   const parsedDate = new Date(`${transactionDate}T00:00:00+07:00`);
   if (!Number.isFinite(parsedDate.getTime()) || new Date(`${transactionDate}T00:00:00Z`).toISOString().slice(0, 10) !== transactionDate) return null;
   const references = [...content.toUpperCase().matchAll(/\bFCF\s+([A-HJ-NP-Z2-9]{6})\b/g)].map((match) => match[1]);

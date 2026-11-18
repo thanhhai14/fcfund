@@ -30,4 +30,20 @@ assert.equal(hasAcbAuthentication([auth.replace("mx.google.com", "attacker.examp
 assert.equal(hasAcbAuthentication([auth.replaceAll("acb.com.vn", "acb.com.vn.evil.example")]), false);
 assert.equal(hasAcbAuthentication([]), false);
 assert.equal(emailHash("secret").length, 64);
-console.log("ACB email: 21 parser/authentication assertions passed; no database used.");
+const gmailBody = body
+  .replace("602,903.00 VND tính đến 13/11/2026.", "*602,903.00 VND* tính đến *13/11/2026*.")
+  .replace("Ghi có +10,000.00 VND.", "Ghi có *+10,000.00 VND*.")
+  .replace("FCF A7K9P2 THANH HAI.", "*MBVCB.123456.FCF A7K9P2 THANH HAI.CT TU TEST*.");
+assert.deepEqual(parseAcbEmail(gmailBody), {
+  amount: 10000,
+  account: "xxxxx1234",
+  transactionDate: "2026-11-13",
+  content: "MBVCB.123456.FCF A7K9P2 THANH HAI.CT TU TEST",
+  reference: "A7K9P2",
+});
+assert.equal(parseAcbEmail(gmailBody.replace("*+10,000.00 VND*", "*-10,000.00 VND*")), null);
+assert.equal(parseAcbEmail(gmailBody.replace("*13/11/2026*", "*31/02/2026*")), null);
+assert.equal(parseAcbEmail(gmailBody.replace("*+10,000.00 VND*", "*+10,000.00 VND")), null);
+assert.equal(parseAcbEmail(gmailBody.replace("*+10,000.00 VND*", "*+10,000.50 VND*")), null);
+assert.equal(parseAcbEmail(gmailBody.replace("xxxxx1234", "**xxxxx1234**"))?.account, "xxxxx1234");
+console.log("ACB email: parser and authentication checks passed; no database used.");
