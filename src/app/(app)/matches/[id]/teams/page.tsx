@@ -21,6 +21,7 @@ import { MemberIdentity } from "@/components/member-identity";
 import { requireUser } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { USE_POSITION_STRENGTH_AND_FORM } from "@/lib/team-balancer";
 import { getMatchLifecycle } from "@/lib/match-lifecycle";
 import { getMatchFormStats } from "@/lib/match-form-stats";
 import { can } from "@/lib/permissions";
@@ -149,7 +150,7 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
       <section className="team-builder-summary">
         <article><small>Người tham gia</small><strong>{participants.length}</strong><span>{participants.length >= 10 ? "Đủ điều kiện tạo đội" : `Cần thêm ${10 - participants.length} người`}</span></article>
         <article><small>Thủ môn</small><strong>{goalkeeperCount}</strong><span>{goalkeeperCount >= 2 ? "Đội thiếu sẽ mượn từ đội nghỉ" : "Cần ít nhất 2 người"}</span></article>
-        <article><small>Hồ sơ chiến thuật</small><strong>{participants.length - missingRoleProfiles}/{participants.length}</strong><span>{missingRoleProfiles ? `${missingRoleProfiles} người dùng thiết lập trung lập` : "Đã đủ vị trí và thế mạnh"}</span></article>
+        <article><small>Hồ sơ chiến thuật</small><strong>{participants.length - missingRoleProfiles}/{participants.length}</strong><span>{missingRoleProfiles ? `${missingRoleProfiles} người chưa điền đủ hồ sơ` : "Đã đủ vị trí và thế mạnh"}</span></article>
         <article><small>Phiên bản hiển thị</small><strong>{displayedVersion ? `v${displayedVersion.version}` : "—"}</strong><span>{displayedVersion?.status === "DRAFT" ? "Bản nháp" : displayedVersion?.status === "CONFIRMED" ? "Đã xác nhận" : "Chưa tạo đội"}</span></article>
       </section>
 
@@ -237,7 +238,9 @@ export default async function MatchTeamsPage({ params }: { params: Promise<{ id:
           <div className="panel-heading"><div><span className="eyebrow">Bước 2</span><h2>Cấu hình và tạo đội</h2></div></div>
           {participants.length < 10 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 10 người tham gia để tạo đội.</p>}
           {goalkeeperCount < 2 && <p className="team-warning"><Icon name="triangle-exclamation" /> Cần ít nhất 2 người được chọn làm thủ môn để có thể luân phiên cho mượn.</p>}
-          {missingRoleProfiles > 0 && <p className="team-warning neutral"><Icon name="info" /> {missingRoleProfiles} người chưa khai báo đủ vị trí mong muốn và thế mạnh; hệ thống vẫn chia như cầu thủ linh hoạt/trung lập.</p>}
+          {USE_POSITION_STRENGTH_AND_FORM
+            ? missingRoleProfiles > 0 && <p className="team-warning neutral"><Icon name="info" /> {missingRoleProfiles} người chưa khai báo đủ vị trí mong muốn và thế mạnh.</p>
+            : <p className="team-warning neutral"><Icon name="info" /> Chia đội theo Tier. Vị trí, thế mạnh và phong độ chỉ để tham khảo.</p>}
           <TeamDrawExperience
             action={generateMatchTeamsAction}
             matchId={match.id}

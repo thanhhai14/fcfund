@@ -222,6 +222,8 @@ Không có phương án thỏa ràng buộc cứng thì phải dừng và thông
 
 ### 5.2. Mục tiêu mềm
 
+Hiện tại chế độ bốc thăm chỉ chấm theo Tier. Công tắc `USE_POSITION_STRENGTH_AND_FORM` đang tắt, nên vị trí, thế mạnh và phong độ chỉ dùng để hiển thị. Tiêu chí đủ công/thủ và cách phân định cầu thủ cùng Tier theo phong độ cũng tạm tắt. Quân số, thủ môn và quy tắc rải Tier 1 vẫn áp dụng. Các tỷ lệ 75/20/5 và bước chọn người theo công/thủ bên dưới mô tả chế độ đầy đủ khi bật lại.
+
 Trong các phương án hợp lệ, hệ thống tối thiểu hóa hàm chi phí khái niệm:
 
 Sau khi thỏa các ràng buộc cứng, điểm so sánh phương án được chuẩn hóa theo tỷ lệ:

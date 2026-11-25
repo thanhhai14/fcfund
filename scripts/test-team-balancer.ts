@@ -1,4 +1,4 @@
-import { generateBalancedTeams, type BalanceParticipant, type SeedTier } from "../src/lib/team-balancer";
+import { generateBalancedTeams, USE_POSITION_STRENGTH_AND_FORM, type BalanceParticipant, type SeedTier } from "../src/lib/team-balancer";
 import { calculateAdjustedFormScore, placementFormScore } from "../src/lib/form-score";
 
 if (placementFormScore(4, 1) !== 10_000) throw new Error("Hạng nhất phải nhận 100 điểm phong độ.");
@@ -38,7 +38,6 @@ for (const [memberCount, teamCount] of [[10, 2], [14, 3], [18, 4], [19, 4], [20,
   if (JSON.stringify(first) !== JSON.stringify(repeated)) throw new Error("Random key không tái hiện kết quả.");
   const sizes = first.teams.map((team) => team.memberCount);
   const goalkeepers = first.teams.map((team) => team.goalkeeperCount);
-  const lowFormCounts = first.teams.map((team) => team.lowFormCount);
   if (sizes.reduce((sum, size) => sum + size, 0) !== memberCount) throw new Error("Thiếu người trong kết quả.");
   if (Math.min(...sizes) < 1 || Math.max(...sizes) - Math.min(...sizes) > 1) throw new Error("Quân số không hợp lệ.");
   if (goalkeepers.some((count) => count > 1) || goalkeepers.reduce((sum, count) => sum + count, 0) < 2) {
@@ -46,9 +45,19 @@ for (const [memberCount, teamCount] of [[10, 2], [14, 3], [18, 4], [19, 4], [20,
   }
   const tierOneDistribution = first.teams.map((team) => team.tierCounts.TIER_1);
   if (Math.max(...tierOneDistribution) - Math.min(...tierOneDistribution) > 1) throw new Error("TIER_1 bị gom quá nhiều vào một đội.");
-  if (Math.max(...lowFormCounts) - Math.min(...lowFormCounts) > 1) throw new Error("Người có phong độ thấp chưa được phân bổ đều.");
-  if (first.teams.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) {
-    throw new Error(`Đội hình chính chưa đủ khả năng công/thủ ở case ${memberCount}/${teamCount}.`);
+  if (USE_POSITION_STRENGTH_AND_FORM) continue;
+  const changedProfiles = input.map((player) => ({
+    ...player,
+    desiredPositions: [],
+    playerStrength: null,
+    formScore: 10_000 - player.formScore,
+    lowForm: !player.lowForm,
+  }));
+  const withoutProfiles = generateBalancedTeams(changedProfiles, teamCount, `test-${memberCount}-${teamCount}`);
+  const assignments = (result: typeof first) => result.teams.map((team) =>
+    team.members.map((member) => [member.participantId, member.assignedAsGoalkeeper]));
+  if (first.cost !== withoutProfiles.cost || JSON.stringify(assignments(first)) !== JSON.stringify(assignments(withoutProfiles))) {
+    throw new Error("Vị trí, thế mạnh hoặc phong độ vẫn ảnh hưởng đến lượt chia theo Tier.");
   }
 }
 

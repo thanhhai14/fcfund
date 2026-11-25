@@ -34,6 +34,8 @@ const STARTING_OUTFIELD_COUNT = OUTFIELD_STARTERS_PER_TEAM;
 const INITIAL_CANDIDATE_COUNT = 128;
 const ACCEPTABLE_LINEUP_SEED_GAP = 1;
 const RANDOM_VARIETY_COST_DELTA = 2_000_000;
+// Keep profile metrics available for display while drawing teams by Tier only.
+export const USE_POSITION_STRENGTH_AND_FORM = false;
 
 function emptyRoleCounts(): RoleCounts { return { DEFENDER: 0, MIDFIELDER: 0, FORWARD: 0 }; }
 function emptyStrengthCounts(): StrengthCounts { return { DEFENSE: 0, ATTACK: 0 }; }
@@ -80,9 +82,10 @@ function startingLineup(members: BalanceParticipant[], borrowedGoalkeeper: Borro
   const goalkeeper = members.find((member) => member.assignedAsGoalkeeper);
   const allOutfield = members.filter((member) => !member.assignedAsGoalkeeper);
   const rankedOutfield = [...allOutfield].sort((first, second) => SEED_WEIGHT[second.seedTier] - SEED_WEIGHT[first.seedTier]
-    || second.formScore - first.formScore || first.participantId.localeCompare(second.participantId));
+    || (USE_POSITION_STRENGTH_AND_FORM ? second.formScore - first.formScore : 0)
+    || first.participantId.localeCompare(second.participantId));
   let selectedOutfield = rankedOutfield.slice(0, STARTING_OUTFIELD_COUNT);
-  for (let pass = 0; pass < 2; pass += 1) {
+  for (let pass = 0; USE_POSITION_STRENGTH_AND_FORM && pass < 2; pass += 1) {
     const currentRoles = assignVirtualRoles(selectedOutfield);
     if (currentRoles.hasDefense && currentRoles.hasAttack) break;
     const starterIds = new Set(selectedOutfield.map((member) => member.participantId));
@@ -176,7 +179,7 @@ function isValidFinalCandidate(teams: BalanceParticipant[][], assignedGoalkeeper
     || summaries.reduce((sum, team) => sum + team.goalkeeperCount, 0) !== assignedGoalkeeperCount) return false;
   if (summaries.some((team) => team.memberCount - team.goalkeeperCount < STARTING_OUTFIELD_COUNT)) return false;
   if (spread(summaries.map((team) => team.tierCounts.TIER_1)) > 1) return false;
-  return summaries.every((team) => team.lineupHasDefense && team.lineupHasAttack);
+  return !USE_POSITION_STRENGTH_AND_FORM || summaries.every((team) => team.lineupHasDefense && team.lineupHasAttack);
 }
 
 function canonicalTeamsKey(teams: BalanceParticipant[][]) {
@@ -209,14 +212,16 @@ export function balanceCost(teams: BalanceParticipant[][]) {
   const tacticalDifference = 0.8 * (0.7 * lineupRoleDifference + 0.3 * lineupStrengthDifference)
     + 0.2 * (0.7 * roleDifference + 0.3 * strengthDifference);
   const formDifference = spread(summaries.map((team) => team.lineupFormScore)) / 10_000;
-  const softCost = (0.75 * tierDifference + 0.2 * tacticalDifference + 0.05 * formDifference) * 100_000_000;
+  const softCost = (USE_POSITION_STRENGTH_AND_FORM
+    ? 0.75 * tierDifference + 0.2 * tacticalDifference + 0.05 * formDifference
+    : tierDifference) * 100_000_000;
 
   return sizeGap * 1e13
     + goalkeeperGap * 1e12
     + topTierExcess * 1e11
     + lineupSizeGap * 1e10
     + lineupSeedExcess * 5e9
-    + missingCoverage * 1e9
+    + (USE_POSITION_STRENGTH_AND_FORM ? missingCoverage * 1e9 : 0)
     + softCost;
 }
 
@@ -369,6 +374,8 @@ export function generateBalancedTeams(participants: BalanceParticipant[], teamCo
   if (spread(summaries.map((team) => team.tierCounts.TIER_1)) > 1) {
     throw new Error("Không thể phân bổ đều Tier 1; hãy mở khóa các cầu thủ đã giữ đội và thử lại.");
   }
-  if (summaries.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) throw new Error("Không thể tạo đội hình chính có đủ khả năng tấn công và phòng thủ cho mọi đội.");
+  if (USE_POSITION_STRENGTH_AND_FORM && summaries.some((team) => !team.lineupHasDefense || !team.lineupHasAttack)) {
+    throw new Error("Không thể tạo đội hình chính có đủ khả năng tấn công và phòng thủ cho mọi đội.");
+  }
   return { teams: summaries, cost: currentCost };
 }
